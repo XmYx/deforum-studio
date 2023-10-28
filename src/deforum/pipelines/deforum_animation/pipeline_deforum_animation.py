@@ -44,6 +44,7 @@ from ...utils.constants import root_path, other_model_dir
 from ...utils.deforum_hybrid_animation import hybrid_generation
 from ...utils.deforum_logger_util import Logger
 from ...utils.image_utils import load_image_with_mask, prepare_mask, check_mask_for_errors
+from ...utils.sdxl_styles import STYLE_NAMES, apply_style
 from ...utils.string_utils import split_weighted_subprompts, check_is_number
 from ...utils.video_frame_utils import get_frame_name
 
@@ -568,7 +569,9 @@ class DeforumAnimationPipeline(DeforumBase):
             if self.gen.frame_idx == 0:
                 gen_args["reset_noise"] = True
 
-            # print(f"DEFORUM GEN ARGS: [{gen_args}] ")
+            if hasattr(self.gen, "style"):
+                if self.gen.style in STYLE_NAMES:
+                    gen_args["prompt"], gen_args["negative_prompt"] = apply_style(self.gen.style, gen_args["prompt"], gen_args["negative_prompt"])
 
             if self.gen.enable_subseed_scheduling:
                 gen_args["subseed"] = self.gen.subseed
@@ -577,10 +580,7 @@ class DeforumAnimationPipeline(DeforumBase):
                 gen_args["seed_resize_from_w"] = self.gen.seed_resize_from_w
 
             processed = self.generator(**gen_args)
-
             torch.cuda.empty_cache()
-
-
 
         if processed is None:
             # Mask functions

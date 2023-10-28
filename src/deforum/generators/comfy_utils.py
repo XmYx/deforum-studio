@@ -4,7 +4,6 @@ import sys
 
 from deforum.utils.constants import comfy_path
 
-
 def ensure_comfy():
     # 1. Check if the "src" directory exists
     # if not os.path.exists(os.path.join(root_path, "src")):
