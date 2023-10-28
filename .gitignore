@@ -188,3 +188,5 @@ wandb
 *.pth
 
 output/
+models/
+src/ComfyUI/

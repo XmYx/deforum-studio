@@ -206,7 +206,8 @@ setup(
     python_requires=">=3.8.0",
     install_requires=list(install_requires),
     extras_require=extras,
-    entry_points={"console_scripts": ["deforum=deforum.commands.deforum_cli:start_deforum_cli"]},
+    entry_points={"console_scripts": ["deforum=deforum.commands.deforum_cli:start_deforum_cli",
+                                      "deforum-test=deforum.commands.deforum_test:start_deforum_test"]},
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
