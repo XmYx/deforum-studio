@@ -22,7 +22,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/
@@ -188,4 +187,6 @@ wandb
 *.ckpt
 *.pth
 
-_to_be_stashed_away/
+output/
+models/
+src/ComfyUI/

@@ -1,10 +1,9 @@
-import os
+import platform
 import re
+import sys
 from distutils.core import Command
 
 from setuptools import find_packages, setup
-import sys
-import platform
 
 python_version = '.'.join(map(str, sys.version_info[:2]))
 os_name = platform.system().lower()
@@ -56,7 +55,6 @@ else:
 torch_path = f"https://download.pytorch.org/whl/cu118/{torch_url}"
 torchvision_path = f"https://download.pytorch.org/whl/cu118/{torchvision_url}"
 
-
 # IMPORTANT:
 # 1. all dependencies should be listed here with their version requirements if any
 # 2. once modified, run: `make deps_table_update` to update src/deforum/dependency_versions_table.py
@@ -100,7 +98,6 @@ pattern = re.compile(r"^([^@!=<>~]+)(?:[@!=<>~].*)?$")
 deps = {match[0]: x for x in _deps for match in [pattern.findall(x)] if match}
 
 
-
 # since we save this data in src/deforum/dependency_versions_table.py it can be easily accessed from
 # anywhere. If you need to quickly access the data from this table in a shell, you can do so easily with:
 #
@@ -109,7 +106,8 @@ deps = {match[0]: x for x in _deps for match in [pattern.findall(x)] if match}
 #
 # Just pass the desired package names to that script as it's shown with 2 packages above.
 #
-# If deforum is not yet installed and the work is done from the cloned repo remember to add `PYTHONPATH=src` to the script above
+# If deforum is not yet installed and the work is done from the cloned repo remember to add `PYTHONPATH=src` to the
+# script above
 #
 # You can then feed this for example to `pip`:
 #
@@ -160,33 +158,60 @@ extras = {}
 
 install_requires = []
 
-extras["full"] = deps_list('torch',
-                           'torchvision',
-                           'einops',
-                           'numexpr',
-                           'matplotlib',
-                           'pandas',
-                           'av',
-                           'pims',
-                           'imageio-ffmpeg',
-                           'rich',
-                           'gdown',
-                           'py3d',
-                           'librosa',
-                           'numpy',
-                           'opencv-python-headless',
-                           'basicsr',
-                           'timm',
-                           'transformers',
-                           'omegaconf',
-                           'aiohttp',
-                           'scipy',
-                           'psutil',
-                           'clip-interrogator',
-                           'streamlit',
-                           'torchsde',
-                           'fastapi')
+extras["dev"] = deps_list('torch',
+                          'torchvision',
+                          'einops',
+                          'numexpr',
+                          'matplotlib',
+                          'pandas',
+                          'av',
+                          'pims',
+                          'imageio-ffmpeg',
+                          'rich',
+                          'gdown',
+                          'py3d',
+                          'librosa',
+                          'numpy',
+                          'opencv-python-headless',
+                          'basicsr',
+                          'timm',
+                          'transformers',
+                          'omegaconf',
+                          'aiohttp',
+                          'scipy',
+                          'psutil',
+                          'clip-interrogator',
+                          'streamlit',
+                          'torchsde',
+                          'fastapi')
 
+extras["cli"] = deps_list('torch',
+                          'torchvision',
+                          'einops',
+                          'numexpr',
+                          'matplotlib',
+                          'pandas',
+                          'av',
+                          'pims',
+                          # 'imageio-ffmpeg',
+                          # 'rich',
+                          # 'gdown',
+                          # 'py3d',
+                          # 'librosa',
+                          # 'numpy',
+                          'opencv-python-headless',
+                          'basicsr',
+                          'timm',
+                          'transformers',
+                          'omegaconf',
+                          # 'aiohttp',
+                          # 'scipy',
+                          # 'psutil',
+                          # 'clip-interrogator',
+                          # 'streamlit',
+                          'torchsde',
+                          # 'fastapi')
+                          )
 
 setup(
     name="deforum",
@@ -201,12 +226,15 @@ setup(
     url="https://github.com/XmYx/deforum",
     package_dir={"": "src"},
     packages=find_packages("src"),
-    #package_data={"deforum": ["py.typed"]},
+    # package_data={"deforum": ["py.typed"]},
     include_package_data=True,
     python_requires=">=3.8.0",
     install_requires=list(install_requires),
     extras_require=extras,
-    entry_points={"console_scripts": ["deforum=deforum.commands.deforum_cli:start_deforum_cli"]},
+    entry_points={"console_scripts": ["deforum=deforum.commands.deforum_cli:start_deforum_cli",
+                                      "deforum-test=deforum.commands.deforum_test:start_deforum_test",
+                                      "deforum-profile=deforum.commands.deforum_profiling:start_deforum_test"
+                                      ]},
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
@@ -239,5 +267,5 @@ setup(
 #      deforum test
 # 7. Upload the final version to actual pypi:
 #      twine upload dist/* -r pypi
-# 8. Add release notes to the tag in github once everything is looking deforumish.
+# 8. Add release notes to the tag in GitHub once everything is looking deforumish.
 # 9. Update the version in __init__.py, setup.py to the new version "-dev" and push to master

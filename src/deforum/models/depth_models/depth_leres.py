@@ -4,8 +4,8 @@ import os
 import numpy as np
 import torchvision.transforms as transforms
 from PIL import Image
-from .leres.lib.multi_depth_model_woauxi import RelDepthModel
-from .leres.lib.net_tools import load_ckpt
+from .leres.leres_lib.multi_depth_model_woauxi import RelDepthModel
+from .leres.leres_lib.net_tools import load_ckpt
 from ...utils.file_dl_util import download_file_with_checksum
 
 

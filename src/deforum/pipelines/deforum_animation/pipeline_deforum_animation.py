@@ -69,7 +69,7 @@ class DeforumAnimationPipeline(DeforumBase):
 
         self.generator = generator
 
-        if logger == None:
+        if logger is None:
             self.logger = Logger(root_path)
         else:
             self.logger = logger
@@ -113,7 +113,6 @@ class DeforumAnimationPipeline(DeforumBase):
             self.gen = DeforumGenerationObject(**kwargs)
 
         self.gen.update_from_kwargs(**kwargs)
-
         setup_start = time.time()
         self.pre_setup()
         setup_end = time.time()
@@ -195,11 +194,11 @@ class DeforumAnimationPipeline(DeforumBase):
 
         self.gen.max_frames += 1
 
-        if self.gen.animation_mode in frame_warp_modes:
-            # handle hybrid video generation
-            if self.gen.hybrid_composite != 'None' or self.gen.hybrid_motion in hybrid_motion_modes:
-                _, _, self.gen.inputfiles = hybrid_generation(self.gen, self.gen, self.gen)
-                self.gen.hybrid_frame_path = os.path.join(self.gen.outdir, 'hybridframes')
+        # if self.gen.animation_mode in frame_warp_modes:
+        #     # handle hybrid video generation
+        if self.gen.hybrid_composite != 'None' or self.gen.hybrid_motion in hybrid_motion_modes:
+            _, _, self.gen.inputfiles = hybrid_generation(self.gen, self.gen, self.gen)
+            self.gen.hybrid_frame_path = os.path.join(self.gen.outdir, 'hybridframes')
 
         if int(self.gen.seed) == -1:
             self.gen.seed = secrets.randbelow(18446744073709551615)
@@ -488,7 +487,7 @@ class DeforumAnimationPipeline(DeforumBase):
 
         # this is the first pass
         elif (self.gen.use_looper and self.gen.animation_mode in ['2D', '3D']) or (
-                self.gen.use_init and ((self.gen.init_image != None and self.gen.init_image != ''))):
+                self.gen.use_init and ((self.gen.init_image is not None and self.gen.init_image != ''))):
             init_image, mask_image = load_image_with_mask(image_init0,  # initial init image
                                               shape=(self.gen.W, self.gen.H),
                                               use_alpha_as_mask=self.gen.use_alpha_as_mask)
@@ -659,7 +658,7 @@ class DeforumAnimationPipeline(DeforumBase):
 
             processed = self.generator(**gen_args)
 
-        if self.gen.first_frame == None:
+        if self.gen.first_frame is None:
             self.gen.first_frame = processed
 
         return processed

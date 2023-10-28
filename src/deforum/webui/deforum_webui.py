@@ -1,34 +1,31 @@
 # main_app.py
-import subprocess
-
-import streamlit as st
-st.set_page_config(layout="wide")
-import os
-import importlib.util
-
 import os
 import json
+import streamlit as st
+from deforum import shared_storage as gs
+import importlib.util
+
+st.set_page_config(layout="wide")
 
 curr_folder = os.path.dirname(os.path.abspath(__file__))
 
-from deforum import shared_storage as gs
 
 def load_config_and_initialize():
     # Load the JSON file
 
     with open(f"{curr_folder}/webui_defaults.json", "r") as f:
-        config = json.load(f)
+        streamlit_config = json.load(f)
 
     # Create the default folders if they don't exist
-    for key, folder in config['folders'].items():
+    for key, folder in streamlit_config['folders'].items():
         os.makedirs(folder, exist_ok=True)
 
     # Store the loaded configuration in gs.data
     if "config" not in gs.data:
         gs.data["config"] = {}
-    gs.data["config"].update(config)
+    gs.data["config"].update(streamlit_config)
 
-    return config
+    return streamlit_config
 
 
 config = load_config_and_initialize()
@@ -45,9 +42,13 @@ def import_module_from_path(module_name, file_path):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
 def save_tabs_to_json():
     with open('config/tabs.json', 'w') as f:
         json.dump({key: value["active"] for key, value in st.session_state.modules.items()}, f)
+
+
 def load_tabs_from_json():
     try:
         with open('config/tabs.json', 'r') as f:
@@ -57,29 +58,29 @@ def load_tabs_from_json():
 
 
 def main():
-
     # Load the tabs from the JSON file if it exists
-    json_filepath = 'config/tabs.json'
+    # json_filepath = 'config/tabs.json'
 
     print(os.listdir(f'{curr_folder}/deforum_webui_modules'))
     if "modules" not in st.session_state:
-        module_files = [f for f in os.listdir(f'{curr_folder}/deforum_webui_modules') if f.endswith('.py') and f != '__init__.py']
+        module_files = [f for f in os.listdir(f'{curr_folder}/deforum_webui_modules') if
+                        f.endswith('.py') and f != '__init__.py']
         st.session_state.modules = {}
         tab_names = []
 
         for file in module_files:
             module_name = file.replace('.py', '')
-            module = import_module_from_path(module_name, os.path.join(curr_folder,'deforum_webui_modules', file))
+            module = import_module_from_path(module_name, os.path.join(curr_folder, 'deforum_webui_modules', file))
 
-            st.session_state.modules[module_name] = {   "name":module.plugin_info["name"],
-                                                        "module":module,
-                                                        "active":True
-                                                        }
+            st.session_state.modules[module_name] = {"name": module.plugin_info["name"],
+                                                     "module": module,
+                                                     "active": True
+                                                     }
             tab_names.append(module.plugin_info["name"])
-        st.session_state.modules["toggle_tab"] = {   "name":"Toggle Tabs",
-                                                        "module":None,
-                                                        "active":True
-                                                        }
+        st.session_state.modules["toggle_tab"] = {"name": "Toggle Tabs",
+                                                  "module": None,
+                                                  "active": True
+                                                  }
         tab_names.append("Toggle Tabs")
         st.session_state.tab_names = tab_names
 
@@ -91,12 +92,12 @@ def main():
         if module_name in st.session_state.modules:
             st.session_state.modules[module_name]["active"] = is_active
 
-    #tabs = st.tabs(st.session_state.tab_names)
+    # tabs = st.tabs(st.session_state.tab_names)
     tabs = st.tabs([value["name"] for key, value in st.session_state.modules.items() if value["active"]])
 
     with tabs[len(tabs) - 1]:
         with st.form("Toggle Tabs"):
-            toggles = {}
+            # toggles = {}
             for key, value in st.session_state.modules.items():
                 if value["name"] != "Toggle Tabs":
                     value["active"] = st.toggle(f'Enable {value["name"]} tab', value=value["active"])
@@ -105,7 +106,6 @@ def main():
                 save_tabs_to_json()
 
                 st.experimental_rerun()
-
 
     active_modules = {}
     x = 0
@@ -129,9 +129,7 @@ def toggle_tab():
                 modules[tab] = st.toggle(f"Enable {module.plugin_info['name']}")
 
         if st.form_submit_button('Update Tabs'):
-
             print(st.session_state.modules)
-
 
             # Update the active modules in session state
             # active_modules = [tab for tab, is_active in modules.items() if is_active]
@@ -144,10 +142,9 @@ def toggle_tab():
 
 
 def main__():
-
-
     print("MODULES", os.listdir(f'{curr_folder}/deforum_webui_modules'))
-    module_files = [f for f in os.listdir(f'{curr_folder}/deforum_webui_modules') if f.endswith('.py') and f != '__init__.py']
+    module_files = [f for f in os.listdir(f'{curr_folder}/deforum_webui_modules') if
+                    f.endswith('.py') and f != '__init__.py']
 
     modules = {}
     tab_names = []

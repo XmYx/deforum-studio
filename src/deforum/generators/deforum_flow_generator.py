@@ -20,7 +20,6 @@ def get_flow_for_hybrid_motion(frame_idx,
                                consistency_check=True,
                                consistency_blur=0,
                                do_flow_visualization=False):
-
     print(
         f"Calculating {method} optical flow {'w/consistency mask' if consistency_check else ''} for frames {frame_idx} to {frame_idx + 1}")
     i1 = get_resized_image_from_filename(str(inputfiles[frame_idx]), dimensions)
@@ -225,7 +224,7 @@ def save_flow_mask_visualization(frame_idx, reliable_flow, hybrid_frame_path, co
     if color:
         # Normalize the reliable_flow array to the range [0, 255]
         normalized_reliable_flow = (reliable_flow - reliable_flow.min()) / (
-                    reliable_flow.max() - reliable_flow.min()) * 255
+                reliable_flow.max() - reliable_flow.min()) * 255
         # Change the data type to np.uint8
         mask_image = normalized_reliable_flow.astype(np.uint8)
     else:
@@ -233,7 +232,7 @@ def save_flow_mask_visualization(frame_idx, reliable_flow, hybrid_frame_path, co
         first_channel = reliable_flow[..., 0]
         # Normalize the first channel to the range [0, 255]
         normalized_first_channel = (first_channel - first_channel.min()) / (
-                    first_channel.max() - first_channel.min()) * 255
+                first_channel.max() - first_channel.min()) * 255
         # Change the data type to np.uint8
         grayscale_image = normalized_first_channel.astype(np.uint8)
         # Replicate the grayscale channel three times to form a BGR image
@@ -325,6 +324,7 @@ def draw_flow_lines_in_color(img, flow, threshold=3, magnitude_multiplier=1, min
 
     return vis
 
+
 def extend_flow(flow, w, h):
     # Get the shape of the original flow image
     flow_h, flow_w = flow.shape[:2]
@@ -356,8 +356,8 @@ def abs_flow_to_rel_flow(flow, width, height):
 
 
 def rel_flow_to_abs_flow(rel_flow,
-                         width:int,
-                         height:int):
+                         width: int,
+                         height: int):
     rel_fx, rel_fy = rel_flow[:, :, 0], rel_flow[:, :, 1]
 
     max_flow_x = np.max(np.abs(rel_fx * width))
@@ -367,6 +367,7 @@ def rel_flow_to_abs_flow(rel_flow,
     fx = rel_fx * (max_flow * width)
     fy = rel_fy * (max_flow * height)
     return np.dstack((fx, fy))
+
 
 def remap(img,
           flow):
@@ -380,6 +381,7 @@ def remap(img,
     remapped_img = cv2.remap(larger_img, larger_flow, None, cv2.INTER_LINEAR, border_mode)
     output_img = center_crop_image(remapped_img, w, h)
     return output_img
+
 
 def get_hybrid_motion_default_flow(dimensions):
     cols, rows = dimensions

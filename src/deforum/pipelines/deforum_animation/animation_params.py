@@ -1,14 +1,8 @@
-import json
 import os
-import random
 import tempfile
-import time
-from types import SimpleNamespace
 
 from ...utils.constants import get_os
 
-
-# from ...utils.string_utils import substitute_placeholders
 
 def DeforumAnimPrompts():
     return r"""{
@@ -1188,5 +1182,160 @@ auto_to_comfy = {
     "Restart": {"sampler": "restart",
                 "scheduler": "karras"},
 }
+
+hybrid_params_dict = \
+    {"video_init_path": {
+        "label": "Hybrid Video Init",
+        "type": "lineedit",
+        "value": "",
+        "info": ""
+    },
+    "hybrid_comp_alpha_schedule": {
+        "label": "Comp alpha schedule",
+        "type": "textbox",
+        "value": "0:(0.5)",
+        "info": ""
+    },
+        "hybrid_comp_mask_blend_alpha_schedule": {
+            "label": "Comp mask blend alpha schedule",
+            "type": "textbox",
+            "value": "0:(0.5)",
+            "info": ""
+        },
+        "hybrid_comp_mask_contrast_schedule": {
+            "label": "Comp mask contrast schedule",
+            "type": "textbox",
+            "value": "0:(1)",
+            "info": ""
+        },
+        "hybrid_comp_mask_auto_contrast_cutoff_high_schedule": {
+            "label": "Comp mask auto contrast cutoff high schedule",
+            "type": "textbox",
+            "value": "0:(100)",
+            "info": ""
+        },
+        "hybrid_comp_mask_auto_contrast_cutoff_low_schedule": {
+            "label": "Comp mask auto contrast cutoff low schedule",
+            "type": "textbox",
+            "value": "0:(0)",
+            "info": ""
+        },
+        "hybrid_flow_factor_schedule": {
+            "label": "Flow factor schedule",
+            "type": "textbox",
+            "value": "0:(1)",
+            "info": ""
+        },
+        "hybrid_generate_inputframes": {
+            "label": "Generate inputframes",
+            "type": "checkbox",
+            "value": False,
+            "info": ""
+        },
+        "hybrid_generate_human_masks": {
+            "label": "Generate human masks",
+            "type": "radio",
+            "choices": ['None', 'PNGs', 'Video', 'Both'],
+            "value": "None",
+            "info": ""
+        },
+        "hybrid_use_first_frame_as_init_image": {
+            "label": "First frame as init image",
+            "type": "checkbox",
+            "value": True,
+            "info": "",
+            "visible": False
+        },
+        "hybrid_motion": {
+            "label": "Hybrid motion",
+            "type": "radio",
+            "choices": ['None', 'Optical Flow', 'Perspective', 'Affine'],
+            "value": "None",
+            "info": ""
+        },
+        "hybrid_motion_use_prev_img": {
+            "label": "Motion use prev img",
+            "type": "checkbox",
+            "value": False,
+            "info": "",
+            "visible": False
+        },
+        "hybrid_flow_consistency": {
+            "label": "Flow consistency mask",
+            "type": "checkbox",
+            "value": False,
+            "info": "",
+            "visible": False
+        },
+        "hybrid_consistency_blur": {
+            "label": "Consistency mask blur",
+            "type": "slider",
+            "minimum": 0,
+            "maximum": 16,
+            "step": 1,
+            "value": 2,
+            "visible": False
+        },
+        "hybrid_flow_method": {
+            "label": "Flow method",
+            "type": "radio",
+            "choices": ['RAFT', 'DIS Medium', 'DIS Fine', 'Farneback'],
+            "value": "RAFT",
+            "info": "",
+            "visible": False
+        },
+        "hybrid_composite": {
+            "label": "Comp mask type",
+            "type": "radio",
+            "choices": ['None', 'Normal', 'Before Motion', 'After Generation'],
+            "value": "None",
+            "info": "",
+            "visible": False
+        },
+
+        "hybrid_use_init_image": {
+            "label": "Use init image as video",
+            "type": "checkbox",
+            "value": False,
+            "info": "",
+        },
+        "hybrid_comp_mask_type": {
+            "label": "Comp mask type",
+            "type": "radio",
+            "choices": ['None', 'Depth', 'Video Depth', 'Blend', 'Difference'],
+            "value": "None",
+            "info": "",
+            "visible": False
+        },
+        "hybrid_comp_mask_inverse": {
+            "label": "Flow consistency mask",
+            "type": "checkbox",
+            "value": False,
+            "info": "",
+            "visible": False
+        },
+        "hybrid_comp_mask_equalize": {
+            "label": "Comp mask equalize",
+            "type": "radio",
+            "choices": ['None', 'Before', 'After', 'Both'],
+            "value": "None",
+            "info": "",
+        },
+        "hybrid_comp_mask_auto_contrast": {
+            "label": "Hybrid Auto Contrast",
+            "type": "checkbox",
+            "value": False,
+            "info": "",
+            "visible": False
+        },
+        "hybrid_comp_save_extra_frames": {
+            "label": "Save Extra Hybrid Frames",
+            "type": "checkbox",
+            "value": False,
+            "info": "",
+            "visible": False
+        }
+    }
+
 
 

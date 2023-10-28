@@ -1,16 +1,21 @@
-'''
+"""
 Taken from https://github.com/Sxela/flow_tools/blob/main
-'''
+"""
 # import argparse
 # import PIL.Image
 import numpy as np
+
+
 # import scipy.ndimage
 # import glob
 # from tqdm import tqdm
 
 def make_consistency(flow1, flow2, edges_unreliable=False):
-    # Awesome pythonic consistency check from [maua](https://github.com/maua-maua-maua/maua/blob/44485c745c65cf9d83cb1b1c792a177588e9c9fc/maua/flow/consistency.py) by Hans Brouwer and Henry Rachootin
-    # algorithm based on https://github.com/manuelruder/artistic-videos/blob/master/consistencyChecker/consistencyChecker.cpp
+    # Awesome pythonic consistency check from [maua]
+    # (https://github.com/maua-maua-maua/maua/blob/44485c745c65cf9d83cb1b1c792a177588e9c9fc/maua/flow/consistency.py)
+    # by Hans Brouwer and Henry Rachootin
+    # algorithm based on
+    # https://github.com/manuelruder/artistic-videos/blob/master/consistencyChecker/consistencyChecker.cpp
     # reimplemented in numpy by Hans Brouwer
     # // consistencyChecker
     # // Check consistency of forward flow via backward flow.
@@ -53,7 +58,7 @@ def make_consistency(flow1, flow2, edges_unreliable=False):
     reliable_flow = np.ones((squared_diff.shape[0], squared_diff.shape[1], 3))
     reliable_flow[..., 0] = np.where(squared_diff >= threshold, -0.75, 1)
 
-    # areas mapping outside of the frame are also occluded (don't need extra region around these though, so set 0)
+    # areas mapping outside the frame are also occluded (don't need extra region around these though, so set 0)
     if edges_unreliable:
         reliable_flow[..., 1] = np.where(
             np.logical_or.reduce(

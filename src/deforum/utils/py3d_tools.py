@@ -23,7 +23,6 @@ Device = Union[str, torch.device]
 _R = torch.eye(3)[None]  # (1, 3, 3)
 _T = torch.zeros(1, 3)  # (1, 3)
 
-
 # Provide get_origin and get_args even in Python 3.7.
 
 if sys.version_info >= (3, 8, 0):
@@ -33,12 +32,14 @@ elif sys.version_info >= (3, 7, 0):
     def get_origin(cls):  # pragma: no cover
         return getattr(cls, "__origin__", None)
 
+
     def get_args(cls):  # pragma: no cover
         return getattr(cls, "__args__", None)
 
 
 else:
     raise ImportError("This module requires Python 3.7+")
+
 
 ################################################################
 ##   ██████╗██╗      █████╗ ███████╗███████╗███████╗███████╗  ##
@@ -175,17 +176,17 @@ class Transform3d:
     """
 
     def __init__(
-        self,
-        dtype: torch.dtype = torch.float32,
-        device: Device = "cpu",
-        matrix: Optional[torch.Tensor] = None,
+            self,
+            dtype: torch.dtype = torch.float32,
+            device: Device = "cpu",
+            matrix: Optional[torch.Tensor] = None,
     ) -> None:
         """
         Args:
             dtype: The data type of the transformation matrix.
                 to be used if `matrix = None`.
             device: The device for storing the implemented transformation.
-                If `matrix != None`, uses the device of input `matrix`.
+                If `matrix is not None`, uses the device of input `matrix`.
             matrix: A tensor of shape (4, 4) or of shape (minibatch, 4, 4)
                 representing the 4x4 3D transformation matrix.
                 If `None`, initializes with identity using
@@ -215,7 +216,7 @@ class Transform3d:
         return self.get_matrix().shape[0]
 
     def __getitem__(
-        self, index: Union[int, List[int], slice, torch.Tensor]
+            self, index: Union[int, List[int], slice, torch.Tensor]
     ) -> "Transform3d":
         """
         Args:
@@ -459,10 +460,10 @@ class Transform3d:
         return other
 
     def to(
-        self,
-        device: Device,
-        copy: bool = False,
-        dtype: Optional[torch.dtype] = None,
+            self,
+            device: Device,
+            copy: bool = False,
+            dtype: Optional[torch.dtype] = None,
     ) -> "Transform3d":
         """
         Match functionality of torch.Tensor.to()
@@ -506,14 +507,15 @@ class Transform3d:
     def cuda(self) -> "Transform3d":
         return self.to("cuda")
 
+
 class Translate(Transform3d):
     def __init__(
-        self,
-        x,
-        y=None,
-        z=None,
-        dtype: torch.dtype = torch.float32,
-        device: Optional[Device] = None,
+            self,
+            x,
+            y=None,
+            z=None,
+            dtype: torch.dtype = torch.float32,
+            device: Optional[Device] = None,
     ) -> None:
         """
         Create a new Transform3d representing 3D translations.
@@ -546,13 +548,14 @@ class Translate(Transform3d):
         i_matrix = self._matrix * inv_mask
         return i_matrix
 
+
 class Rotate(Transform3d):
     def __init__(
-        self,
-        R: torch.Tensor,
-        dtype: torch.dtype = torch.float32,
-        device: Optional[Device] = None,
-        orthogonal_tol: float = 1e-5,
+            self,
+            R: torch.Tensor,
+            dtype: torch.dtype = torch.float32,
+            device: Optional[Device] = None,
+            orthogonal_tol: float = 1e-5,
     ) -> None:
         """
         Create a new Transform3d representing 3D rotation using a rotation
@@ -583,6 +586,7 @@ class Rotate(Transform3d):
         Return the inverse of self._matrix.
         """
         return self._matrix.permute(0, 2, 1).contiguous()
+
 
 class TensorAccessor(nn.Module):
     """
@@ -629,9 +633,9 @@ class TensorAccessor(nn.Module):
             msg = "Expected value to have shape %r; got %r"
             raise ValueError(msg % (v.shape, value.shape))
         if (
-            v.dim() == 0
-            and isinstance(self.index, slice)
-            and len(value) != len(self.index)
+                v.dim() == 0
+                and isinstance(self.index, slice)
+                and len(value) != len(self.index)
         ):
             msg = "Expected value to have len %r; got %r"
             raise ValueError(msg % (len(self.index), len(value)))
@@ -650,7 +654,9 @@ class TensorAccessor(nn.Module):
             msg = "Attribute %s not found on %r"
             return AttributeError(msg % (name, self.class_object.__name__))
 
+
 BROADCAST_TYPES = (float, int, list, tuple, torch.Tensor, np.ndarray)
+
 
 class TensorProperties(nn.Module):
     """
@@ -658,10 +664,10 @@ class TensorProperties(nn.Module):
     """
 
     def __init__(
-        self,
-        dtype: torch.dtype = torch.float32,
-        device: Device = "cpu",
-        **kwargs,
+            self,
+            dtype: torch.dtype = torch.float32,
+            device: Device = "cpu",
+            **kwargs,
     ) -> None:
         """
         Args:
@@ -821,6 +827,7 @@ class TensorProperties(nn.Module):
                     v = v.gather(0, _batch_idx)
                     setattr(self, k, v)
         return self
+
 
 class CamerasBase(TensorProperties):
     """
@@ -1003,7 +1010,7 @@ class CamerasBase(TensorProperties):
         return world_to_view_transform.compose(view_to_proj_transform)
 
     def transform_points(
-        self, points, eps: Optional[float] = None, **kwargs
+            self, points, eps: Optional[float] = None, **kwargs
     ) -> torch.Tensor:
         """
         Transform input points from world to camera space with the
@@ -1057,7 +1064,7 @@ class CamerasBase(TensorProperties):
             )
 
     def transform_points_ndc(
-        self, points, eps: Optional[float] = None, **kwargs
+            self, points, eps: Optional[float] = None, **kwargs
     ) -> torch.Tensor:
         """
         Transforms points from PyTorch3D world/camera space to NDC space.
@@ -1084,7 +1091,7 @@ class CamerasBase(TensorProperties):
         return world_to_ndc_transform.transform_points(points, eps=eps)
 
     def transform_points_screen(
-        self, points, eps: Optional[float] = None, **kwargs
+            self, points, eps: Optional[float] = None, **kwargs
     ) -> torch.Tensor:
         """
         Transforms points from PyTorch3D world/camera space to screen space.
@@ -1138,7 +1145,7 @@ class CamerasBase(TensorProperties):
         return self.image_size if hasattr(self, "image_size") else None
 
     def __getitem__(
-        self, index: Union[int, List[int], torch.LongTensor]
+            self, index: Union[int, List[int], torch.LongTensor]
     ) -> "CamerasBase":
         """
         Override for the __getitem__ method in TensorProperties which needs to be
@@ -1184,6 +1191,7 @@ class CamerasBase(TensorProperties):
 
         kwargs["device"] = self.device
         return self.__class__(**kwargs)
+
 
 class FoVPerspectiveCameras(CamerasBase):
     """
@@ -1232,16 +1240,16 @@ class FoVPerspectiveCameras(CamerasBase):
     _SHARED_FIELDS = ("degrees",)
 
     def __init__(
-        self,
-        znear=1.0,
-        zfar=100.0,
-        aspect_ratio=1.0,
-        fov=60.0,
-        degrees: bool = True,
-        R: torch.Tensor = _R,
-        T: torch.Tensor = _T,
-        K: Optional[torch.Tensor] = None,
-        device: Device = "cpu",
+            self,
+            znear=1.0,
+            zfar=100.0,
+            aspect_ratio=1.0,
+            fov=60.0,
+            degrees: bool = True,
+            R: torch.Tensor = _R,
+            T: torch.Tensor = _T,
+            K: Optional[torch.Tensor] = None,
+            device: Device = "cpu",
     ) -> None:
         """
 
@@ -1275,7 +1283,7 @@ class FoVPerspectiveCameras(CamerasBase):
         self.degrees = degrees
 
     def compute_projection_matrix(
-        self, znear, zfar, fov, aspect_ratio, degrees: bool
+            self, znear, zfar, fov, aspect_ratio, degrees: bool
     ) -> torch.Tensor:
         """
         Compute the calibration matrix K of shape (N, 4, 4)
@@ -1383,11 +1391,11 @@ class FoVPerspectiveCameras(CamerasBase):
         return transform
 
     def unproject_points(
-        self,
-        xy_depth: torch.Tensor,
-        world_coordinates: bool = True,
-        scaled_depth_input: bool = False,
-        **kwargs,
+            self,
+            xy_depth: torch.Tensor,
+            world_coordinates: bool = True,
+            scaled_depth_input: bool = False,
+            **kwargs,
     ) -> torch.Tensor:
         """>!
         FoV cameras further allow for passing depth in world units
@@ -1432,6 +1440,7 @@ class FoVPerspectiveCameras(CamerasBase):
     def in_ndc(self):
         return True
 
+
 #######################################################################################
 ##  ██████╗ ███████╗███████╗██╗███╗   ██╗██╗████████╗██╗ ██████╗ ███╗   ██╗███████╗  ##
 ##  ██╔══██╗██╔════╝██╔════╝██║████╗  ██║██║╚══██╔══╝██║██╔═══██╗████╗  ██║██╔════╝  ##
@@ -1458,6 +1467,7 @@ def make_device(device: Device) -> torch.device:
         device = torch.device(f"cuda:{torch.cuda.current_device()}")
     return device
 
+
 def get_device(x, device: Optional[Device] = None) -> torch.device:
     """
     Gets the device of the specified variable x if it is a tensor, or
@@ -1480,6 +1490,7 @@ def get_device(x, device: Optional[Device] = None) -> torch.device:
 
     # Default device is cpu
     return torch.device("cpu")
+
 
 def _axis_angle_rotation(axis: str, angle: torch.Tensor) -> torch.Tensor:
     """
@@ -1510,6 +1521,7 @@ def _axis_angle_rotation(axis: str, angle: torch.Tensor) -> torch.Tensor:
 
     return torch.stack(R_flat, -1).reshape(angle.shape + (3, 3))
 
+
 def euler_angles_to_matrix(euler_angles: torch.Tensor, convention: str) -> torch.Tensor:
     """
     Convert rotations given as Euler angles in radians to rotation matrices.
@@ -1538,6 +1550,7 @@ def euler_angles_to_matrix(euler_angles: torch.Tensor, convention: str) -> torch
     # return functools.reduce(torch.matmul, matrices)
     return torch.matmul(torch.matmul(matrices[0], matrices[1]), matrices[2])
 
+
 def _broadcast_bmm(a, b) -> torch.Tensor:
     """
     Batch multiply two matrices and broadcast if necessary.
@@ -1565,6 +1578,7 @@ def _broadcast_bmm(a, b) -> torch.Tensor:
             b = b.expand(len(a), -1, -1)
     return a.bmm(b)
 
+
 def _safe_det_3x3(t: torch.Tensor):
     """
     Fast determinant calculation for a batch of 3x3 matrices.
@@ -1577,15 +1591,16 @@ def _safe_det_3x3(t: torch.Tensor):
     """
 
     det = (
-        t[..., 0, 0] * (t[..., 1, 1] * t[..., 2, 2] - t[..., 1, 2] * t[..., 2, 1])
-        - t[..., 0, 1] * (t[..., 1, 0] * t[..., 2, 2] - t[..., 2, 0] * t[..., 1, 2])
-        + t[..., 0, 2] * (t[..., 1, 0] * t[..., 2, 1] - t[..., 2, 0] * t[..., 1, 1])
+            t[..., 0, 0] * (t[..., 1, 1] * t[..., 2, 2] - t[..., 1, 2] * t[..., 2, 1])
+            - t[..., 0, 1] * (t[..., 1, 0] * t[..., 2, 2] - t[..., 2, 0] * t[..., 1, 2])
+            + t[..., 0, 2] * (t[..., 1, 0] * t[..., 2, 1] - t[..., 2, 0] * t[..., 1, 1])
     )
 
     return det
 
+
 def get_world_to_view_transform(
-    R: torch.Tensor = _R, T: torch.Tensor = _T
+        R: torch.Tensor = _R, T: torch.Tensor = _T
 ) -> Transform3d:
     """
     This function returns a Transform3d representing the transformation
@@ -1620,6 +1635,7 @@ def get_world_to_view_transform(
     R_ = Rotate(R, device=R.device)
     return R_.compose(T_)
 
+
 def _check_valid_rotation_matrix(R, tol: float = 1e-7) -> None:
     """
     Determine if R is a valid rotation matrix by checking it satisfies the
@@ -1646,10 +1662,11 @@ def _check_valid_rotation_matrix(R, tol: float = 1e-7) -> None:
         warnings.warn(msg)
     return
 
+
 def format_tensor(
-    input,
-    dtype: torch.dtype = torch.float32,
-    device: Device = "cpu",
+        input,
+        dtype: torch.dtype = torch.float32,
+        device: Device = "cpu",
 ) -> torch.Tensor:
     """
     Helper function for converting a scalar value to a tensor.
@@ -1664,7 +1681,7 @@ def format_tensor(
     if not torch.is_tensor(input):
         input = torch.tensor(input, dtype=dtype, device=device_)
     elif not input.device.type.startswith('mps'):
-        input = torch.tensor(input, dtype=torch.float32,device=device_)
+        input = torch.tensor(input, dtype=torch.float32, device=device_)
 
     if input.dim() == 0:
         input = input.view(1)
@@ -1675,10 +1692,11 @@ def format_tensor(
     input = input.to(device=device)
     return input
 
+
 def convert_to_tensors_and_broadcast(
-    *args,
-    dtype: torch.dtype = torch.float32,
-    device: Device = "cpu",
+        *args,
+        dtype: torch.dtype = torch.float32,
+        device: Device = "cpu",
 ):
     """
     Helper function to handle parsing an arbitrary number of inputs (*args)
@@ -1717,6 +1735,7 @@ def convert_to_tensors_and_broadcast(
 
     return args_Nd
 
+
 def _handle_coord(c, dtype: torch.dtype, device: torch.device) -> torch.Tensor:
     """
     Helper function for _handle_input.
@@ -1735,14 +1754,15 @@ def _handle_coord(c, dtype: torch.dtype, device: torch.device) -> torch.Tensor:
         c = c.to(device=device, dtype=dtype)
     return c
 
+
 def _handle_input(
-    x,
-    y,
-    z,
-    dtype: torch.dtype,
-    device: Optional[Device],
-    name: str,
-    allow_singleton: bool = False,
+        x,
+        y,
+        z,
+        dtype: torch.dtype,
+        device: Optional[Device],
+        name: str,
+        allow_singleton: bool = False,
 ) -> torch.Tensor:
     """
     Helper function to handle parsing logic for building transforms. The output

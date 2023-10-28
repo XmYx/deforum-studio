@@ -116,7 +116,7 @@ def vid2frames(video_path, video_in_frame_path, n=1, overwrite=True, extract_fro
                     # if state.interrupted:
                     #    return
                     if (count <= extract_to_frame or extract_to_frame == -1) and count % n == 0:
-                        if numeric_files_output == True:
+                        if numeric_files_output:
                             file_name = f"{t:09}.{out_img_format}"
                         else:
                             file_name = f"{name}{t:09}.{out_img_format}"
@@ -315,8 +315,8 @@ def direct_stitch_vid_from_frames(image_path, fps, add_soundtrack, audio_path):
     min_id = None
     for file in matching_files:
         try:
-            id = int(re.search(r'(\d+)(?=\.\w+$)', file).group(1))
-            min_id = min(min_id, id) if min_id is not None else id
+            check_id = int(re.search(r'(\d+)(?=\.\w+$)', file).group(1))
+            min_id = min(min_id, check_id) if min_id is not None else check_id
         except (AttributeError, ValueError):
             pass
     if min_id is None or not all(os.path.isfile(image_path % (min_id + i)) for i in range(2)):
