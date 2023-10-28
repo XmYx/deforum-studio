@@ -4,7 +4,6 @@ import os
 import requests
 from tqdm import tqdm
 
-
 def fetch_and_download_model(modelId: str, destination: str = ""):
     # Fetch model details
     response = requests.get(f"https://civitai.com/api/v1/models/{modelId}")
