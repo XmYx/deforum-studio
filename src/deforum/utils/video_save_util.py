@@ -4,6 +4,7 @@ import numpy as np
 import subprocess
 import time
 
+
 def save_as_gif(frames, filename):
     # Convert frames to gif
     frames[0].save(
@@ -14,9 +15,8 @@ def save_as_gif(frames, filename):
         loop=0,
     )
 
+
 def save_as_h264(frames, filename, audio_path=None, fps=12):
-
-
     if len(frames) > 0:
 
         if isinstance(frames[0], np.ndarray):

@@ -17,15 +17,15 @@ def sample_from_cv2(sample: np.ndarray) -> torch.Tensor:
     return sample
 
 
-def sample_to_cv2(sample: torch.Tensor, type=np.uint8) -> np.ndarray:
+def sample_to_cv2(sample: torch.Tensor, dtype=np.uint8) -> np.ndarray:
     sample_f32 = rearrange(sample.squeeze().cpu().numpy(), "c h w -> h w c").astype(np.float32)
     sample_f32 = ((sample_f32 * 0.5) + 0.5).clip(0, 1)
     sample_int8 = (sample_f32 * 255)
-    return sample_int8.astype(type)
+    return sample_int8.astype(dtype)
 
 
 def construct_RotationMatrixHomogenous(rotation_angles):
-    assert (type(rotation_angles) == list and len(rotation_angles) == 3)
+    assert (isinstance(rotation_angles, list) and len(rotation_angles) == 3)
     RH = np.eye(4, 4)
     cv2.Rodrigues(np.array(rotation_angles), RH[0:3, 0:3])
     return RH
@@ -91,7 +91,7 @@ def getPoints_for_PerspectiveTranformEstimation(ptsIn, ptsOut, W, H, sidelength)
 
 def warpMatrix(W, H, theta, phi, gamma, scale, fV):
     # M is to be estimated
-    M = np.eye(4, 4)
+    # M = np.eye(4, 4)
 
     fVhalf = np.deg2rad(fV / 2.)
     d = np.sqrt(W * W + H * H)
@@ -123,7 +123,7 @@ def warpMatrix(W, H, theta, phi, gamma, scale, fV):
     ptsIn = np.array([[
         [-W / 2., H / 2., 0.], [W / 2., H / 2., 0.], [W / 2., -H / 2., 0.], [-W / 2., -H / 2., 0.]
     ]])
-    ptsOut = np.array(np.zeros((ptsIn.shape), dtype=ptsIn.dtype))
+    # ptsOut = np.array(np.zeros((ptsIn.shape), dtype=ptsIn.dtype))
     ptsOut = cv2.perspectiveTransform(ptsIn, F)
 
     ptsInPt2f, ptsOutPt2f = getPoints_for_PerspectiveTranformEstimation(ptsIn, ptsOut, W, H, sideLength)
@@ -142,7 +142,7 @@ def get_flip_perspective_matrix(W, H, keys, frame_idx):
     perspective_flip_gamma = keys.perspective_flip_gamma_series[frame_idx]
     perspective_flip_fv = keys.perspective_flip_fv_series[frame_idx]
     M, sl = warpMatrix(W, H, perspective_flip_theta, perspective_flip_phi, perspective_flip_gamma, 1.,
-                       perspective_flip_fv) #TODO check why this ";" was here
+                       perspective_flip_fv)  # TODO check why this ";" was here
     post_trans_mat = np.float32([[1, 0, (W - sl) / 2], [0, 1, (H - sl) / 2]])
     post_trans_mat = np.vstack([post_trans_mat, [0, 0, 1]])
     bM = np.matmul(M, post_trans_mat)
@@ -232,7 +232,8 @@ def transform_image_3d_switcher(device, prev_img_cv2, depth_tensor, rot_mat, tra
 
 
 def transform_image_3d_legacy(device, prev_img_cv2, depth_tensor, rot_mat, translate, anim_args, keys, frame_idx):
-    # adapted and optimized version of transform_image_3d from Disco Diffusion https://github.com/alembics/disco-diffusion
+    # adapted and optimized version of transform_image_3d from Disco Diffusion
+    # https://github.com/alembics/disco-diffusion
     w, h = prev_img_cv2.shape[1], prev_img_cv2.shape[0]
 
     if anim_args.aspect_ratio_use_old_formula:
@@ -284,10 +285,10 @@ def transform_image_3d_legacy(device, prev_img_cv2, depth_tensor, rot_mat, trans
 
 
 def transform_image_3d_new(device, prev_img_cv2, depth_tensor, rot_mat, translate, anim_args, keys, frame_idx):
-    '''
-    originally an adapted and optimized version of transform_image_3d from Disco Diffusion https://github.com/alembics/disco-diffusion
-    modified by reallybigname to control various incoming tensors
-    '''
+    """
+    originally an adapted and optimized version of transform_image_3d from Disco Diffusion
+    https://github.com/alembics/disco-diffusion modified by reallybigname to control various incoming tensors
+    """
     if anim_args.depth_algorithm.lower().startswith('midas'):  # 'Midas-3-Hybrid' or 'Midas-3.1-BeitLarge'
         depth = 1
         depth_factor = -1
@@ -353,9 +354,9 @@ def transform_image_3d_new(device, prev_img_cv2, depth_tensor, rot_mat, translat
 
         # console reporting of depth normalization, min, max, diff
         # will *only* print to console if Dev mode is enabled in general settings of Deforum
-        txt_depth_min, txt_depth_max = '{:.2f}'.format(float(depth_tensor.min())), '{:.2f}'.format(
-            float(depth_tensor.max()))
-        diff = '{:.2f}'.format(float(depth_tensor.max()) - float(depth_tensor.min()))
+        # txt_depth_min, txt_depth_max = '{:.2f}'.format(float(depth_tensor.min())), '{:.2f}'.format(
+        #     float(depth_tensor.max()))
+        # diff = '{:.2f}'.format(float(depth_tensor.max()) - float(depth_tensor.min()))
         # console_txt = f"\033[36mDepth normalized to {depth_final.min()}/{depth_final.max()} from"
         # debug_print(f"{console_txt} {txt_depth_min}/{txt_depth_max} diff {diff}\033[0m")
 

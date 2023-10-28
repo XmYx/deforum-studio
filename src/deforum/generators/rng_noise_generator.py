@@ -21,7 +21,6 @@ from types import SimpleNamespace
 import torch
 import numpy as np
 
-
 philox_m = [0xD2511F53, 0xCD9E8D57]
 philox_w = [0x9E3779B9, 0xBB67AE85]
 
@@ -49,10 +48,9 @@ def philox4_round(counter, key):
 def philox4_32(counter, key, rounds=10):
     """Generates 32-bit random numbers using the Philox 4x32 random number generator.
 
-    Parameters:
-        counter (numpy.ndarray): A 4xN array of 32-bit integers representing the counter values (offset into generation).
-        key (numpy.ndarray): A 2xN array of 32-bit integers representing the key values (seed).
-        rounds (int): The number of rounds to perform.
+    Parameters: counter (numpy.ndarray): A 4xN array of 32-bit integers representing the counter values (offset into
+    generation). key (numpy.ndarray): A 2xN array of 32-bit integers representing the key values (seed). rounds (
+    int): The number of rounds to perform.
 
     Returns:
         numpy.ndarray: A 4xN array of 32-bit integers containing the generated random numbers.
@@ -87,7 +85,8 @@ class RNGGenerator:
         self.offset = 0
 
     def randn(self, shape):
-        """Generate a sequence of n standard normal random variables using the Philox 4x32 random number generator and the Box-Muller transform."""
+        """Generate a sequence of n standard normal random variables using the Philox 4x32 random number generator
+        and the Box-Muller transform."""
 
         n = 1
         for x in shape:
@@ -95,7 +94,8 @@ class RNGGenerator:
 
         counter = np.zeros((4, n), dtype=np.uint32)
         counter[0] = self.offset
-        counter[2] = np.arange(n, dtype=np.uint32)  # up to 2^32 numbers can be generated - if you want more you'd need to spill into counter[3]
+        counter[2] = np.arange(n, dtype=np.uint32)  # up to 2^32 numbers can be generated - if you want more you'd
+        # need to spill into counter[3]
         self.offset += 1
 
         key = np.empty(n, dtype=np.uint64)
@@ -107,13 +107,16 @@ class RNGGenerator:
         return box_muller(g[0], g[1]).reshape(shape)  # discard g[2] and g[3]
 
 
-#TODO GET RID OF THESE MOCK CLASSES
+# TODO GET RID OF THESE MOCK CLASSES
 class Devices:
 
     def __init__(self):
         self.device = torch.device("cuda")
         self.cpu = torch.device("cpu")
+
+
 devices = Devices()
+
 
 class Shared:
     def __init__(self):
@@ -124,10 +127,12 @@ class Shared:
 
 shared = Shared()
 
+
 def randn(seed, shape, generator=None):
     """Generate a tensor with random numbers from a normal distribution using seed.
 
-    Uses the seed parameter to set the global torch seed; to generate more with that seed, use randn_like/randn_without_seed."""
+    Uses the seed parameter to set the global torch seed; to generate more with that seed,
+    use randn_like/randn_without_seed."""
 
     manual_seed(seed)
 
@@ -143,7 +148,8 @@ def randn(seed, shape, generator=None):
 def randn_local(seed, shape):
     """Generate a tensor with random numbers from a normal distribution using seed.
 
-    Does not change the global random number generator. You can only generate the seed's first tensor using this function."""
+    Does not change the global random number generator. You can only generate the seed's first tensor using this
+    function."""
 
     if shared.opts.randn_source == "NV":
         rng = RNGGenerator(seed)
@@ -204,16 +210,16 @@ def create_generator(seed):
 
 # from https://discuss.pytorch.org/t/help-regarding-slerp-function-for-generative-model-sampling/32475/3
 def slerp(val, low, high):
-    low_norm = low/torch.norm(low, dim=1, keepdim=True)
-    high_norm = high/torch.norm(high, dim=1, keepdim=True)
-    dot = (low_norm*high_norm).sum(1)
+    low_norm = low / torch.norm(low, dim=1, keepdim=True)
+    high_norm = high / torch.norm(high, dim=1, keepdim=True)
+    dot = (low_norm * high_norm).sum(1)
 
     if dot.mean() > 0.9995:
         return low * val + high * (1 - val)
 
     omega = torch.acos(dot)
     so = torch.sin(omega)
-    res = (torch.sin((1.0-val)*omega)/so).unsqueeze(1)*low + (torch.sin(val*omega)/so).unsqueeze(1) * high
+    res = (torch.sin((1.0 - val) * omega) / so).unsqueeze(1) * low + (torch.sin(val * omega) / so).unsqueeze(1) * high
     return res
 
 
@@ -231,7 +237,8 @@ class ImageRNGNoise:
         self.is_first = True
 
     def first(self):
-        noise_shape = self.shape if self.seed_resize_from_h <= 0 or self.seed_resize_from_w <= 0 else (self.shape[0], self.seed_resize_from_h // 8, self.seed_resize_from_w // 8)
+        noise_shape = self.shape if self.seed_resize_from_h <= 0 or self.seed_resize_from_w <= 0 else (
+            self.shape[0], self.seed_resize_from_h // 8, self.seed_resize_from_w // 8)
 
         xs = []
 
@@ -265,7 +272,7 @@ class ImageRNGNoise:
 
             xs.append(noise)
 
-        eta_noise_seed_delta = 0 #shared.opts.eta_noise_seed_delta or 0
+        eta_noise_seed_delta = 0  # shared.opts.eta_noise_seed_delta or 0
         if eta_noise_seed_delta:
             self.generators = [create_generator(seed + eta_noise_seed_delta) for seed in self.seeds]
 

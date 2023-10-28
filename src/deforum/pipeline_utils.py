@@ -3,13 +3,12 @@ import json
 import os
 import random
 import secrets
-import subprocess
-import sys
 import time
 
-from .pipelines.deforum_animation.animation_params import DeforumArgs, DeforumAnimArgs, ParseqArgs, LoopArgs, RootArgs, \
-    DeforumOutputArgs, DeforumAnimPrompts
-from .utils.constants import root_path, comfy_path
+from .pipelines.deforum_animation.animation_params import (DeforumArgs, DeforumAnimArgs,
+                                                           ParseqArgs, LoopArgs, RootArgs,
+                                                           DeforumOutputArgs, DeforumAnimPrompts)
+from .utils.constants import root_path
 
 
 def next_seed(args, root):
@@ -25,8 +24,9 @@ def next_seed(args, root):
     elif args.seed_behavior == 'fixed':
         pass  # always keep seed the same
     else:
-        args.seed = random.randint(0, 2**32 - 1)
+        args.seed = random.randint(0, 2 ** 32 - 1)
     return args.seed
+
 
 # Add pairwise implementation here not to upgrade
 # the whole python to 3.10 just for one function
@@ -35,10 +35,11 @@ def pairwise_repl(iterable):
     next(b, None)
     return zip(a, b)
 
+
 def isJson(myjson):
     try:
         json.loads(myjson)
-    except ValueError as e:
+    except ValueError:
         return False
     return True
 
@@ -46,12 +47,14 @@ def isJson(myjson):
 def extract_values(args):
     return {key: value['value'] for key, value in args.items()}
 
+
 class DeforumDataObject:
     """
     Class representing the data object for Deforum animations.
 
     This class contains all data output of a generation, and can be reused to store and return any data.
     """
+
     def __init__(self, *args, **kwargs):
         """
         Initializes the generation object with default values and any provided arguments.
@@ -87,12 +90,11 @@ class DeforumDataObject:
         """
         return self.__dict__.copy()
 
-    def update_from_kwargs(self, *args, **kwargs):
+    def update_from_kwargs(self, **kwargs):
         """
         Update object attributes using provided keyword arguments.
 
         Args:
-            *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments.
         """
         for key, value in kwargs.items():
@@ -103,8 +105,10 @@ class DeforumGenerationObject(DeforumDataObject):
     """
     Class representing the generation object for Deforum animations.
 
-    This class contains all the required attributes and methods for defining, managing, and manipulating the animation generation object.
+    This class contains all the required attributes and methods for defining, managing, and manipulating the
+    animation generation object.
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         """
@@ -123,7 +127,8 @@ class DeforumGenerationObject(DeforumDataObject):
         root = RootArgs()
         output_args_dict = {key: value["value"] for key, value in DeforumOutputArgs().items()}
         merged_args = {**base_args, **anim_args, **parseg_args, **loop_args, **output_args_dict, **root}
-
+        self.diffusion_cadence = 1
+        self.seed = -1
         # Set all default values as attributes
         for key, value in merged_args.items():
             setattr(self, key, value)
@@ -133,10 +138,10 @@ class DeforumGenerationObject(DeforumDataObject):
         self.animation_prompts = json.loads(animation_prompts)
         self.timestring = time.strftime('%Y%m%d%H%M%S')
         self.batch_name = f"deforum_{self.timestring}"
-        #current_arg_list = [deforum.args, deforum.anim_args, deforum.video_args, deforum.parseq_args]
+        # current_arg_list = [deforum.args, deforum.anim_args, deforum.video_args, deforum.parseq_args]
         full_base_folder_path = os.path.join(root_path, "output/deforum")
         self.raw_batch_name = self.batch_name
-        #self.batch_name = substitute_placeholders(deforum.args.batch_name, current_arg_list,
+        # self.batch_name = substitute_placeholders(deforum.args.batch_name, current_arg_list,
         #                                                  full_base_folder_path)
         self.outdir = os.path.join(full_base_folder_path, str(self.batch_name))
         os.makedirs(self.outdir, exist_ok=True)
@@ -176,7 +181,6 @@ class DeforumGenerationObject(DeforumDataObject):
 
             setattr(self, key, value)
 
-
     @classmethod
     def from_settings_file(cls, settings_file_path: str = None) -> 'DeforumGenerationObject':
         """
@@ -212,7 +216,7 @@ class DeforumGenerationObject(DeforumDataObject):
 
         # Additional attribute updates based on loaded data
         if hasattr(instance, "diffusion_cadence"):
-            instance.turbo_steps =  int(instance.diffusion_cadence)
+            instance.turbo_steps = int(instance.diffusion_cadence)
         if hasattr(instance, "using_video_init") and instance.using_video_init:
             instance.turbo_steps = 1
         if instance.prompts is not None:
@@ -221,13 +225,13 @@ class DeforumGenerationObject(DeforumDataObject):
         return instance
 
 
-
 class DeforumKeyFrame(DeforumDataObject):
     """
     Class representing the key frame for Deforum animations.
 
     This class contains attributes that define a specific frame's characteristics in the Deforum animation process.
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         """
@@ -277,4 +281,3 @@ class DeforumKeyFrame(DeforumDataObject):
         instance.scheduled_ddim_eta = None
         instance.scheduled_ancestral_eta = None
         return instance
-

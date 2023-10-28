@@ -3,15 +3,15 @@ import re
 import socket
 import time
 
-import cv2
 import numpy as np
 import requests
 import torch
 import torchvision.transforms.functional as TF
-from PIL import Image, ImageChops
-from PIL import ImageOps
+from PIL import (Image, ImageChops, ImageOps)
 from scipy.ndimage import gaussian_filter
 from skimage.exposure import match_histograms
+import cv2
+import gc
 
 from .deforum_word_masking_util import get_word_mask
 from .video_frame_utils import get_frame_name
@@ -41,6 +41,7 @@ def maintain_colors(prev_img, color_match_sample, mode):
         color_match_lab = cv2.cvtColor(color_match_sample, cv2.COLOR_RGB2LAB)
         matched_lab = match_histograms(prev_img_lab, color_match_lab, **match_histograms_kwargs)
         return cv2.cvtColor(matched_lab, cv2.COLOR_LAB2RGB)
+
 
 def load_image(image_path: str):
     image_path = clean_gradio_path_strings(image_path)
@@ -184,7 +185,8 @@ def load_image_with_mask(path: str, shape=None, use_alpha_as_mask=False):
         extrema = mask_image.getextrema()
         if (extrema == (0, 0)) or extrema == (255, 255):
             print(
-                "use_alpha_as_mask==True: Using the alpha channel from the init image as a mask, but the alpha channel is blank.")
+                "use_alpha_as_mask==True: Using the alpha channel from the init image as a mask, but the alpha "
+                "channel is blank.")
             print("ignoring alpha as mask.")
             mask_image = None
 
@@ -492,17 +494,19 @@ def get_output_folder(output_path, batch_folder):
     os.makedirs(out_path, exist_ok=True)
     return out_path
 
+
 def save_image(image, image_type, filename, args, video_args, root):
     if video_args.store_frames_in_ram:
-        root.frames_cache.append({'path':os.path.join(args.outdir, filename), 'image':image, 'image_type':image_type})
+        root.frames_cache.append(
+            {'path': os.path.join(args.outdir, filename), 'image': image, 'image_type': image_type})
     else:
         image.save(os.path.join(args.outdir, filename))
 
-import cv2, gc
 
 def reset_frames_cache(root):
     root.frames_cache = []
     gc.collect()
+
 
 def dump_frames_cache(root):
     for image_cache in root.frames_cache:
@@ -530,6 +534,8 @@ def extend_flow(flow, w, h):
     new_flow[y_offset:y_offset + flow_h, x_offset:x_offset + flow_w, :] = flow
     # Return the extended image
     return new_flow
+
+
 def remap(img,
           flow):
     border_mode = cv2.BORDER_REFLECT_101
