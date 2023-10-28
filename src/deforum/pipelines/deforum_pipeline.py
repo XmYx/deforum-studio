@@ -4,8 +4,7 @@ import os
 import requests
 from tqdm import tqdm
 
-from ..utils.file_dl_util import download_file_to
-from ..utils.civitai_model_dl_util import get_civitai_link_from_modelid
+
 def fetch_and_download_model(modelId:str, destination:str=""):
     # Fetch model details
     response = requests.get(f"https://civitai.com/api/v1/models/{modelId}")
@@ -96,7 +95,8 @@ class DeforumBase:
             cache_dir), "Could not create the requested cache dir, make sure the application has permissions"
         # Download model from CivitAi if specified
         if modelid is not None:
-
+            from ..utils.file_dl_util import download_file_to
+            from ..utils.civitai_model_dl_util import get_civitai_link_from_modelid
             filename = fetch_and_download_model(modelId=modelid, destination="models")
             model_path = os.path.join("models", filename)
             # model_params = get_civitai_link_from_modelid(modelId=modelid)

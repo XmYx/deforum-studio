@@ -3,11 +3,14 @@ import json
 import os
 import random
 import secrets
+import subprocess
+import sys
 import time
 
 from .pipelines.deforum_animation.animation_params import DeforumArgs, DeforumAnimArgs, ParseqArgs, LoopArgs, RootArgs, \
     DeforumOutputArgs, DeforumAnimPrompts
-from .utils.constants import root_path
+from .utils.constants import root_path, comfy_path
+
 
 def next_seed(args, root):
     if args.seed_behavior == 'iter':
@@ -274,3 +277,4 @@ class DeforumKeyFrame(DeforumDataObject):
         instance.scheduled_ddim_eta = None
         instance.scheduled_ancestral_eta = None
         return instance
+

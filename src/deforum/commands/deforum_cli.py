@@ -2,7 +2,6 @@ import argparse
 import os
 import sys
 
-sys.path.append("src/ComfyUI")
 
 
 def start_deforum_cli():

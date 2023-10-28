@@ -5,12 +5,16 @@ import torch
 from PIL import Image
 
 from .rng_noise_generator import ImageRNGNoise
+from .comfy_utils import ensure_comfy
 from ..utils.deforum_cond_utils import blend_tensors
 
 
 class ComfyDeforumGenerator:
 
     def __init__(self, model_path:str=None, lcm=False, trt=False):
+
+        ensure_comfy()
+
         # from deforum.datafunctions.ensure_comfy import ensure_comfy
         # ensure_comfy()
         # from deforum.datafunctions import comfy_functions
@@ -86,7 +90,7 @@ class ComfyDeforumGenerator:
                                                                              )
 
         if trt:
-            from deforum.datafunctions.enable_comfy_trt import TrtUnet
+            from ..optimizations.deforum_comfy_trt.deforum_trt_comfyunet import TrtUnet
             self.model.model.diffusion_model = TrtUnet()
 
     def load_lcm(self):
