@@ -1,14 +1,8 @@
-import json
 import os
-import random
 import tempfile
-import time
-from types import SimpleNamespace
 
 from ...utils.constants import get_os
 
-
-# from ...utils.string_utils import substitute_placeholders
 
 def DeforumAnimPrompts():
     return r"""{

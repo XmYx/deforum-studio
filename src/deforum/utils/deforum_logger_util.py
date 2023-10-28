@@ -24,6 +24,7 @@ class Logger:
         self.timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         self.terminal_width = self.get_terminal_width()
         self.start_time = time.time()
+        self.log_entries = []
 
     @staticmethod
     def get_terminal_width() -> int:
@@ -51,6 +52,7 @@ class Logger:
         self.log_file.write("=" * self.terminal_width + "\n")
         self.log_file.write("Log Session Started: " + self.timestamp.center(self.terminal_width - 20) + "\n")
         self.log_file.write("=" * self.terminal_width + "\n")
+        self.log_file.close()
 
     def log(self, message: str, timestamped: bool = True):
         """
@@ -70,16 +72,28 @@ class Logger:
 
         # Wrap the message to the terminal width
         wrapped_text = "\n".join(textwrap.wrap(message, width=self.terminal_width))
-        self.log_file.write(f"{wrapped_text}\n")
+        self.log_entries.append(wrapped_text)
+    def dump(self):
+        """Dump the internal log entries to the log file and clear the internal list."""
+        if self.log_file:
+            with open(self.log_file.name, "a") as log:
+                for entry in self.log_entries:
+                    log.write(entry + "\n")
+            self.log_entries.clear()
+
+    def print_logs(self):
+        """Print the current logs stored in the internal list."""
+        for entry in self.log_entries:
+            print(entry)
 
     def __call__(self, message: str, timestamped: bool = True, *args, **kwargs):
         """Allow the Logger object to be called as a function."""
         self.log(message, timestamped)
 
     def close_session(self):
-        """End the logging session and close the log file."""
+        """End the logging session."""
         if self.log_file:
-            self.log_file.write("\n" + "=" * self.terminal_width + "\n")
-            self.log_file.write("Log Session Ended".center(self.terminal_width) + "\n")
-            self.log_file.write("=" * self.terminal_width + "\n")
-            self.log_file.close()
+            with open(self.log_file.name, "a") as log:
+                log.write("\n" + "=" * self.terminal_width + "\n")
+                log.write("Log Session Ended".center(self.terminal_width) + "\n")
+                log.write("=" * self.terminal_width + "\n")
