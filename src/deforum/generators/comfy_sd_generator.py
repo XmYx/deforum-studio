@@ -27,7 +27,7 @@ class ComfyDeforumGenerator:
         self.prompt = ""
         self.n_prompt = ""
 
-        self.cond = None
+        cond = None
         self.n_cond = None
 
         self.model = None
@@ -183,21 +183,19 @@ class ComfyDeforumGenerator:
 
                 latent = self.encode_latent(latent)
 
-            if self.prompt != prompt or self.cond is None:
-                if prompt is not None:
-                    self.cond = self.get_conds(prompt)
-                    self.n_cond = self.get_conds(negative_prompt)
-                    self.prompt = prompt
+            cond = self.get_conds(prompt)
+            self.n_cond = self.get_conds(negative_prompt)
+            self.prompt = prompt
 
             if next_prompt is not None:
                 if next_prompt != prompt and next_prompt != "":
                     if 0.0 < prompt_blend < 1.0:
                         next_cond = self.get_conds(next_prompt)
 
-                        self.cond = blend_tensors(self.cond[0], next_cond[0], blend_value=prompt_blend)
+                        cond = blend_tensors(cond[0], next_cond[0], blend_value=prompt_blend)
 
             if cnet_image is not None:
-                self.cond = apply_controlnet(cond, self.controlnet, cnet_image, 1.0)
+                cond = apply_controlnet(cond, self.controlnet, cnet_image, 1.0)
 
             # from nodes import common_ksampler as ksampler
 
@@ -210,7 +208,7 @@ class ComfyDeforumGenerator:
                                                        cfg=scale,
                                                        sampler_name=sampler_name,
                                                        scheduler=scheduler,
-                                                       positive=self.cond,
+                                                       positive=cond,
                                                        negative=self.n_cond,
                                                        latent=latent,
                                                        denoise=strength,

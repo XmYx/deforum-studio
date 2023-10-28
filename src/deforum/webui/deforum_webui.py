@@ -23,13 +23,12 @@ def load_config_and_initialize():
     # Store the loaded configuration in gs.data
     if "config" not in gs.data:
         gs.data["config"] = {}
-    gs.data["config"].update(streamlit_config)
+        gs.data["config"].update(streamlit_config)
 
     return streamlit_config
 
 
 config = load_config_and_initialize()
-print(gs.data['config'])
 
 if "models" not in gs.data:
     print("Instantiating models dictionary in singleton")
@@ -55,7 +54,6 @@ def load_tabs_from_json():
             return json.load(f)
     except FileNotFoundError:
         return {}
-
 
 def main():
     # Load the tabs from the JSON file if it exists
@@ -151,7 +149,7 @@ def main__():
 
     for file in module_files:
         module_name = file.replace('.py', '')
-        module = import_module_from_path(module_name, os.path.join('modules', file))
+        module = import_module_from_path(module_name, os.path.join(curr_folder, 'deforum_webui_modules', file))
         modules[module_name] = module
 
         tab_names.append(module.plugin_info["name"])
@@ -168,31 +166,31 @@ def main__():
 
     # Ensure TabToggles is always present
 
-    use_tabs = st.sidebar.toggle('Use Tabs', value=True)
-    if use_tabs:
-        active_tabs = st.session_state.active_modules if st.session_state.active_modules else modules
-        tabs = st.tabs(active_tabs)
-        x = 0
-
-        for module_name in active_tabs:
-            if module_name in modules:
-                with tabs[x]:
-                    if module_name != "TabToggles":
-                        print(module_name, x, tab_names)
-                        modules[module_name].plugin_tab(x, tab_names)
-                    else:
-                        toggle_tab()
-            else:
-                print(f"Module {module_name} not found in loaded modules!")
-            x += 1
-    else:
-        # Display buttons on the sidebar for each module
-        selected_module = st.sidebar.radio("Choose a module", list(modules.keys()))
-        x = 1
-        # Load the relevant module in the main section based on the selected button
-        if selected_module in modules:
-            modules[selected_module].plugin_tab(x, tab_names)
+    # use_tabs = st.sidebar.toggle('Use Tabs', value=False)
+    # if use_tabs:
+    #     active_tabs = st.session_state.active_modules if st.session_state.active_modules else modules
+    #     tabs = st.tabs(active_tabs)
+    #     x = 0
+    #
+    #     for module_name in active_tabs:
+    #         if module_name in modules:
+    #             with tabs[x]:
+    #                 if module_name != "TabToggles":
+    #                     print(module_name, x, tab_names)
+    #                     modules[module_name].plugin_tab(x, tab_names)
+    #                 else:
+    #                     toggle_tab()
+    #         else:
+    #             print(f"Module {module_name} not found in loaded modules!")
+    #         x += 1
+    # else:
+    # Display buttons on the sidebar for each module
+    selected_module = st.sidebar.radio("Choose a module", list(modules.keys()))
+    x = 1
+    # Load the relevant module in the main section based on the selected button
+    if selected_module in modules:
+        modules[selected_module].plugin_tab(x, tab_names)
 
 
 if __name__ == "__main__":
-    main()
+    main__()
