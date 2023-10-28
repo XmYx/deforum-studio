@@ -98,6 +98,7 @@ class DeforumDataObject:
             **kwargs: Arbitrary keyword arguments.
         """
         for key, value in kwargs.items():
+            print(key, value)
             setattr(self, key, value)
 
 

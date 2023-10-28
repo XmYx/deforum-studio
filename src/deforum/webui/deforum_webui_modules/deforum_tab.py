@@ -6,6 +6,8 @@ from datetime import date
 import streamlit as st
 import os
 
+from deforum.pipelines.deforum_animation.animation_params import hybrid_params_dict
+
 curr_folder = os.path.dirname(os.path.abspath(__file__))
 
 plugin_info = {"name": "Deforum"}
@@ -73,6 +75,7 @@ def plugin_tab(tabs, tab_names):
         with col1:
             with st.expander("Basic Settings", expanded=True):
                 generate_button = st.form_submit_button("Generate")
+                update_button = st.form_submit_button("Update")
 
                 st.session_state["txt2vid"]["prompt"] = st.text_area("Input Text", value='',
                                                                      placeholder="A corgi wearing a top hat.\nSecond Prompt")
@@ -95,16 +98,23 @@ def plugin_tab(tabs, tab_names):
         # with st.expander(""):
         with col2:
             preview_tab, prompt_tab, rendering_tab, settings_tab = st.tabs(["Preview",
-                                                                            "Prompt help",
+                                                                            "Hybrid Video",
                                                                             "Rendering",
                                                                             "Settings"
                                                                             ])
             with prompt_tab:
-                # nsp = parser()
-                # nsp_keys = nsp.get_nsp_keys()
 
-                # inputprompt = st.multiselect('Topics', nsp_keys, key='prompts_ms_2')
-                # st.text_input(label="Prompt Sample", value=nsp.parse(inputprompt), key='prompt_helper')
+                for key, value in hybrid_params_dict.items():
+                    if value["type"] == "textbox":
+                        st.session_state["txt2vid"][key] = st.text_area(value['label'], value['value'], key=key)
+                    elif value["type"] == "lineedit":
+                        st.session_state["txt2vid"][key] = st.text_input(value['label'], bool(value['value']), key=key)
+                    elif value["type"] == "checkbox":
+                        st.session_state["txt2vid"][key] = st.checkbox(value['label'], bool(value['value']), key=key)
+                    elif value["type"] == "radio":
+                        st.session_state["txt2vid"][key] = st.radio(value['label'], value['choices'], key=key, horizontal=True)
+                    elif value["type"] == "slider":
+                        st.session_state["txt2vid"][key] = st.slider(value['label'], value['minimum'], value['maximum'], value['value'], value['step'], key=key)
 
                 st.session_state["txt2vid"]["prompt_tmp"] = st.text_area("Park your samples here", value='')
 
@@ -245,11 +255,11 @@ def plugin_tab(tabs, tab_names):
                                                                                   help="The image to be used as init")
             with settings_tab:
                 uploaded_file = st.file_uploader("Choose a settings txt file", type="txt")
-                uploaded_data = None
                 if uploaded_file:
                     try:
                         uploaded_data = json.loads(uploaded_file.getvalue())
                     except Exception as e:
+                        uploaded_data = None
                         print("Invalid settings file, please check:", e)
                 use_settings_file = st.checkbox("Use settings file")
                 st.session_state["txt2vid"]["save_samples"] = st.checkbox('Save Samples', value=True)
@@ -260,6 +270,7 @@ def plugin_tab(tabs, tab_names):
                                                                            'defaults'].general.default_path_mode_index,
                                                                        help="subfolders structure will create daily folders plus many subfolders, root will use your outdir as root",
                                                                        key='pathmode-txt2vid')
+                #TODO
                 # st.session_state["txt2vid"]["outdir"] = st.text_input("Output Folder",
                 #                                                       value=st.session_state['defaults'].general.outdir,
                 #                                                       help=" Output folder", key='outdir-txt2vid')
@@ -274,36 +285,14 @@ def plugin_tab(tabs, tab_names):
                 st.session_state["txt2vid"]["frame_interpolation_x_amount"] = st.number_input('Interpolation X Amount',
                                                                                               value=2,
                                                                                               step=1)
-                # "frame_interpolation_engine": "FILM",
-                # "frame_interpolation_x_amount": 2,
+                #TODO
                 # "frame_interpolation_slow_mo_enabled": false,
                 # "frame_interpolation_slow_mo_amount": 2,
                 # "frame_interpolation_keep_imgs": false,
                 # "frame_interpolation_use_upscaled": false,
 
         with col3:
-            # If we have custom models available on the "models/custom"
-            # folder then we show a menu to select which model we want to use, otherwise we use the main model for SD
-            # if st.session_state["CustomModel_available"]:
-            #    custom_model = st.selectbox("Custom Model:", st.session_state["defaults"].txt2vid.custom_models_list,
-            #                                index=st.session_state["defaults"].txt2vid.custom_models_list.index(st.session_state["defaults"].txt2vid.default_model),
-            #                                help="Select the model you want to use. This option is only available if you have custom models \
-            #                        on your 'models/custom' folder. The model name that will be shown here is the same as the name\
-            #                        the file for the model has on said folder, it is recommended to give the .ckpt file a name that \
-            #                    will make it easier for you to distinguish it from other models. Default: Stable Diffusion v1.4")
-            # else:
-            #    custom_model = "CompVis/stable-diffusion-v1-4"
 
-            # st.session_state["weights_path"] = custom_model
-            # else:
-            # custom_model = "CompVis/stable-diffusion-v1-4"
-            # st.session_state["weights_path"] = f"CompVis/{slugify(custom_model.lower())}"
-
-            # basic_tab, advanced_tab = st.tabs(["Basic", "Advanced"])
-
-            # with basic_tab:
-            # summit_on_enter = st.radio("Submit on enter?", ("Yes", "No"), horizontal=True,
-            # help="Press the Enter key to summit, when 'No' is selected you can use the Enter key to write multiple lines.")
 
             with st.expander("Animation", expanded=True):
                 st.session_state["txt2vid"]["animation_mode"] = st.selectbox(
@@ -340,7 +329,6 @@ def plugin_tab(tabs, tab_names):
                     ('border', 'reflection', 'zeros'))
 
                 st.session_state["txt2vid"]["save_depth_maps"] = st.checkbox('Save Depth Maps', value=False)
-                st.session_state["txt2vid"]["video_init_path"] = ''
                 st.session_state["txt2vid"]["extract_nth_frame"] = st.number_input('Extract Nth Frame',
                                                                                    value=st.session_state[
                                                                                        'defaults'].txt2vid.extract_nth_frame,
@@ -360,8 +348,8 @@ def plugin_tab(tabs, tab_names):
                 st.session_state["txt2vid"]["iterations"] = 1
                 st.session_state["txt2vid"]["batch_size"] = 1
 
-                if generate_button:
 
+                if generate_button:
                     # gen_args = get_args()
                     from deforum.shared_storage import models
                     if "deforum_pipe" not in models:
@@ -388,10 +376,15 @@ def plugin_tab(tabs, tab_names):
                         txt2vid_copy['seed'] = int(
                             txt2vid_copy['seed'])
 
-                    if uploaded_data is not None and use_settings_file:
+                    if use_settings_file and uploaded_file:
                         for key, value in uploaded_data.items():
                             txt2vid_copy[key] = value
-                    print(txt2vid_copy)
+
+                            try:
+                                st.session_state["txt2vid"][key].value(value)
+                            except:
+                                pass
+
                     success = models["deforum_pipe"](**txt2vid_copy)
 
                     if hasattr(success, "video_path"):

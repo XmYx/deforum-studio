@@ -67,11 +67,12 @@ class DeforumBase:
         """
         Class method to initialize a Deforum animation pipeline using specific configurations.
 
-        Args: modelid (str, optional): Identifier for the model to fetch from CivitAi. Defaults to None. generator (
-        str, optional): The generator to use for the Deforum animation. Defaults to "comfy". pipeline (str,
-        optional): The pipeline to use for the animation processing. Defaults to "DeforumAnimationPipeline".
-        cache_dir (str, optional): Directory for caching models. Defaults to default_cache_folder. lcm (bool,
-        optional): Flag to determine if low-complexity mode should be activated. Defaults to False.
+        Args:
+            modelid (str, optional): Identifier for the model to fetch from CivitAi. Defaults to None.
+            generator_name (str, optional): The generator class tp use. Defaults to "ComfyDeforumGenerator".
+            cache_dir (str, optional): Directory for caching models. Defaults to default_cache_folder.
+            lcm (bool, optional): Flag to determine if low-complexity mode should be activated. Defaults to False.
+            trt (bool, optional): Flag to enable TrT
 
         Returns:
             DeforumBase: Initialized Deforum animation pipeline object.
@@ -112,6 +113,39 @@ class DeforumBase:
             "model_path": model_path,
             "lcm": lcm,
             "trt": trt
+        }
+        pipeline_attrs = {}
+        # Import the generator and pipeline
+        generator_class = getattr(deforum_module, generator_name)
+        pipeline_class = getattr(deforum_module, cls.__name__)
+        # Create and return pipeline object
+        return cls.factory(pipeline_class, pipeline_attrs, generator_class, generator_attrs)
+
+    @classmethod
+    def from_single_file(cls,
+                         pretrained_model_repo_or_path: str = "",
+                         generator_name: str = "ComfyDeforumGenerator",
+                         ) -> 'DeforumBase':
+        """
+
+        Args:
+            generator_name: (str) The selected generator. Defaults to (ComfyDeforumGenerator)
+            pretrained_model_repo_or_path: (str) The desired model's path
+
+        Returns:
+           DeforumBase: Initialized Deforum animation pipeline object.
+
+        Raises:
+            AssertionError: Raised if the specified model cannot be found or loaded.
+
+        """
+
+        assert os.path.isfile(pretrained_model_repo_or_path), "The given model path must exist"
+        deforum_module = importlib.import_module(cls.__module__.split(".")[0])
+        generator_attrs = {
+            "model_path": pretrained_model_repo_or_path,
+            "lcm": False,
+            "trt": False
         }
         pipeline_attrs = {}
         # Import the generator and pipeline

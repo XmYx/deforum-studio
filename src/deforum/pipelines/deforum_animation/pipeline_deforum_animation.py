@@ -113,7 +113,6 @@ class DeforumAnimationPipeline(DeforumBase):
             self.gen = DeforumGenerationObject(**kwargs)
 
         self.gen.update_from_kwargs(**kwargs)
-
         setup_start = time.time()
         self.pre_setup()
         setup_end = time.time()
@@ -195,11 +194,11 @@ class DeforumAnimationPipeline(DeforumBase):
 
         self.gen.max_frames += 1
 
-        if self.gen.animation_mode in frame_warp_modes:
-            # handle hybrid video generation
-            if self.gen.hybrid_composite != 'None' or self.gen.hybrid_motion in hybrid_motion_modes:
-                _, _, self.gen.inputfiles = hybrid_generation(self.gen, self.gen, self.gen)
-                self.gen.hybrid_frame_path = os.path.join(self.gen.outdir, 'hybridframes')
+        # if self.gen.animation_mode in frame_warp_modes:
+        #     # handle hybrid video generation
+        if self.gen.hybrid_composite != 'None' or self.gen.hybrid_motion in hybrid_motion_modes:
+            _, _, self.gen.inputfiles = hybrid_generation(self.gen, self.gen, self.gen)
+            self.gen.hybrid_frame_path = os.path.join(self.gen.outdir, 'hybridframes')
 
         if int(self.gen.seed) == -1:
             self.gen.seed = secrets.randbelow(18446744073709551615)
