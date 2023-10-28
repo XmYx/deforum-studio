@@ -1,0 +1,11 @@
+{
+  "folders": {
+    "pipelines_folder": "pipelines",
+    "models_folder": "models/loras"
+  },
+  "values": {
+    "default_multiplier": 0.8,
+    "default_noise": "gaussian",
+    "max_images": 4
+  }
+}

@@ -1,0 +1,24 @@
+--extra-index-url https://download.pytorch.org/whl/cu118
+torch~=2.1.0
+torchvision~=0.16.0
+Pillow
+numpy
+pycuda
+pytest
+accelerate
+colored
+controlnet_aux==0.0.6
+cuda-python
+git+https://github.com/Gothos/diffusers.git
+ftfy
+matplotlib
+nvtx
+onnx==1.14.0
+onnxruntime==1.15.1
+opencv-python==4.8.0.74
+scipy
+transformers==4.31.0
+--extra-index-url https://pypi.ngc.nvidia.com
+onnx-graphsurgeon>=0.3.27
+polygraphy
+protobuf==3.20.3
