@@ -189,6 +189,7 @@ class DeforumAnimationPipeline(DeforumBase):
             self.logger.log(f"Average time per frame: {average_time_per_frame:.2f} ms")
             self.logger.close_session()
         return self.gen
+
     def pre_setup(self):
         frame_warp_modes = ['2D', '3D']
         hybrid_motion_modes = ['Affine', 'Perspective', 'Optical Flow']
@@ -325,7 +326,6 @@ class DeforumAnimationPipeline(DeforumBase):
                 self.post_fns.append(film_interpolate_cls)
         if self.gen.max_frames > 1:
             self.post_fns.append(save_video_cls)
-
 
     def reset(self, *args, **kwargs) -> None:
         self.prep_fns.clear()

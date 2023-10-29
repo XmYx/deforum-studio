@@ -96,8 +96,8 @@ class DeforumBase:
         if modelid is not None:
             # from ..utils.file_dl_util import download_file_to
             # from ..utils.civitai_model_dl_util import get_civitai_link_from_modelid
-            filename = fetch_and_download_model(modelId=modelid, destination="models")
-            model_path = os.path.join("models", filename)
+            filename = fetch_and_download_model(modelId=modelid, destination=cache_dir)
+            model_path = os.path.join(cache_dir, filename)
             # model_params = get_civitai_link_from_modelid(modelId=modelid)
             # filename = model_params.filename
             # model_path = os.path.join(cache_dir, filename)
