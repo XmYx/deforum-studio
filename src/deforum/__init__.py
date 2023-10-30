@@ -8,4 +8,5 @@ from .generators import (ComfyDeforumGenerator,
 from .models import (FilmModel)
 
 from .pipelines import (DeforumBase,
-                        DeforumAnimationPipeline)
+                        DeforumAnimationPipeline,
+                        DeforumAnimateDiffPipeline)

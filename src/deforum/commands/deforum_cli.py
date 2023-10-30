@@ -6,6 +6,7 @@ def start_deforum_cli():
 
     parser = argparse.ArgumentParser(description="Load settings from a txt file and run the deforum process.")
     parser.add_argument("--webui", action="store_true", help="Path to the txt file containing dictionaries to merge.")
+    parser.add_argument("--animatediff", action="store_true", help="Path to the txt file containing dictionaries to merge.")
     parser.add_argument("--file", type=str, help="Path to the txt file containing dictionaries to merge.")
     parser.add_argument("--options", nargs=argparse.REMAINDER,
                         help="Additional keyword arguments to pass to the deforum function.")
@@ -37,9 +38,16 @@ def start_deforum_cli():
             options[key] = value
 
     if not args_main.webui:
-        from deforum import DeforumAnimationPipeline
-        deforum = DeforumAnimationPipeline.from_civitai()
-        _ = deforum(**extra_args, **options)
+        if args_main.animatediff:
+            from deforum.pipelines.animatediff_animation.pipeline_animatediff_animation import DeforumAnimateDiffPipeline
+            # pipe = DeforumAnimateDiffPipeline.from_civitai()
+            pipe = DeforumAnimateDiffPipeline.from_single_file(pretrained_model_repo_or_path="/home/mix/Downloads/SSD-1B.safetensors")
+            print(pipe)
+        else:
+
+            from deforum import DeforumAnimationPipeline
+            deforum = DeforumAnimationPipeline.from_civitai()
+            _ = deforum(**extra_args, **options)
     elif args_main.webui:
         print("start")
         import streamlit.web.cli as stcli

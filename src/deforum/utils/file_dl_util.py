@@ -43,7 +43,7 @@ def download_file_to(url: str = "",
         print("ERROR: Something went wrong while downloading the file.")
     else:
         print(f"{filename} downloaded successfully!")
-    return filename
+    return os.path.join(destination_dir, filename)
 
 
 def clone_if_not_exists(repo_url, local_path):

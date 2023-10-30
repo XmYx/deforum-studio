@@ -1,4 +1,4 @@
-from clip_interrogator import Config, Interrogator
+#from clip_interrogator import Config, Interrogator
 import torch.nn.functional as F
 import torch
 

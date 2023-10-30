@@ -7,6 +7,7 @@ import time
 from typing import Callable, Optional
 
 import numexpr
+from torch import nn
 from tqdm import tqdm
 import torch
 import numpy as np
@@ -679,3 +680,30 @@ class DeforumAnimationPipeline(DeforumBase):
             self.gen.first_frame = processed
 
         return processed
+
+    def cleanup(self):
+        # Iterate over all attributes of the class instance
+        for attr_name in dir(self):
+            attr = getattr(self, attr_name)
+
+            # Check if attribute is a tensor
+            if isinstance(attr, torch.Tensor):
+                attr.cpu()  # Move tensor to CPU
+                delattr(self, attr_name)  # Delete attribute
+            # Check if attribute is an nn.Module
+            elif isinstance(attr, nn.Module):
+                attr.to("cpu")  # Move module to CPU
+                delattr(self, attr_name)  # Delete attribute
+            # Check if attribute has 'to' or 'cpu' callable method
+            else:
+                to_method = getattr(attr, "to", None)
+                cpu_method = getattr(attr, "cpu", None)
+
+                if callable(to_method):
+                    attr.to("cpu")
+                    delattr(self, attr_name)  # Delete attribute
+                elif callable(cpu_method):
+                    attr.cpu()
+                    delattr(self, attr_name)  # Delete attribute
+
+
