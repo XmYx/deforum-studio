@@ -25,7 +25,44 @@ def fetch_and_download_model(modelId: str, destination: str = ""):
 
     # Check if file already exists
     if os.path.exists(filepath):
-        print(f"File {filename} already exists in models/checkpoints/")
+        print(f"File {filename} already exists in {dir_path}")
+        return filename
+
+    # Download file in chunks with progress bar
+    print(f"Downloading {filename}...")
+    response = requests.get(download_url, stream=True, headers={'Content-Disposition': 'attachment'})
+    total_size = int(response.headers.get('content-length', 0))
+    block_size = 1024  # 1 Kibibyte
+    t = tqdm(total=total_size, unit='iB', unit_scale=True)
+    with open(filepath, 'wb') as f:
+        for data in response.iter_content(block_size):
+            t.update(len(data))
+            f.write(data)
+    t.close()
+
+    if total_size != 0 and t.n != total_size:
+        print("ERROR: Something went wrong while downloading the file.")
+    else:
+        print(f"{filename} downloaded successfully!")
+
+    return filename
+
+
+def fetch_and_download_model_from_url(download_url: str, destination: str = ""):
+
+    filename = download_url.split('/')[-1]
+    # if filename is not a proprely formatted filename assign a default name
+    # properly formatted filename should have a .ckpt, .pt, .pth, or .safetensors extension
+    if '.' not in filename:
+        filename = 'model.ckpt'
+
+    os.makedirs(destination, exist_ok=True)
+    filepath = os.path.join(destination, filename)
+    print(filepath)
+
+    # Check if file already exists
+    if os.path.exists(filepath):
+        print(f"File {filename} already exists in {destination}")
         return filename
 
     # Download file in chunks with progress bar
@@ -145,6 +182,42 @@ class DeforumBase:
             "model_path": pretrained_model_repo_or_path,
             "lcm": False,
             "trt": False
+        }
+        pipeline_attrs = {}
+        # Import the generator and pipeline
+        generator_class = getattr(deforum_module, generator_name)
+        pipeline_class = getattr(deforum_module, cls.__name__)
+        # Create and return pipeline object
+        return cls.factory(pipeline_class, pipeline_attrs, generator_class, generator_attrs)
+    
+    @classmethod
+    def from_download_url(cls,
+                     modelurl: str = "",
+                     generator_name: str = "ComfyDeforumGenerator",
+                     cache_dir: str = "",
+                     lcm: bool = False,
+                     trt: bool = False) -> 'DeforumBase':
+
+        if cache_dir == '':
+            cache_dir = 'models'
+
+        if not os.path.isdir(cache_dir):
+            os.makedirs(cache_dir, exist_ok=True)
+        assert os.path.isdir(
+            cache_dir), "Could not create the requested cache dir, make sure the application has permissions"
+        
+        if modelurl is not None:
+            filename = fetch_and_download_model_from_url(modelId=modelurl, destination=cache_dir)
+            model_path = os.path.join(cache_dir, filename)
+        else:
+            model_path = None
+        assert model_path is not None, ("Instantiating from URL requires a valid URL.")
+
+        deforum_module = importlib.import_module(cls.__module__.split(".")[0])
+        generator_attrs = {
+            "model_path": model_path,
+            "lcm": lcm,
+            "trt": trt
         }
         pipeline_attrs = {}
         # Import the generator and pipeline
