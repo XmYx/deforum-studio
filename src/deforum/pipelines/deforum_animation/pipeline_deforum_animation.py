@@ -7,6 +7,7 @@ import time
 from typing import Callable, Optional
 
 import numexpr
+from torch import nn
 from tqdm import tqdm
 import torch
 import numpy as np
@@ -96,14 +97,46 @@ class DeforumAnimationPipeline(DeforumBase):
         Returns:
             DeforumGenerationObject: The generated object after the pipeline execution.
         """
+        self.combined_pre_checks(settings_file, callback, *args, **kwargs)
 
+        self.log_function_lists()
+
+        self.pbar = tqdm(total=self.gen.max_frames, desc="Processing", position=0, leave=True)
+
+        self.run_prep_fn_list()
+
+
+        while self.gen.frame_idx + 1 <= self.gen.max_frames:
+            # MAIN LOOP
+            frame_start = time.time()
+
+            self.run_shoot_fn_list()
+
+            self.pbar.update(self.gen.turbo_steps)
+            if self.logging:
+                duration = (time.time() - frame_start) * 1000
+                self.logger.log(f"----------------------------- Frame {self.gen.frame_idx + 1} took {duration:.2f} ms")
+        self.pbar.close()
+
+        self.run_post_fn_list()
+
+        if self.logging:
+            total_duration = (time.time() - self.start_total_time) * 1000
+            average_time_per_frame = total_duration / self.gen.max_frames
+            self.logger.log(f"Total time taken: {total_duration:.2f} ms")
+            self.logger.log(f"Average time per frame: {average_time_per_frame:.2f} ms")
+            self.logger.close_session()
+        return self.gen
+
+    def combined_pre_checks(self, settings_file: str = None, callback=None, *args, **kwargs):
+        self.setup_start = time.time()
         if callback is not None:
             self.datacallback = callback
 
         if self.logging and hasattr(self.logger, "start_session"):
             self.logger.start_session()
-            start_total_time = time.time()
-            duration = (start_total_time - self.script_start_time) * 1000
+            self.start_total_time = time.time()
+            duration = (self.start_total_time - self.script_start_time) * 1000
             self.logger.log(f"Script startup / model loading took {duration:.2f} ms")
         else:
             self.logging = False
@@ -114,81 +147,15 @@ class DeforumAnimationPipeline(DeforumBase):
             self.gen = DeforumGenerationObject(**kwargs)
 
         self.gen.update_from_kwargs(**kwargs)
-        setup_start = time.time()
+
         self.pre_setup()
         setup_end = time.time()
-        duration = (setup_end - setup_start) * 1000
+        duration = (setup_end - self.setup_start) * 1000
         if self.logging:
             self.logger.log(f"pre_setup took {duration:.2f} ms")
 
             setup_start = time.time()
         self.setup()
-        if self.logging:
-            setup_end = time.time()
-            duration = (setup_end - setup_start) * 1000
-            self.logger.log(f"loop took {duration:.2f} ms")
-
-            # Log names of functions in each list if they have functions
-            if self.prep_fns:
-                self.logger.log("Functions in prep_fns:", timestamped=False)
-                for fn in self.prep_fns:
-                    self.logger.log(fn.__name__, timestamped=False)
-
-            if self.shoot_fns:
-                self.logger.log("Functions in shoot_fns:", timestamped=False)
-                for fn in self.shoot_fns:
-                    self.logger.log(fn.__name__, timestamped=False)
-
-            if self.post_fns:
-                self.logger.log("Functions in post_fns:", timestamped=False)
-                for fn in self.post_fns:
-                    self.logger.log(fn.__name__, timestamped=False)
-
-            self.logger.log(str(self.gen.to_dict()), timestamped=False)
-
-
-        self.pbar = tqdm(total=self.gen.max_frames, desc="Processing", position=0, leave=True)
-        # PREP LOOP
-        for fn in self.prep_fns:
-            start_time = time.time()
-            fn(self)
-            if self.logging:
-                end_time = time.time()
-                duration = (end_time - start_time) * 1000
-                self.logger.log(f"{fn.__name__} took {duration:.2f} ms")
-
-        while self.gen.frame_idx + 1 <= self.gen.max_frames:
-            # MAIN LOOP
-            frame_start = time.time()
-            for fn in self.shoot_fns:
-                start_time = time.time()
-                with torch.inference_mode():
-                    with torch.no_grad():
-                        fn(self)
-                if self.logging:
-                    end_time = time.time()
-                    duration = (end_time - start_time) * 1000
-                    self.logger.log(f"{fn.__name__} took {duration:.2f} ms")
-            self.pbar.update(self.gen.turbo_steps)
-            if self.logging:
-                duration = (time.time() - frame_start) * 1000
-                self.logger.log(f"----------------------------- Frame {self.gen.frame_idx + 1} took {duration:.2f} ms")
-        self.pbar.close()
-
-        # POST LOOP
-        for fn in self.post_fns:
-            start_time = time.time()
-            fn(self)
-            if self.logging:
-                duration = (time.time() - start_time) * 1000
-                self.logger.log(f"{fn.__name__} took {duration:.2f} ms")
-        if self.logging:
-            total_duration = (time.time() - start_total_time) * 1000
-            average_time_per_frame = total_duration / self.gen.max_frames
-            self.logger.log(f"Total time taken: {total_duration:.2f} ms")
-            self.logger.log(f"Average time per frame: {average_time_per_frame:.2f} ms")
-            self.logger.close_session()
-        return self.gen
 
     def pre_setup(self):
         frame_warp_modes = ['2D', '3D']
@@ -326,6 +293,59 @@ class DeforumAnimationPipeline(DeforumBase):
                 self.post_fns.append(film_interpolate_cls)
         if self.gen.max_frames > 1:
             self.post_fns.append(save_video_cls)
+    def log_function_lists(self):
+        if self.logging:
+            setup_end = time.time()
+            duration = (setup_end - self.setup_start) * 1000
+            self.logger.log(f"loop took {duration:.2f} ms")
+
+            # Log names of functions in each list if they have functions
+            if self.prep_fns:
+                self.logger.log("Functions in prep_fns:", timestamped=False)
+                for fn in self.prep_fns:
+                    self.logger.log(fn.__name__, timestamped=False)
+
+            if self.shoot_fns:
+                self.logger.log("Functions in shoot_fns:", timestamped=False)
+                for fn in self.shoot_fns:
+                    self.logger.log(fn.__name__, timestamped=False)
+
+            if self.post_fns:
+                self.logger.log("Functions in post_fns:", timestamped=False)
+                for fn in self.post_fns:
+                    self.logger.log(fn.__name__, timestamped=False)
+
+            self.logger.log(str(self.gen.to_dict()), timestamped=False)
+
+    def run_prep_fn_list(self):
+        # PREP LOOP
+        for fn in self.prep_fns:
+            start_time = time.time()
+            fn(self)
+            if self.logging:
+                end_time = time.time()
+                duration = (end_time - start_time) * 1000
+                self.logger.log(f"{fn.__name__} took {duration:.2f} ms")
+
+    def run_shoot_fn_list(self):
+        for fn in self.shoot_fns:
+            start_time = time.time()
+            with torch.inference_mode():
+                with torch.no_grad():
+                    fn(self)
+            if self.logging:
+                end_time = time.time()
+                duration = (end_time - start_time) * 1000
+                self.logger.log(f"{fn.__name__} took {duration:.2f} ms")
+    def run_post_fn_list(self):
+        # POST LOOP
+        for fn in self.post_fns:
+            start_time = time.time()
+            fn(self)
+            if self.logging:
+                duration = (time.time() - start_time) * 1000
+                self.logger.log(f"{fn.__name__} took {duration:.2f} ms")
+
 
     def reset(self, *args, **kwargs) -> None:
         self.prep_fns.clear()
@@ -662,3 +682,30 @@ class DeforumAnimationPipeline(DeforumBase):
             self.gen.first_frame = processed
 
         return processed
+
+    def cleanup(self):
+        # Iterate over all attributes of the class instance
+        for attr_name in dir(self):
+            attr = getattr(self, attr_name)
+
+            # Check if attribute is a tensor
+            if isinstance(attr, torch.Tensor):
+                attr.cpu()  # Move tensor to CPU
+                delattr(self, attr_name)  # Delete attribute
+            # Check if attribute is an nn.Module
+            elif isinstance(attr, nn.Module):
+                attr.to("cpu")  # Move module to CPU
+                delattr(self, attr_name)  # Delete attribute
+            # Check if attribute has 'to' or 'cpu' callable method
+            else:
+                to_method = getattr(attr, "to", None)
+                cpu_method = getattr(attr, "cpu", None)
+
+                if callable(to_method):
+                    attr.to("cpu")
+                    delattr(self, attr_name)  # Delete attribute
+                elif callable(cpu_method):
+                    attr.cpu()
+                    delattr(self, attr_name)  # Delete attribute
+
+

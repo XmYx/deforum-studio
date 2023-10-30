@@ -10,18 +10,13 @@ def fetch_and_download_model(modelId: str, destination: str = ""):
     response.raise_for_status()
     model_data = response.json()
 
-    download_url = model_data['modelVersions'][1]['downloadUrl']
-    filename = model_data['modelVersions'][1]['files'][0]['name']
+    download_url = model_data['modelVersions'][0]['downloadUrl']
+    filename = model_data['modelVersions'][0]['files'][0]['name']
 
-    print(download_url)
-
-    print(filename)
     dir_path = destination
-    print(dir_path)
 
     os.makedirs(dir_path, exist_ok=True)
     filepath = os.path.join(dir_path, filename)
-    print(filepath)
 
     # Check if file already exists
     if os.path.exists(filepath):
@@ -67,7 +62,7 @@ def fetch_and_download_model_from_url(download_url: str, destination: str = ""):
 
     # Download file in chunks with progress bar
     print(f"Downloading {filename}...")
-    response = requests.get(download_url, stream=True, headers={'Content-Disposition': 'attachment'})
+    response = requests.get(f'{download_url}?token=a44763d416db87cfb4fdb6b70369f4a3', stream=True, headers={'Content-Disposition': 'attachment'})
     total_size = int(response.headers.get('content-length', 0))
     block_size = 1024  # 1 Kibibyte
     t = tqdm(total=total_size, unit='iB', unit_scale=True)

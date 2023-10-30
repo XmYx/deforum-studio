@@ -129,6 +129,7 @@ class ComfyDeforumGenerator:
 
     def __call__(self,
                  prompt="",
+                 pooled_prompts=None,
                  next_prompt=None,
                  prompt_blend=None,
                  negative_prompt="",
@@ -171,19 +172,36 @@ class ComfyDeforumGenerator:
                 cnet_image = torch.from_numpy(np.array(cnet_image).astype(np.float32) / 255.0).unsqueeze(0)
 
             if init_image is None:
-                if width is None:
-                    width = 1024
-                if height is None:
-                    height = 960
-                latent = self.generate_latent(width, height, seed, subseed, subseed_strength, seed_resize_from_h,
-                                              seed_resize_from_w, reset_noise)
 
+                if latent is None:
+
+                    if width is None:
+                        width = 1024
+                    if height is None:
+                        height = 960
+                    latent = self.generate_latent(width, height, seed, subseed, subseed_strength, seed_resize_from_h,
+                                                  seed_resize_from_w, reset_noise)
+                else:
+                    if isinstance(latent, torch.Tensor):
+                        latent = {"samples":latent}
+                    elif isinstance(latent, list):
+                        latent = {"samples":torch.stack(latent, dim=0)}
+                    else:
+                        latent = latent
             else:
+
                 latent = torch.from_numpy(np.array(init_image).astype(np.float32) / 255.0).unsqueeze(0)
-
                 latent = self.encode_latent(latent)
+            assert isinstance(latent, dict), \
+                "Our Latents have to be in a dict format with the latent being the 'samples' value"
 
-            cond = self.get_conds(prompt)
+
+            if pooled_prompts is None:
+                cond = self.get_conds(prompt)
+            else:
+                cond = pooled_prompts
+
+
             self.n_cond = self.get_conds(negative_prompt)
             self.prompt = prompt
 
@@ -218,16 +236,31 @@ class ComfyDeforumGenerator:
                                                        force_full_denoise=True,
                                                        noise=self.rng)
 
-            decoded = self.decode_sample(sample[0]["samples"])
 
-            np_array = np.clip(255. * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[0]
-            image = Image.fromarray(np_array)
-            # image = Image.fromarray(np.clip(255. * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[0])
-            image = image.convert("RGB")
-            if return_latent:
-                return sample[0]["samples"], image
+            if sample[0]["samples"].shape[0] == 1:
+                decoded = self.decode_sample(sample[0]["samples"])
+                np_array = np.clip(255. * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[0]
+                image = Image.fromarray(np_array)
+                # image = Image.fromarray(np.clip(255. * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[0])
+                image = image.convert("RGB")
+                if return_latent:
+                    return sample[0]["samples"], image
+                else:
+                    return image
             else:
-                return image
+                print("decoding multi images")
+                images = []
+                x_samples = self.vae.decode_tiled(sample[0]["samples"])
+                for sample in x_samples:
+                    np_array = np.clip(255. * sample.cpu().numpy(), 0, 255).astype(np.uint8)
+                    image = Image.fromarray(np_array)
+                    # image = Image.fromarray(np.clip(255. * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[0])
+                    image = image.convert("RGB")
+                    images.append(image)
+
+
+                return images
+
         elif self.pipeline_type == "diffusers_lcm":
             if init_image is None:
                 image = self.pipe(
