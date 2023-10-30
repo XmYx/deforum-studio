@@ -156,6 +156,7 @@ class DeforumAnimationPipeline(DeforumBase):
 
             setup_start = time.time()
         self.setup()
+
     def pre_setup(self):
         frame_warp_modes = ['2D', '3D']
         hybrid_motion_modes = ['Affine', 'Perspective', 'Optical Flow']
@@ -344,6 +345,7 @@ class DeforumAnimationPipeline(DeforumBase):
             if self.logging:
                 duration = (time.time() - start_time) * 1000
                 self.logger.log(f"{fn.__name__} took {duration:.2f} ms")
+
 
     def reset(self, *args, **kwargs) -> None:
         self.prep_fns.clear()
