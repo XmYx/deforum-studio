@@ -1029,6 +1029,9 @@ class DeformAnimKeys():
         self.checkpoint_schedule_series = self.fi.get_inbetweens(
             self.fi.parse_key_frames(anim_args.checkpoint_schedule), is_single_string=True)
         self.steps_schedule_series = self.fi.get_inbetweens(self.fi.parse_key_frames(anim_args.steps_schedule))
+
+        print("ERROR", anim_args.seed_schedule)
+
         self.seed_schedule_series = self.fi.get_inbetweens(self.fi.parse_key_frames(anim_args.seed_schedule))
         self.sampler_schedule_series = self.fi.get_inbetweens(self.fi.parse_key_frames(anim_args.sampler_schedule),
                                                               is_single_string=True)
@@ -1104,9 +1107,10 @@ class FrameInterpolator:
     def get_inbetweens(self, key_frames, integer=False, interp_method='Linear', is_single_string=False):
         key_frame_series = pd.Series([np.nan for a in range(self.max_frames)])
         # get our ui variables set for numexpr.evaluate
-        global max_f, s
+        global max_f
+        global s
         max_f = self.max_frames - 1
-        s = int(self.seed)
+        s = self.seed
         value_is_number = None
         value = None
         for i in range(0, self.max_frames):
@@ -1121,7 +1125,7 @@ class FrameInterpolator:
             if not value_is_number and value is not None:
                 t = i
                 # workaround for values formatted like 0:("I am test") //used for sampler schedules
-                key_frame_series[i] = numexpr.evaluate(value) if not is_single_string else self.sanitize_value(value)
+                key_frame_series[i] = numexpr.evaluate(str(value)) if not is_single_string else self.sanitize_value(value)
             elif is_single_string:  # take previous string value and replicate it
                 key_frame_series[i] = key_frame_series[i - 1]
         key_frame_series = key_frame_series.astype(float) if not is_single_string else key_frame_series  # as string
