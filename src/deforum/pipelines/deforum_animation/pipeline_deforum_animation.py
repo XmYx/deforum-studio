@@ -226,6 +226,9 @@ class DeforumAnimationPipeline(DeforumBase):
             self.raft_model = RAFT()
 
         if self.gen.use_areas:
+
+            print("DEFORUM PIPELINE COND AREA SCHEDULING", self.gen.areas)
+
             try:
                 self.gen.areas = interpolate_areas(self.gen.areas, self.gen.max_frames)
             except:
