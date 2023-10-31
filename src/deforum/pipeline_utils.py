@@ -7,7 +7,7 @@ import time
 
 from .pipelines.deforum_animation.animation_params import (DeforumArgs, DeforumAnimArgs,
                                                            ParseqArgs, LoopArgs, RootArgs,
-                                                           DeforumOutputArgs, DeforumAnimPrompts)
+                                                           DeforumOutputArgs, DeforumAnimPrompts, areas)
 from .utils.constants import root_path
 
 
@@ -174,6 +174,9 @@ class DeforumGenerationObject(DeforumDataObject):
         self.contrast = 1.0
         self.hybrid_use_full_video = True
         self.turbo_steps = self.diffusion_cadence
+
+        self.use_areas = False
+        self.areas = areas
 
         # Set all provided keyword arguments as attributes
         for key, value in kwargs.items():

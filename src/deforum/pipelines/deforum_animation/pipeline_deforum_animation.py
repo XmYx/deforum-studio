@@ -225,6 +225,12 @@ class DeforumAnimationPipeline(DeforumBase):
             print("[ Loading RAFT model ]")
             self.raft_model = RAFT()
 
+        if self.gen.use_areas:
+            try:
+                self.gen.areas = interpolate_areas(self.gen.areas, self.gen.max_frames)
+            except:
+                self.gen.use_areas = False
+
     def setup(self, *args, **kwargs) -> None:
         """
         Set up the list of functions to be executed during the main loop of the animation pipeline.
@@ -331,7 +337,7 @@ class DeforumAnimationPipeline(DeforumBase):
         for fn in self.shoot_fns:
             start_time = time.time()
             with torch.inference_mode():
-                with torch.no_grad():
+                with torch.inference_mode():
                     fn(self)
             if self.logging:
                 end_time = time.time()
@@ -370,6 +376,81 @@ class DeforumAnimationPipeline(DeforumBase):
             processed (Image): The generated image or animation frame.
         """
         assert self.gen.prompt is not None
+        # areas = [
+        #         {"0": [
+        #             {"prompt": "highly detailed 3d render of a grassy savannah landscape under a bright sky",
+        #              "x": 0, "y": 0, "w": 1024, "h": 1024, "s": 0.4},
+        #             {"prompt": "highly detailed 3d render of a majestic lion",
+        #              "x": 0, "y": 0, "w": 512, "h": 1024, "s": 0.7},
+        #             ]},
+        #          {"25": [
+        #              {"prompt": "highly detailed 3d render of a grassy savannah landscape under a bright sky",
+        #               "x": 0, "y": 0, "w": 1024, "h": 1024, "s": 0.4},
+        #              {"prompt": "highly detailed 3d render of a majestic lion",
+        #               "x": 100, "y": 0, "w": 512, "h": 1024, "s": 0.6},
+        #             ]},
+        #          {"60": [
+        #              {"prompt": "highly detailed 3d render of a grassy savannah landscape under a bright sky",
+        #               "x": 0, "y": 0, "w": 1024, "h": 1024, "s": 0.4},
+        #              {"prompt": "highly detailed 3d render of a majestic lion",
+        #               "x": 300, "y": 0, "w": 512, "h": 1024, "s": 0.6},
+        #              {"prompt": "bright sun in a clear sky",
+        #               "x": 500, "y": 40, "w": 256, "h": 256, "s": 0.2}]},
+        #          {"100": [
+        #              {"prompt": "highly detailed 3d render of a grassy savannah landscape under a bright sky",
+        #               "x": 0, "y": 0, "w": 1024, "h": 1024, "s": 0.4},
+        #              {"prompt": "highly detailed 3d render of a majestic lion",
+        #               "x": 512, "y": 0, "w": 512, "h": 1024, "s": 0.6},
+        #              {"prompt": "bright sun in a clear sky",
+        #               "x": 640, "y": 50, "w": 256, "h": 256, "s": 0.2}]},
+        #          ]
+        #
+        #
+        # areas = [{"0":[{"prompt":"a vast starscape with distant nebulae and galaxies", "x":0, "y":0, "w":1024, "h":1024, "s":1},
+        #                {"prompt":"a small detailed sci-fi spaceship in the distance", "x":512, "y":512, "w":50, "h":50, "s":0.2}]},
+        #          {"50":[{"prompt":"a vast starscape with distant nebulae and galaxies", "x":0, "y":0, "w":1024, "h":1024, "s":1},
+        #                 {"prompt":"a medium-sized detailed sci-fi spaceship", "x":400, "y":400, "w":200, "h":200, "s":0.6}]},
+        #         {"100":[{"prompt":"a vast starscape with distant nebulae and galaxies", "x":0, "y":0, "w":1024, "h":1024, "s":1},
+        #                 {"prompt":"a large detailed sci-fi spaceship", "x":100, "y":100, "w":800, "h":800, "s":1}]}]
+        # areas = [
+        #           {
+        #             "0": [
+        #               {
+        #                 "prompt": "a vast starscape with distant nebulae and galaxies",
+        #                 "x": 0, "y": 0, "w": 1024, "h": 1024, "s": 0.7
+        #               },
+        #               {
+        #                 "prompt": "detailed sci-fi spaceship",
+        #                 "x": 512, "y": 512, "w": 50, "h": 50, "s": 0.7
+        #               }
+        #             ]
+        #           },
+        #           {
+        #             "50": [
+        #               {
+        #                 "prompt": "a vast starscape with distant nebulae and galaxies",
+        #                 "x": 0, "y": 0, "w": 1024, "h": 1024, "s": 0.7
+        #               },
+        #               {
+        #                 "prompt": "detailed sci-fi spaceship",
+        #                 "x": 412, "y": 412,  "w": 200, "h": 200, "s": 0.7
+        #               }
+        #             ]
+        #           },
+        #           {
+        #             "100": [
+        #               {
+        #                 "prompt": "a vast starscape with distant nebulae and galaxies",
+        #                 "x": 0, "y": 0, "w": 1024, "h": 1024, "s": 0.7
+        #               },
+        #               {
+        #                 "prompt": "detailed sci-fi spaceship",
+        #                 "x": 112, "y": 112,  "w": 800,  "h": 800,  "s": 0.7
+        #               }
+        #             ]
+        #           }
+        #         ]
+        # areas = interpolate_areas(areas, self.gen.max_frames)
 
         # Setup the pipeline
         # p = get_webui_sd_pipeline(args, root, frame)
@@ -584,14 +665,23 @@ class DeforumAnimationPipeline(DeforumBase):
                 "next_prompt": next_prompt,
                 "prompt_blend": blend_value,
                 "scheduler":self.gen.scheduler,
-                "sampler_name":self.gen.sampler_name
+                "sampler_name":self.gen.sampler_name,
+                "reset_noise":False if self.genstrength < 1.0 else True
             }
             if self.gen.frame_idx == 0:
                 gen_args["reset_noise"] = True
-
             if hasattr(self.gen, "style"):
-                if self.gen.style in STYLE_NAMES:
+                if self.gen.style is not "(No Style)" and self.gen.style in STYLE_NAMES:
                     gen_args["prompt"], gen_args["negative_prompt"] = apply_style(self.gen.style, gen_args["prompt"], gen_args["negative_prompt"])
+
+
+            if self.gen.use_areas:
+                gen_args["areas"] = self.gen.areas[self.gen.frame_idx]
+                gen_args["use_areas"] = True
+                gen_args["prompt"] = None
+
+
+
 
             if self.gen.enable_subseed_scheduling:
                 gen_args["subseed"] = self.gen.subseed
@@ -667,7 +757,12 @@ class DeforumAnimationPipeline(DeforumBase):
                 "prompt_blend": blend_value
             }
 
-            #print(f"DEFORUM GEN ARGS: [{gen_args}] ")
+            if self.gen.use_areas:
+
+                gen_args["areas"] =  self.gen.areas[self.gen.frame_idx]
+                gen_args["use_areas"] = True
+                gen_args["prompt"] = None
+                #print(f"DEFORUM GEN ARGS: [{gen_args}] ")
 
             if self.gen.enable_subseed_scheduling:
                 gen_args["subseed"] = self.gen.subseed
@@ -709,3 +804,59 @@ class DeforumAnimationPipeline(DeforumBase):
                     delattr(self, attr_name)  # Delete attribute
 
 
+def interpolate_areas(areas, max_frames):
+    # Special case for max_frames = 1
+    if max_frames == 1:
+        return [areas[0]["0"]]
+
+    # Parse the keyframes and their values
+    keyframes = sorted([int(k) for area in areas for k in area])
+
+    # If there are more keyframes than max_frames, truncate the list of keyframes
+    keyframes = keyframes[:max_frames]
+
+    # Initialize the result list with empty dicts for each frame
+    result = [{} for _ in range(max_frames + 1)]
+
+    # For each pair of consecutive keyframes
+    for i in range(len(keyframes) - 1):
+        start_frame = keyframes[i]
+        end_frame = keyframes[i + 1]
+        start_prompts = areas[i][str(start_frame)]
+        end_prompts = areas[i + 1][str(end_frame)]
+
+        # Create a mapping of prompts to their values for easier lookup
+        start_mapping = {prompt['prompt']: prompt for prompt in start_prompts}
+        end_mapping = {prompt['prompt']: prompt for prompt in end_prompts}
+
+        # Combine the set of prompts from both start and end keyframes
+        all_prompts = set(start_mapping.keys()) | set(end_mapping.keys())
+
+        # For each frame between the start and end keyframes
+        end_range = min(end_frame + 1, max_frames + 1)
+        for frame in range(start_frame, end_range):
+            result[frame] = []
+            for prompt in all_prompts:
+                start_values = start_mapping.get(prompt, None)
+                end_values = end_mapping.get(prompt, None)
+
+                # If the prompt is only in the start or end keyframe, use its values
+                if start_values is None:
+                    result[frame].append(end_values)
+                elif end_values is None:
+                    result[frame].append(start_values)
+                else:
+                    # Otherwise, interpolate the values
+                    t = (frame - start_frame) / (end_frame - start_frame)
+                    x = start_values['x'] + t * (end_values['x'] - start_values['x'])
+                    y = start_values['y'] + t * (end_values['y'] - start_values['y'])
+                    w = start_values['w'] + t * (end_values['w'] - start_values['w'])
+                    h = start_values['h'] + t * (end_values['h'] - start_values['h'])
+                    s = start_values['s'] + t * (end_values['s'] - start_values['s'])
+                    result[frame].append({'prompt': prompt, 'x': x, 'y': y, 'w': w, 'h': h, 's': s})
+
+    # Fill in any remaining frames with the values from the last keyframe
+    for frame in range(keyframes[-1], max_frames):
+        result[frame] = areas[-1][str(keyframes[-1])]
+
+    return result[:max_frames]

@@ -48,8 +48,8 @@ def ensure_comfy():
 
     # Add the mock module to sys.modules under the name 'comfy.cli_args'
     sys.modules['comfy.cli_args'] = MockCLIArgsModule()
-    import comfy.k_diffusion.sampling
-    comfy.k_diffusion.sampling.BatchedBrownianTree = DeforumBatchedBrownianTree
+    # import comfy.k_diffusion.sampling
+    # comfy.k_diffusion.sampling.BatchedBrownianTree = DeforumBatchedBrownianTree
 
 
 
@@ -109,7 +109,7 @@ mock_args = CLIArgs(
     use_pytorch_cross_attention=True,
     use_split_cross_attention=False,
     use_quad_cross_attention=False,
-    fp16_vae=True,
+    fp16_vae=False,
     bf16_vae=False,
     fp32_vae=False,
     force_fp32=False,
@@ -129,7 +129,7 @@ mock_args = CLIArgs(
     cuda_malloc=False,
     disable_cuda_malloc=True,
     dont_upcast_attention=True,
-    bf16_unet=False,
+    bf16_unet=True,
     directml=None,
     preview_method="none",
     dont_print_server=True,
