@@ -63,12 +63,12 @@ class ComfyDeforumGenerator:
 
     def generate_latent(self, width, height, seed, subseed, subseed_strength, seed_resize_from_h=None,
                         seed_resize_from_w=None, reset_noise=False):
-        # shape = [4, height // 8, width // 8]
-        # if self.rng is None or reset_noise:
-        #     self.rng = ImageRNGNoise(shape=shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
-        #                              seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
-        # noise = self.rng.next()
-        noise = torch.zeros([1, 4, width // 8, height // 8])
+        shape = [4, height // 8, width // 8]
+        if self.rng is None or reset_noise:
+            self.rng = ImageRNGNoise(shape=shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
+                                     seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
+        noise = self.rng.next()
+        # noise = torch.zeros([1, 4, width // 8, height // 8])
         return {"samples": noise}
 
     def get_conds(self, prompt):
@@ -198,16 +198,16 @@ class ComfyDeforumGenerator:
             assert isinstance(latent, dict), \
                 "Our Latents have to be in a dict format with the latent being the 'samples' value"
 
+            cond = []
 
-            if pooled_prompts is None and prompt:
+            if pooled_prompts is None:
                 cond = self.get_conds(prompt)
             elif pooled_prompts is not None:
                 cond = pooled_prompts
-            elif use_areas and areas is not None:
+
+            if use_areas and areas is not None:
                 from nodes import ConditioningSetArea
                 area_setter = ConditioningSetArea()
-
-                cond = []
                 for area in areas:
                     print("AREA TO USE", area)
                     prompt = area.get("prompt", None)
@@ -220,8 +220,6 @@ class ComfyDeforumGenerator:
 
             self.n_cond = self.get_conds(negative_prompt)
             self.prompt = prompt
-
-            area = {"prompts":[{"prompt":"highly detailed 3d render of a grassy savannah landscape under a bright sky", "x":0, "y":0, "w":1024, "h":1024, "s":0.5}, {"prompt":"highly detailed 3d render of a majestic lion", "x":0, "y":256, "w":512, "h":768, "s":0.75}, {"prompt":"highly detailed 3d render of a housecat", "x":512, "y":256, "w":512, "h":768, "s":0.6}, {"prompt":"bright sun in a clear sky", "x":768, "y":0, "w":256, "h":256, "s":0.5}]}
 
 
             if next_prompt is not None and enable_prompt_blend:
