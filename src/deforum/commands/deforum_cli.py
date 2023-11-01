@@ -34,11 +34,9 @@ def start_deforum_cli():
     options = {}
     if args_main.options:
         for item in args_main.options:
-            print(item)
             key, value_str = item.split('=')
             value = convert_value(value_str)
             options[key] = value
-
 
     if args_main.mode:
         if args_main.mode == "webui":
@@ -47,13 +45,15 @@ def start_deforum_cli():
             stcli.main(["run", f"{root_path}/webui/deforum_webui.py"])
         elif args_main.mode == "animatediff":
             from deforum.pipelines.animatediff_animation.pipeline_animatediff_animation import DeforumAnimateDiffPipeline
-            pipe = DeforumAnimateDiffPipeline.from_civitai()
-            # pipe = DeforumAnimateDiffPipeline.from_single_file("/home/mix/Downloads/SSD-1B.safetensors")
+            modelid = options.get("modelid", "125703")
+            pipe = DeforumAnimateDiffPipeline.from_civitai(model_id=modelid)
             _ = pipe(**extra_args, **options)
 
         elif args_main.mode == "runpresets":
             from deforum import DeforumAnimationPipeline
-            deforum = DeforumAnimationPipeline.from_civitai()
+            modelid = options.get("modelid", "125703")
+
+            deforum = DeforumAnimationPipeline.from_civitai(model_id=modelid)
 
             filepath = "/home/mix/Documents/GitHub/deforum-studio/deforum-studio/presets/Shapes-Kalidascope.txt"
             for dirpath, dirnames, filenames in os.walk("presets"):

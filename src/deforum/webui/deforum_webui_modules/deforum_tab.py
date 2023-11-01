@@ -173,7 +173,7 @@ def display_area_editor():
                 st.rerun()
             if st.button('refresh'):
                 st.rerun()
-            st.session_state["use_areas"] = st.checkbox("Use Area Schedule")
+
     display_areas_in_cols(cols[1:])
 
 def display_areas_in_cols(columns):
@@ -225,6 +225,7 @@ def plugin_tab(tabs, tab_names):
             with col1:
                 with st.expander("Basic Settings", expanded=True):
                     generate_button = st.form_submit_button("Generate")
+                    st.session_state["use_areas"] = st.checkbox("Use Area Schedule")
                     update_button = st.form_submit_button("Update")
 
                     params["prompt"] = st.text_area("Input Text", value='', placeholder="A corgi wearing a top hat.\nSecond Prompt")
@@ -493,11 +494,8 @@ def plugin_tab(tabs, tab_names):
                         if "deforum_pipe" not in models:
                             print("LOADING DEFORUM INTO ST")
                             from deforum.pipelines import DeforumAnimationPipeline
-
-                            # models["deforum_pipe"] = DeforumAnimationPipeline.from_civitai(trt=False)
-                            models["deforum_pipe"] = DeforumAnimationPipeline.from_single_file("/home/mix/Downloads/SSD-1B.safetensors")
+                            models["deforum_pipe"] = DeforumAnimationPipeline.from_civitai(model_id="125703")
                             models["deforum_pipe"].datacallback = datacallback
-                            time.sleep(0.5)
 
                         # frames.clear()
 
@@ -527,7 +525,6 @@ def plugin_tab(tabs, tab_names):
                             txt2vid_copy["use_areas"] = True
                             txt2vid_copy["areas"] = st.session_state.areas
 
-                            print(txt2vid_copy["areas"])
 
                         success = models["deforum_pipe"](**txt2vid_copy)
 
