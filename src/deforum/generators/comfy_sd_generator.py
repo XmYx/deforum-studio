@@ -63,12 +63,12 @@ class ComfyDeforumGenerator:
 
     def generate_latent(self, width, height, seed, subseed, subseed_strength, seed_resize_from_h=None,
                         seed_resize_from_w=None, reset_noise=False):
-        shape = [4, height // 8, width // 8]
-        if self.rng is None or reset_noise:
-            self.rng = ImageRNGNoise(shape=shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
-                                     seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
-        noise = self.rng.next()
-        # noise = torch.zeros([1, 4, width // 8, height // 8])
+        # shape = [4, height // 8, width // 8]
+        # if self.rng is None or reset_noise:
+        #     self.rng = ImageRNGNoise(shape=shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
+        #                              seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
+        # noise = self.rng.next()
+        noise = torch.zeros([1, 4, width // 8, height // 8])
         return {"samples": noise}
 
     def get_conds(self, prompt):
@@ -238,7 +238,7 @@ class ComfyDeforumGenerator:
 
             last_step = int((strength) * steps) if (strength != 1.0 or not reset_noise) else steps
             # last_step = steps if last_step is None else last_step
-
+            last_step = steps
             sample = common_ksampler_with_custom_noise(model=self.model,
                                                        seed=seed,
                                                        steps=steps,

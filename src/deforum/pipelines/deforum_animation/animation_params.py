@@ -272,7 +272,7 @@ def DeforumAnimArgs():
         "seed_schedule": {
             "label": "Seed schedule",
             "type": "textbox",
-            "value": '0:(s), 1:(-1), "max_f-2":(-1), "max_f-1":(s)',
+            "value": '0:(-1)',
             "info": ""
         },
         "pix2pix_img_cfg_scale_schedule": {

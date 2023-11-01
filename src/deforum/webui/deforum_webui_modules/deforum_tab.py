@@ -440,9 +440,11 @@ def plugin_tab(tabs, tab_names):
                     params["color_coherence"] = st.selectbox(
                         'Color Coherence',
                         ('Match Frame 0 LAB', 'None', 'Match Frame 0 HSV', 'Match Frame 0 RGB'))
-                    params["diffusion_cadence"] = st.selectbox(
-                        'Diffusion Cadence',
-                        ('1', '2', '3', '4', '5', '6', '7', '8'))
+                    params["turbo_steps"] = st.number_input("Diffusion Cadence", min_value=0, max_value=4096, value=1, step=1)
+                    params["optical_flow_cadence"] = st.selectbox("Optical Flow Cadence", ['None', 'RAFT', 'DIS Medium', 'DIS Fine', 'Farneback', "DenseRLOF", "SF", "DualTVL1", "DeepFlow", "PCAFlow"])
+
+
+
                     params["use_depth_warping"] = st.checkbox('Use Depth Warping', value=True)
                     params["midas_weight"] = st.number_input('Midas Weight',
                                                                                   value=st.session_state[
@@ -492,7 +494,8 @@ def plugin_tab(tabs, tab_names):
                             print("LOADING DEFORUM INTO ST")
                             from deforum.pipelines import DeforumAnimationPipeline
 
-                            models["deforum_pipe"] = DeforumAnimationPipeline.from_civitai(trt=False)
+                            # models["deforum_pipe"] = DeforumAnimationPipeline.from_civitai(trt=False)
+                            models["deforum_pipe"] = DeforumAnimationPipeline.from_single_file("/home/mix/Downloads/SSD-1B.safetensors")
                             models["deforum_pipe"].datacallback = datacallback
                             time.sleep(0.5)
 

@@ -6,6 +6,8 @@ import secrets
 import time
 from typing import Callable, Optional
 
+import PIL.Image
+import cv2
 import numexpr
 from torch import nn
 from tqdm import tqdm
@@ -33,7 +35,7 @@ from .animation_helpers import (anim_frame_warp_cls,
                                 make_cadence_frames,
                                 color_match_video_input,
                                 film_interpolate_cls,
-                                save_video_cls, DeformAnimKeys, LooperAnimKeys)
+                                save_video_cls, DeformAnimKeys, LooperAnimKeys, generate_interpolated_frames)
 
 from .animation_params import auto_to_comfy
 
@@ -192,8 +194,7 @@ class DeforumAnimationPipeline(DeforumBase):
         self.gen.using_vid_init = self.gen.animation_mode == 'Video Input'
 
         # load depth model for 3D
-        self.gen.predict_depths = (
-                                     self.gen.animation_mode == '3D' and self.gen.use_depth_warping) or self.gen.save_depth_maps
+        self.gen.predict_depths = self.gen.use_depth_warping or self.gen.save_depth_maps
         self.gen.predict_depths = self.gen.predict_depths or (
                 self.gen.hybrid_composite and self.gen.hybrid_comp_mask_type in ['Depth', 'Video Depth'])
         if self.gen.predict_depths:
@@ -248,7 +249,7 @@ class DeforumAnimationPipeline(DeforumBase):
 
         turbo_steps = self.gen.get('turbo_steps', 1)
         if turbo_steps > 1:
-            self.shoot_fns.append(make_cadence_frames)
+            self.shoot_fns.append(generate_interpolated_frames)
         if self.gen.color_coherence == 'Video Input' and hybrid_available:
             self.shoot_fns.append(color_match_video_input)
         if self.gen.animation_mode in ['2D', '3D']:
@@ -368,7 +369,64 @@ class DeforumAnimationPipeline(DeforumBase):
     def datacallback(self, data):
         pass
 
+
     def generate(self):
+        assert self.gen.prompt is not None
+        prompt, negative_prompt = split_weighted_subprompts(self.gen.prompt, self.gen.frame_idx, self.gen.max_frames)
+
+        next_prompt, blend_value = get_next_prompt_and_blend(self.gen.frame_idx, self.gen.prompt_series)
+
+        if self.gen.scheduled_sampler_name is not None:
+            if self.gen.scheduled_sampler_name in auto_to_comfy.keys():
+                self.gen.sampler_name = auto_to_comfy[self.gen.sampler_name]["sampler"]
+                self.gen.scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
+
+        img = self.gen.prev_img
+        if img is not None:
+            if not isinstance(img, PIL.Image.Image):
+                img = Image.fromarray(cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB))
+        self.gen.strength = 1.0 if img is None else self.gen.strength
+        gen_args = {
+            "prompt": prompt,
+            "negative_prompt": negative_prompt,
+            "steps": self.gen.steps,
+            "seed": self.gen.seed,
+            "scale": self.gen.scale,
+            "strength": self.gen.strength,
+            "init_image": img,
+            "width": self.gen.W,
+            "height": self.gen.H,
+            "cnet_image": None,
+            "next_prompt": next_prompt,
+            "prompt_blend": blend_value,
+            "scheduler": self.gen.scheduler,
+            "sampler_name": self.gen.sampler_name,
+            "reset_noise": False if self.gen.strength < 1.0 else True
+        }
+        if self.gen.frame_idx == 0:
+            gen_args["reset_noise"] = True
+        if hasattr(self.gen, "style"):
+            if self.gen.style is not "(No Style)" and self.gen.style in STYLE_NAMES:
+                gen_args["prompt"], gen_args["negative_prompt"] = apply_style(self.gen.style, gen_args["prompt"],
+                                                                              gen_args["negative_prompt"])
+
+        if self.gen.use_areas:
+            gen_args["areas"] = self.gen.areas[self.gen.frame_idx]
+            gen_args["use_areas"] = True
+            gen_args["prompt"] = None
+
+        if self.gen.enable_subseed_scheduling:
+            gen_args["subseed"] = self.gen.subseed
+            gen_args["subseed_strength"] = self.gen.subseed_strength
+            gen_args["seed_resize_from_h"] = self.gen.seed_resize_from_h
+            gen_args["seed_resize_from_w"] = self.gen.seed_resize_from_w
+
+        processed = self.generator(**gen_args)
+        torch.cuda.empty_cache()
+
+        return processed
+
+    def generate_(self):
         """
         Generates an image or animation using the given prompts, settings, and generator.
 
@@ -379,116 +437,14 @@ class DeforumAnimationPipeline(DeforumBase):
             processed (Image): The generated image or animation frame.
         """
         assert self.gen.prompt is not None
-        # areas = [
-        #         {"0": [
-        #             {"prompt": "highly detailed 3d render of a grassy savannah landscape under a bright sky",
-        #              "x": 0, "y": 0, "w": 1024, "h": 1024, "s": 0.4},
-        #             {"prompt": "highly detailed 3d render of a majestic lion",
-        #              "x": 0, "y": 0, "w": 512, "h": 1024, "s": 0.7},
-        #             ]},
-        #          {"25": [
-        #              {"prompt": "highly detailed 3d render of a grassy savannah landscape under a bright sky",
-        #               "x": 0, "y": 0, "w": 1024, "h": 1024, "s": 0.4},
-        #              {"prompt": "highly detailed 3d render of a majestic lion",
-        #               "x": 100, "y": 0, "w": 512, "h": 1024, "s": 0.6},
-        #             ]},
-        #          {"60": [
-        #              {"prompt": "highly detailed 3d render of a grassy savannah landscape under a bright sky",
-        #               "x": 0, "y": 0, "w": 1024, "h": 1024, "s": 0.4},
-        #              {"prompt": "highly detailed 3d render of a majestic lion",
-        #               "x": 300, "y": 0, "w": 512, "h": 1024, "s": 0.6},
-        #              {"prompt": "bright sun in a clear sky",
-        #               "x": 500, "y": 40, "w": 256, "h": 256, "s": 0.2}]},
-        #          {"100": [
-        #              {"prompt": "highly detailed 3d render of a grassy savannah landscape under a bright sky",
-        #               "x": 0, "y": 0, "w": 1024, "h": 1024, "s": 0.4},
-        #              {"prompt": "highly detailed 3d render of a majestic lion",
-        #               "x": 512, "y": 0, "w": 512, "h": 1024, "s": 0.6},
-        #              {"prompt": "bright sun in a clear sky",
-        #               "x": 640, "y": 50, "w": 256, "h": 256, "s": 0.2}]},
-        #          ]
-        #
-        #
-        # areas = [{"0":[{"prompt":"a vast starscape with distant nebulae and galaxies", "x":0, "y":0, "w":1024, "h":1024, "s":1},
-        #                {"prompt":"a small detailed sci-fi spaceship in the distance", "x":512, "y":512, "w":50, "h":50, "s":0.2}]},
-        #          {"50":[{"prompt":"a vast starscape with distant nebulae and galaxies", "x":0, "y":0, "w":1024, "h":1024, "s":1},
-        #                 {"prompt":"a medium-sized detailed sci-fi spaceship", "x":400, "y":400, "w":200, "h":200, "s":0.6}]},
-        #         {"100":[{"prompt":"a vast starscape with distant nebulae and galaxies", "x":0, "y":0, "w":1024, "h":1024, "s":1},
-        #                 {"prompt":"a large detailed sci-fi spaceship", "x":100, "y":100, "w":800, "h":800, "s":1}]}]
-        # areas = [
-        #           {
-        #             "0": [
-        #               {
-        #                 "prompt": "a vast starscape with distant nebulae and galaxies",
-        #                 "x": 0, "y": 0, "w": 1024, "h": 1024, "s": 0.7
-        #               },
-        #               {
-        #                 "prompt": "detailed sci-fi spaceship",
-        #                 "x": 512, "y": 512, "w": 50, "h": 50, "s": 0.7
-        #               }
-        #             ]
-        #           },
-        #           {
-        #             "50": [
-        #               {
-        #                 "prompt": "a vast starscape with distant nebulae and galaxies",
-        #                 "x": 0, "y": 0, "w": 1024, "h": 1024, "s": 0.7
-        #               },
-        #               {
-        #                 "prompt": "detailed sci-fi spaceship",
-        #                 "x": 412, "y": 412,  "w": 200, "h": 200, "s": 0.7
-        #               }
-        #             ]
-        #           },
-        #           {
-        #             "100": [
-        #               {
-        #                 "prompt": "a vast starscape with distant nebulae and galaxies",
-        #                 "x": 0, "y": 0, "w": 1024, "h": 1024, "s": 0.7
-        #               },
-        #               {
-        #                 "prompt": "detailed sci-fi spaceship",
-        #                 "x": 112, "y": 112,  "w": 800,  "h": 800,  "s": 0.7
-        #               }
-        #             ]
-        #           }
-        #         ]
-        # areas = interpolate_areas(areas, self.gen.max_frames)
-
-        # Setup the pipeline
-        # p = get_webui_sd_pipeline(args, root, frame)
         prompt, negative_prompt = split_weighted_subprompts(self.gen.prompt, self.gen.frame_idx, self.gen.max_frames)
+
+
+
 
         # print("DEFORUM CONDITIONING INTERPOLATION")
 
-        def generate_blend_values(distance_to_next_prompt, blend_type="linear"):
-            if blend_type == "linear":
-                return [i / distance_to_next_prompt for i in range(distance_to_next_prompt + 1)]
-            elif blend_type == "exponential":
-                base = 2
-                return [1 / (1 + math.exp(-8 * (i / distance_to_next_prompt - 0.5))) for i in
-                        range(distance_to_next_prompt + 1)]
-            else:
-                raise ValueError(f"Unknown blend type: {blend_type}")
 
-        def get_next_prompt_and_blend(current_index, prompt_series, blend_type="exponential"):
-            # Find where the current prompt ends
-            next_prompt_start = current_index + 1
-            while next_prompt_start < len(prompt_series) and prompt_series.iloc[next_prompt_start] == \
-                    prompt_series.iloc[
-                        current_index]:
-                next_prompt_start += 1
-
-            if next_prompt_start >= len(prompt_series):
-                return "", 1.0
-                # raise ValueError("Already at the last prompt, no next prompt available.")
-
-            # Calculate blend value
-            distance_to_next = next_prompt_start - current_index
-            blend_values = generate_blend_values(distance_to_next, blend_type)
-            blend_value = blend_values[1]  # Blend value for the next frame after the current index
-
-            return prompt_series.iloc[next_prompt_start], blend_value
 
         next_prompt, blend_value = get_next_prompt_and_blend(self.gen.frame_idx, self.gen.prompt_series)
         # print("DEBUG", next_prompt, blend_value)
@@ -580,9 +536,12 @@ class DeforumAnimationPipeline(DeforumBase):
         #        raise RuntimeError(f"Unknown checkpoint: {self.gen.checkpoint}")
         #    sd_models.reload_model_weights(info=info)
 
-        if self.gen.init_sample is not None:
+        if self.gen.prev_img is not None:
             # TODO: cleanup init_sample remains later
-            img = self.gen.init_sample
+            img = self.gen.prev_img
+
+
+
             init_image = img
             image_init0 = img
             if self.gen.use_looper and isJson(self.gen.imagesToKeyframe) and self.gen.animation_mode in ['2D', '3D']:
@@ -863,3 +822,34 @@ def interpolate_areas(areas, max_frames):
         result[frame] = areas[-1][str(keyframes[-1])]
 
     return result[:max_frames]
+
+
+def generate_blend_values(distance_to_next_prompt, blend_type="linear"):
+    if blend_type == "linear":
+        return [i / distance_to_next_prompt for i in range(distance_to_next_prompt + 1)]
+    elif blend_type == "exponential":
+        base = 2
+        return [1 / (1 + math.exp(-8 * (i / distance_to_next_prompt - 0.5))) for i in
+                range(distance_to_next_prompt + 1)]
+    else:
+        raise ValueError(f"Unknown blend type: {blend_type}")
+
+
+def get_next_prompt_and_blend(current_index, prompt_series, blend_type="exponential"):
+    # Find where the current prompt ends
+    next_prompt_start = current_index + 1
+    while next_prompt_start < len(prompt_series) and prompt_series.iloc[next_prompt_start] == \
+            prompt_series.iloc[
+                current_index]:
+        next_prompt_start += 1
+
+    if next_prompt_start >= len(prompt_series):
+        return "", 1.0
+        # raise ValueError("Already at the last prompt, no next prompt available.")
+
+    # Calculate blend value
+    distance_to_next = next_prompt_start - current_index
+    blend_values = generate_blend_values(distance_to_next, blend_type)
+    blend_value = blend_values[1]  # Blend value for the next frame after the current index
+
+    return prompt_series.iloc[next_prompt_start], blend_value

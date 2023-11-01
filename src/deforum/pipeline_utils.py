@@ -174,7 +174,8 @@ class DeforumGenerationObject(DeforumDataObject):
         self.contrast = 1.0
         self.hybrid_use_full_video = True
         self.turbo_steps = self.diffusion_cadence
-
+        self.img = None
+        self.opencv_image = None
         self.use_areas = False
         self.areas = areas
 

@@ -48,6 +48,7 @@ def start_deforum_cli():
         elif args_main.mode == "animatediff":
             from deforum.pipelines.animatediff_animation.pipeline_animatediff_animation import DeforumAnimateDiffPipeline
             pipe = DeforumAnimateDiffPipeline.from_civitai()
+            # pipe = DeforumAnimateDiffPipeline.from_single_file("/home/mix/Downloads/SSD-1B.safetensors")
             _ = pipe(**extra_args, **options)
 
         elif args_main.mode == "runpresets":

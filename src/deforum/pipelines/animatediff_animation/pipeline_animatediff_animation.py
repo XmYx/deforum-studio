@@ -148,8 +148,7 @@ class DeforumAnimateDiffPipeline(DeforumBase):
 
         }
         prompts = {
-            0: "Abstract painting of the universe",
-            8: "3D render of planet earth",
+            0: "A dog walking in the park",
         }
 
         #Create default values needed for animatediff / Hotshotco-XL generation
@@ -267,7 +266,7 @@ class DeforumAnimateDiffPipeline(DeforumBase):
         prompt = "Mona Lisa walking in new york"
         n_prompt = ""
 
-        latent = torch.randn([self.gen.max_frames, 4, height // 8, width // 8])
+        latent = torch.randn([self.gen.max_frames, 4, height // 8, width // 8]).to("cuda")
 
         images = self.generator( pooled_prompts=self.conds,
                                  latent=latent,
