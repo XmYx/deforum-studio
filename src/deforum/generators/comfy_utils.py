@@ -2,6 +2,7 @@ import contextlib
 import os
 import subprocess
 import sys
+from collections import namedtuple
 
 import torch
 import torchsde
@@ -34,7 +35,7 @@ def clone_repo(repo_url):
     except Exception as e:
         print(f"An error occurred while cloning: {e}")
 
-        
+
 def clone_repo_to(repo_url, dest_path):
     try:
         subprocess.run(["git", "clone", repo_url, dest_path])
@@ -75,9 +76,6 @@ def ensure_comfy():
     import comfy.k_diffusion.sampling
 
     comfy.k_diffusion.sampling.BatchedBrownianTree = DeforumBatchedBrownianTree
-
-
-from collections import namedtuple
 
 
 # Define the namedtuple structure based on the properties identified

@@ -377,7 +377,6 @@ class DeforumAnimationPipeline(DeforumBase):
 
         next_prompt, blend_value = get_next_prompt_and_blend(self.gen.frame_idx, self.gen.prompt_series)
 
-
         if hasattr(self.gen, "sampler_name"):
             from comfy.samplers import SAMPLER_NAMES
 
@@ -394,6 +393,7 @@ class DeforumAnimationPipeline(DeforumBase):
         if img is not None:
             if not isinstance(img, PIL.Image.Image):
                 img = Image.fromarray(cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB))
+                
         self.gen.strength = 1.0 if img is None else self.gen.strength
         gen_args = {
             "prompt": prompt,
