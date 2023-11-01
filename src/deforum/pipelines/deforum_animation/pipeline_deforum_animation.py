@@ -33,6 +33,7 @@ from .animation_helpers import (
     post_color_match_with_cls,
     overlay_mask_cls,
     post_gen_cls,
+    make_cadence_frames,
     color_match_video_input,
     film_interpolate_cls,
     save_video_cls,
@@ -40,6 +41,7 @@ from .animation_helpers import (
     LooperAnimKeys,
     generate_interpolated_frames
 )
+
 from .animation_params import auto_to_comfy
 from ..deforum_pipeline import DeforumBase
 from ...models import DepthModel, RAFT
