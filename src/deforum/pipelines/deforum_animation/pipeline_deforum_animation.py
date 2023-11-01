@@ -415,7 +415,7 @@ class DeforumAnimationPipeline(DeforumBase):
         if self.gen.frame_idx == 0:
             gen_args["reset_noise"] = True
         if hasattr(self.gen, "style"):
-            if self.gen.style is not "(No Style)" and self.gen.style in STYLE_NAMES:
+            if self.gen.style != "(No Style)" and self.gen.style in STYLE_NAMES:
                 gen_args["prompt"], gen_args["negative_prompt"] = apply_style(self.gen.style, gen_args["prompt"],
                                                                               gen_args["negative_prompt"])
 
@@ -642,7 +642,7 @@ class DeforumAnimationPipeline(DeforumBase):
             if self.gen.frame_idx == 0:
                 gen_args["reset_noise"] = True
             if hasattr(self.gen, "style"):
-                if self.gen.style is not "(No Style)" and self.gen.style in STYLE_NAMES:
+                if self.gen.style != "(No Style)" and self.gen.style in STYLE_NAMES:
                     gen_args["prompt"], gen_args["negative_prompt"] = apply_style(self.gen.style, gen_args["prompt"], gen_args["negative_prompt"])
 
 
