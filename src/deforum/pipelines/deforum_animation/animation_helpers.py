@@ -705,7 +705,6 @@ def post_gen_cls(cls: Any) -> None:
 
         cls.gen.opencv_image = cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR)
 
-        print("We have set the opencv_image on ", cls.gen.frame_idx)
 
         # cls.logger(f"                                   [ cvtColor completed ]", True)
 
@@ -1077,7 +1076,6 @@ def make_cadence_frames(cls: Any) -> None:
                     filename = f"{cls.gen.timestring}_{tween_frame_idx:09}.png"
                     cv2.imwrite(os.path.join(cls.gen.outdir, filename), cls.gen.img)
 
-                print("CADENCE", cls.gen.img)
 
                 callback_img = cv2.cvtColor(cls.gen.img.astype(np.uint8), cv2.COLOR_BGR2RGB)
                 done = cls.datacallback({"image": Image.fromarray(callback_img)})
@@ -1139,7 +1137,7 @@ def film_interpolate_cls(cls: Any) -> None:
     interpolator = FILMInterpolator()
 
     film_in_between_frames_count = calculate_frames_to_add(len(cls.images), cls.gen.frame_interpolation_x_amount)
-    print("Interpolating with", film_in_between_frames_count)
+
     interpolated = interpolator(cls.images, film_in_between_frames_count)
     cls.images = interpolated
     return
@@ -1170,7 +1168,7 @@ def calculate_frames_to_add(total_frames: int, interp_x: float) -> int:
 
 class DeformAnimKeys():
     def __init__(self, anim_args, seed=-1, *args, **kwargs):
-        # print("ANIMARGS DEBUG", anim_args)
+
 
         self.fi = FrameInterpolator(anim_args.max_frames, seed)
         self.angle_series = self.fi.get_inbetweens(self.fi.parse_key_frames(anim_args.angle))
@@ -1207,7 +1205,7 @@ class DeformAnimKeys():
             self.fi.parse_key_frames(anim_args.checkpoint_schedule), is_single_string=True)
         self.steps_schedule_series = self.fi.get_inbetweens(self.fi.parse_key_frames(anim_args.steps_schedule))
 
-        print("ERROR", anim_args.seed_schedule)
+
 
         self.seed_schedule_series = self.fi.get_inbetweens(self.fi.parse_key_frames(anim_args.seed_schedule))
         self.sampler_schedule_series = self.fi.get_inbetweens(self.fi.parse_key_frames(anim_args.sampler_schedule),
@@ -1294,7 +1292,7 @@ class FrameInterpolator:
             if i in key_frames:
                 value = key_frames[i]
 
-                # print("CHECKING VALUE OF", self.sanitize_value(value))
+
 
                 value_is_number = check_is_number(self.sanitize_value(value))
                 if value_is_number:  # if it's only a number, leave the rest for the default interpolation
