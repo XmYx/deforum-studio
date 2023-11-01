@@ -45,6 +45,9 @@ def add_to_sys_path(path):
 
 
 def ensure_comfy():
+
+    print("ENSURING COMFY IN PATH", comfy_path)
+
     if not os.path.exists(comfy_path):
         # Clone the comfy repository if it doesn't exist
         clone_repo_to("https://github.com/comfyanonymous/ComfyUI", comfy_path)
@@ -72,7 +75,7 @@ def ensure_comfy():
     sys.modules["comfy.cli_args"] = MockCLIArgsModule()
     import comfy.k_diffusion.sampling
 
-    comfy.k_diffusion.sampling.BatchedBrownianTree = DeforumBatchedBrownianTree
+    # comfy.k_diffusion.sampling.BatchedBrownianTree = DeforumBatchedBrownianTree
 
 
 from collections import namedtuple
@@ -136,7 +139,7 @@ mock_args = CLIArgs(
     use_quad_cross_attention=False,
     fp16_vae=False,
     bf16_vae=False,
-    fp32_vae=False,
+    fp32_vae=True,
     force_fp32=False,
     force_fp16=False,
     disable_smart_memory=False,
@@ -152,8 +155,8 @@ mock_args = CLIArgs(
     disable_auto_launch=True,
     cuda_device=0,
     cuda_malloc=False,
-    disable_cuda_malloc=True,
-    dont_upcast_attention=False,
+    disable_cuda_malloc=False,
+    dont_upcast_attention=True,
     bf16_unet=False,
     directml=None,
     preview_method="none",

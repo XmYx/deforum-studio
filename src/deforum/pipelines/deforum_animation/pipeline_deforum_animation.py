@@ -37,7 +37,7 @@ from .animation_helpers import (
     color_match_video_input,
     film_interpolate_cls,
     save_video_cls,
-    DeformAnimKeys,
+    DeforumAnimKeys,
     LooperAnimKeys,
     generate_interpolated_frames
 )
@@ -176,7 +176,7 @@ class DeforumAnimationPipeline(DeforumBase):
 
         if int(self.gen.seed) == -1:
             self.gen.seed = secrets.randbelow(18446744073709551615)
-        self.gen.keys = DeformAnimKeys(self.gen, self.gen.seed)
+        self.gen.keys = DeforumAnimKeys(self.gen, self.gen.seed)
         self.gen.loopSchedulesAndData = LooperAnimKeys(self.gen, self.gen, self.gen.seed)
         prompt_series = pd.Series([np.nan for a in range(self.gen.max_frames)])
 
@@ -304,6 +304,9 @@ class DeforumAnimationPipeline(DeforumBase):
                 self.post_fns.append(film_interpolate_cls)
         if self.gen.max_frames > 1:
             self.post_fns.append(save_video_cls)
+        os.makedirs("deforum_configs", exist_ok=True)
+        settings_file_name = os.path.join("deforum_configs", f"{self.gen.timestring}_settings.txt")
+        self.gen.save_as_json(settings_file_name)
     def log_function_lists(self):
         if self.logging:
             setup_end = time.time()
@@ -423,6 +426,9 @@ class DeforumAnimationPipeline(DeforumBase):
             gen_args["areas"] = self.gen.areas[self.gen.frame_idx]
             gen_args["use_areas"] = True
             gen_args["prompt"] = None
+
+
+
 
         if self.gen.enable_subseed_scheduling:
             gen_args["subseed"] = self.gen.subseed

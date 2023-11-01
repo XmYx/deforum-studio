@@ -45,13 +45,13 @@ def start_deforum_cli():
             stcli.main(["run", f"{root_path}/webui/deforum_webui.py"])
         elif args_main.mode == "animatediff":
             from deforum.pipelines.animatediff_animation.pipeline_animatediff_animation import DeforumAnimateDiffPipeline
-            modelid = options.get("modelid", "125703")
+            modelid = str(options.get("modelid", "125703"))
             pipe = DeforumAnimateDiffPipeline.from_civitai(model_id=modelid)
             _ = pipe(**extra_args, **options)
 
         elif args_main.mode == "runpresets":
             from deforum import DeforumAnimationPipeline
-            modelid = options.get("modelid", "125703")
+            modelid = str(options.get("modelid", "125703"))
 
             deforum = DeforumAnimationPipeline.from_civitai(model_id=modelid)
 

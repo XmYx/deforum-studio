@@ -56,22 +56,6 @@ class DeforumAnimateDiffPipeline(DeforumBase):
         # override comfy_sample.sample with animatediff-support version
         comfy_sample.sample = sampling.animatediff_sample_factory(comfy_sample.sample)
 
-        def get_motion_model_path(model_name: str):
-            return os.path.join(self.animatediff_path, 'models', model_name)
-        import animatediff.motion_module
-        animatediff.motion_module.get_motion_model_path = get_motion_model_path
-
-        from deforum.utils.file_dl_util import download_file_to
-
-        url = "https://huggingface.co/hotshotco/Hotshot-XL/resolve/main/hsxl_temporal_layers.f16.safetensors"
-        destination = os.path.join(self.animatediff_path, 'models')
-        self.module_filename = url.split('/')[-1]
-
-        hotshotxl_path = os.path.join(destination, self.module_filename)
-
-        if not os.path.isfile(hotshotxl_path):
-            hotshotxl_path = download_file_to(url=url, destination_dir=destination, filename=self.module_filename)
-
         self.prep_fns = []
         self.shoot_fns = []
         self.post_fns = []
@@ -105,7 +89,7 @@ class DeforumAnimateDiffPipeline(DeforumBase):
                 "minimum": 0,
                 "maximum": 32,
                 "step": 1,
-                "value": 8,
+                "value": 16,
                 "visible": True
             },
             "context_stride": {
@@ -132,7 +116,7 @@ class DeforumAnimateDiffPipeline(DeforumBase):
                 "minimum": 1,
                 "maximum": 4096,
                 "step": 1,
-                "value": 16,
+                "value": 64,
                 "visible": True
             },
             "closed_loop": {
@@ -145,7 +129,8 @@ class DeforumAnimateDiffPipeline(DeforumBase):
 
         }
         prompts = {
-            0: "A dog walking in the park",
+            0: "Enchanted forest, beautiful trees and butterflies flying around",
+            32: "Abstract art of an enchanted forest with butterflies"
         }
 
         #Create default values needed for animatediff / Hotshotco-XL generation
@@ -158,8 +143,8 @@ class DeforumAnimateDiffPipeline(DeforumBase):
         #TODO Move functions in the the loops as and if they make sense
         _ = self.run_animatediff()
 
-    def create_context(self):
-        from custom_nodes.ComfyUI_FizzNodes import PromptScheduleEncodeSDXL
+    def create_context(self, version="1.5"):
+        from custom_nodes.ComfyUI_FizzNodes import PromptScheduleEncodeSDXL, BatchPromptSchedule
         from animatediff.context import UniformContextOptions
         self.context_options = UniformContextOptions(
             context_length=self.gen.context_length, # ("INT", {"default": 16, "min": 1, "max": 32})
@@ -168,62 +153,68 @@ class DeforumAnimateDiffPipeline(DeforumBase):
             context_schedule="uniform", #(ContextSchedules.CONTEXT_SCHEDULE_LIST,)
             closed_loop=self.gen.closed_loop, #("BOOLEAN", {"default": False},)
             )
-        prompt_scheduler = PromptScheduleEncodeSDXL()
-        # "crop_w": ("INT", {"default": 0, "min": 0, "max": MAX_RESOLUTION}),
-        # "crop_h": ("INT", {"default": 0, "min": 0, "max": MAX_RESOLUTION}),
-        # "target_width": ("INT", {"default": 1024.0, "min": 0, "max": MAX_RESOLUTION}),
-        # "target_height": ("INT", {"default": 1024.0, "min": 0, "max": MAX_RESOLUTION}),
-        # "text_g": ("STRING", {"multiline": True, "default": "CLIP_G"}), "clip": ("CLIP",),
-        # "text_l": ("STRING", {"multiline": True, "default": "CLIP_L"}), "clip": ("CLIP",),
-        # "max_frames": ("INT", {"default": 120.0, "min": 1.0, "max": 9999.0, "step": 1.0}),
-        # "print_output": ("BOOLEAN", {"default": False}), },
-        # "optional": {"pre_text_G": ("STRING", {"multiline": False, }),  # "forceInput": True}),
-        # "app_text_G": ("STRING", {"multiline": False, }),  # "forceInput": True}),
-        # "pre_text_L": ("STRING", {"multiline": False, }),  # "forceInput": True}),
-        # "app_text_L": ("STRING", {"multiline": False, }),  # "forceInput": True}),
-        # "pw_a": ("FLOAT", {"default": 0.0, "min": -9999.0, "max": 9999.0, "step": 0.1, }),  # "forceInput": True }),
-        # "pw_b": ("FLOAT", {"default": 0.0, "min": -9999.0, "max": 9999.0, "step": 0.1, }),  # "forceInput": True }),
-        # "pw_c": ("FLOAT", {"default": 0.0, "min": -9999.0, "max": 9999.0, "step": 0.1, }),  # "forceInput": True }),
-        # "pw_d": ("FLOAT", {"default": 0.0, "min": -9999.0, "max": 9999.0, "step": 0.1, }),  # "forceInput": True }),
-        self.conds = prompt_scheduler.animate(clip=self.generator.clip,
-                                              width=self.gen.W,
-                                              height=self.gen.H,
-                                              crop_w=0,
-                                              crop_h=0,
-                                              target_width=self.gen.W,
-                                              target_height=self.gen.H,
-                                              text_g=json.dumps(self.gen.prompts).strip("{}"),
-                                              text_l=json.dumps(self.gen.prompts).strip("{}"),
-                                              max_frames=self.gen.max_frames,
-                                              current_frame=0,
-                                              pre_text_L="Abstract art",
-                                              pre_text_G="",
-                                              app_text_L="",
-                                              app_text_G="",
-                                              pw_a=[1.0 for _ in range(self.gen.max_frames)],#parse_weight_string("", self.gen.max_frames),
-                                              pw_b=[1.0 for _ in range(self.gen.max_frames)],#parse_weight_string("", self.gen.max_frames),
-                                              pw_c=[1.0 for _ in range(self.gen.max_frames)],#parse_weight_string("", self.gen.max_frames),
-                                              pw_d=[1.0 for _ in range(self.gen.max_frames)],#parse_weight_string("", self.gen.max_frames),
-                                              )[0]
 
-        # self.conds = prompt_scheduler.animate(text=json.dumps(self.gen.prompts).strip("{}"),
-        #                                      max_frames=self.gen.max_frames,
-        #                                      print_output=True,
-        #                                      clip=self.generator.clip,
-        #                                      pw_a=parse_weight_string("", self.gen.max_frames),
-        #                                      pw_b=parse_weight_string("", self.gen.max_frames),
-        #                                      pw_c=parse_weight_string("", self.gen.max_frames),
-        #                                      pw_d=parse_weight_string("", self.gen.max_frames),
-        #                                      )
-        #
+        if version == "XL":
+            prompt_scheduler = PromptScheduleEncodeSDXL()
+
+            self.conds = prompt_scheduler.animate(clip=self.generator.clip,
+                                                  width=self.gen.W,
+                                                  height=self.gen.H,
+                                                  crop_w=0,
+                                                  crop_h=0,
+                                                  target_width=self.gen.W,
+                                                  target_height=self.gen.H,
+                                                  text_g=json.dumps(self.gen.prompts).strip("{}"),
+                                                  text_l=json.dumps(self.gen.prompts).strip("{}"),
+                                                  max_frames=self.gen.max_frames,
+                                                  current_frame=0,
+                                                  pre_text_L="Abstract art",
+                                                  pre_text_G="",
+                                                  app_text_L="",
+                                                  app_text_G="",
+                                                  pw_a=[1.0 for _ in range(self.gen.max_frames)],#parse_weight_string("", self.gen.max_frames),
+                                                  pw_b=[1.0 for _ in range(self.gen.max_frames)],#parse_weight_string("", self.gen.max_frames),
+                                                  pw_c=[1.0 for _ in range(self.gen.max_frames)],#parse_weight_string("", self.gen.max_frames),
+                                                  pw_d=[1.0 for _ in range(self.gen.max_frames)],#parse_weight_string("", self.gen.max_frames),
+                                                  )[0]
+        else:
+            prompt_scheduler = BatchPromptSchedule()
+            self.conds = prompt_scheduler.animate(text=json.dumps(self.gen.prompts).strip("{}"),
+                                                 max_frames=self.gen.max_frames,
+                                                 print_output=True,
+                                                 clip=self.generator.clip,
+                                                 pw_a=parse_weight_string("", self.gen.max_frames),
+                                                 pw_b=parse_weight_string("", self.gen.max_frames),
+                                                 pw_c=parse_weight_string("", self.gen.max_frames),
+                                                 pw_d=parse_weight_string("", self.gen.max_frames),
+                                                 )[0]
+
 
     @torch.inference_mode()
     def run_animatediff(self):
         from animatediff.model_utils import BetaSchedules
         from animatediff.motion_module import load_motion_module, inject_params_into_model, InjectionParams
         from animatediff.context import UniformContextOptions
+        from deforum.utils.file_dl_util import download_file_to
 
+        from comfy import model_base
 
+        def get_motion_model_path(model_name: str):
+            return os.path.join(self.animatediff_path, 'models', model_name)
+
+        import animatediff.motion_module
+        animatediff.motion_module.get_motion_model_path = get_motion_model_path
+
+        if isinstance(self.generator.model.model, model_base.SDXL):
+            url = "https://huggingface.co/hotshotco/Hotshot-XL/resolve/main/hsxl_temporal_layers.f16.safetensors"
+        elif isinstance(self.generator.model.model, model_base.BaseModel):
+            url = "https://huggingface.co/guoyww/animatediff/resolve/main/mm_sd_v15_v2.ckpt"
+
+        destination = os.path.join(self.animatediff_path, 'models')
+        self.module_filename = url.split('/')[-1]
+        module_path = os.path.join(destination, self.module_filename)
+        if not os.path.isfile(module_path):
+            module_path = download_file_to(url=url, destination_dir=destination, filename=self.module_filename)
 
         self.create_context()
 
@@ -253,11 +244,13 @@ class DeforumAnimateDiffPipeline(DeforumBase):
         if motion_lora:
             injection_params.set_loras(motion_lora)
         # inject for use in sampling code
+
+        print(self.generator.model.model.__class__)
         self.generator.model = inject_params_into_model(self.generator.model, injection_params)
 
 
-        height = self.gen.H
-        width = self.gen.W
+        height = 512
+        width = 512
         batch_size = self.gen.max_frames
 
         prompt = "Mona Lisa walking in new york"

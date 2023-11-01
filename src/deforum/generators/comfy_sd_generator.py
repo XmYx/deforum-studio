@@ -73,7 +73,7 @@ class ComfyDeforumGenerator:
 
     def get_conds(self, prompt):
         with torch.inference_mode():
-            clip_skip = -2
+            clip_skip = -1
             if self.clip_skip != clip_skip or self.clip.layer_idx != clip_skip:
                 self.clip.layer_idx = clip_skip
                 self.clip.clip_layer(clip_skip)
@@ -140,7 +140,7 @@ class ComfyDeforumGenerator:
                  width=None,
                  height=None,
                  seed=-1,
-                 strength=0.65,
+                 strength=1.0,
                  init_image=None,
                  subseed=-1,
                  subseed_strength=0.6,
@@ -200,7 +200,7 @@ class ComfyDeforumGenerator:
 
             cond = []
 
-            if pooled_prompts is None:
+            if pooled_prompts is None and prompt is not None:
                 cond = self.get_conds(prompt)
             elif pooled_prompts is not None:
                 cond = pooled_prompts
@@ -232,11 +232,10 @@ class ComfyDeforumGenerator:
             if cnet_image is not None:
                 cond = apply_controlnet(cond, self.controlnet, cnet_image, 1.0)
 
-            # from nodes import common_ksampler as ksampler
+            from nodes import common_ksampler as ksampler
 
             last_step = int((strength) * steps) if (strength != 1.0 or not reset_noise) else steps
             # last_step = steps if last_step is None else last_step
-            last_step = steps
             sample = common_ksampler_with_custom_noise(model=self.model,
                                                        seed=seed,
                                                        steps=steps,
@@ -252,6 +251,28 @@ class ComfyDeforumGenerator:
                                                        last_step=last_step,
                                                        force_full_denoise=True,
                                                        noise=self.rng)
+            # print(seed, steps, scale, strength, scheduler, sampler_name, init_image)
+            #
+            # sample = ksampler(model=self.model,
+            #                            seed=seed,
+            #                            steps=steps,
+            #                            cfg=scale,
+            #                            sampler_name=sampler_name,
+            #                            scheduler=scheduler,
+            #                            positive=cond,
+            #                            negative=self.n_cond,
+            #                            latent=latent,
+            #                            denoise=strength,
+            #                            disable_noise=False,
+            #                            start_step=0,
+            #                            last_step=last_step,
+            #                            force_full_denoise=True)
+
+            # samples = self.vae.decode(sample[0]["samples"])
+            #
+            # np_array = np.clip(255. * samples.cpu().numpy(), 0, 255).astype(np.uint8)[0]
+            # image = Image.fromarray(np_array)
+            # return image
 
 
             if sample[0]["samples"].shape[0] == 1:
@@ -260,6 +281,9 @@ class ComfyDeforumGenerator:
                 image = Image.fromarray(np_array)
                 # image = Image.fromarray(np.clip(255. * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[0])
                 image = image.convert("RGB")
+
+                image.save('test.png', "PNG")
+
                 if return_latent:
                     return sample[0]["samples"], image
                 else:

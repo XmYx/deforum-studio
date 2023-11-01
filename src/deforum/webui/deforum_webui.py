@@ -61,7 +61,12 @@ def load_tabs_from_json():
 def main():
 
     if "defaults" not in st.session_state:
-        st.session_state["defaults"] = OmegaConf.load(os.path.join(curr_folder, "deforum_tab.yaml"))
+        loaded = OmegaConf.load(os.path.join(curr_folder, "deforum_tab.yaml"))
+        st.session_state["defaults"] = OmegaConf.to_container(loaded, resolve=True)
+
+        print(type(st.session_state["defaults"]))
+
+
     from deforum_webui_modules import deforum_tab
 
     deforum_tab.plugin_tab(None, None)

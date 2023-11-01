@@ -737,7 +737,7 @@ def post_gen_cls(cls: Any) -> None:
 
             cls.gen.frame_idx += 1
             # cls.logger(f"                                   [ frame_idx incremented ]", True)
-        if cls.gen.turbo_steps == 1:
+        if cls.gen.turbo_steps < 2:
             done = cls.datacallback({"image": cls.gen.image})
         # cls.logger(f"                                   [ datacallback executed ]", True)
 
@@ -1166,7 +1166,7 @@ def calculate_frames_to_add(total_frames: int, interp_x: float) -> int:
     return int(round(frames_to_add))
 
 
-class DeformAnimKeys():
+class DeforumAnimKeys():
     def __init__(self, anim_args, seed=-1, *args, **kwargs):
 
 
