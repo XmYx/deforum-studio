@@ -4,9 +4,12 @@ import os
 import random
 import time
 from datetime import date
+from deforum.pipelines import DeforumAnimationPipeline
 
 import streamlit as st
-
+from deforum.generators.comfy_utils import ensure_comfy
+ensure_comfy()
+from comfy.samplers import SAMPLER_NAMES, SCHEDULER_NAMES
 from deforum.pipelines.deforum_animation.animation_params import hybrid_params_dict
 from deforum.utils.sdxl_styles import STYLE_NAMES
 
@@ -24,7 +27,13 @@ except:
     pass
 from omegaconf import OmegaConf
 
-st.session_state["defaults"] = OmegaConf.load(os.path.join(curr_folder, "deforum_tab.yaml"))
+from deforum.shared_storage import models
+
+if "deforum_pipe" not in models:
+    print("LOADING DEFORUM INTO ST")
+    models["deforum_pipe"] = DeforumAnimationPipeline.from_civitai(model_id="125703")
+    # models["deforum_pipe"] = DeforumAnimationPipeline.from_file(
+    #     model_path="/home/mix/Downloads/D4ll34_001CKPT.safetensors")
 
 
 class PluginInfo():
@@ -69,14 +78,7 @@ def get_output_folder(output_path, batch_folder):
     return out_path
 
 
-def datacallback(data):
-    image = None
-    if "cadence_frame" in data:
-        image = data['cadence_frame']
-    elif 'image' in data:
-        image = data['image']
-    if image is not None:
-        st.session_state["preview_image"].image(image)
+
 
 def display_area_editor():
     refresh = None
@@ -90,31 +92,7 @@ def display_area_editor():
     if 'current_edit' not in st.session_state:
         st.session_state.current_edit = None
 
-    # with col2:
-    #     # Display current areas
-    #     st.subheader('Current Areas')
-    #     for area in st.session_state.areas:
-    #         keyframe_value = list(area.keys())[0]
-    #         st.write(f"Keyframe: {keyframe_value}")
-    #
-    #         for index, subprompt in enumerate(area[keyframe_value]):
-    #             st.write(subprompt)
-    #             edit_button = st.button(f"Edit subprompt {index + 1} of keyframe {keyframe_value}")
-    #             delete_button = st.button(f"Delete subprompt {index + 1} of keyframe {keyframe_value}")
-    #
-    #             if edit_button:
-    #                 st.session_state.current_edit = (area, index)
-    #             if delete_button:
-    #                 area[keyframe_value].pop(index)
-    #                 st.experimental_rerun()
-    #
-    #         delete_keyframe = st.button(f"Delete keyframe {keyframe_value}")
-    #         if delete_keyframe:
-    #             st.session_state.areas.remove(area)
-    #             st.experimental_rerun()
-
     with cols[0]:
-
         # Export data to a txt file
         filename = st.text_input("Filename for export:", "data.txt")
         if st.button("Export data"):
@@ -146,7 +124,7 @@ def display_area_editor():
 
             if st.button("Done Editing"):
                 st.session_state.current_edit = None
-                st.rerun()
+                #st.rerun()
 
         else:
             # Add a new keyframe with default subprompt
@@ -158,7 +136,7 @@ def display_area_editor():
                         "x": 0, "y": 0, "w": 1024, "h": 1024, "s": 1.0
                     }]
                 })
-                st.rerun()
+                #st.rerun()
 
             # Select keyframe to add subprompt
             keyframe_options = [list(area.keys())[0] for area in st.session_state.areas]
@@ -171,7 +149,7 @@ def display_area_editor():
                             "prompt": "",
                             "x": 0, "y": 0, "w": 1024, "h": 1024, "s": 1.0
                         })
-                st.rerun()
+                #st.rerun()
             if st.button('refresh'):
                 st.rerun()
 
@@ -200,12 +178,12 @@ def display_areas_in_cols(columns):
                     st.session_state.current_edit = (area, index)
                 if delete_button:
                     area[keyframe_value].pop(index)
-                    st.experimental_rerun()
+                    #st.rerun()
 
             delete_keyframe = st.button(f"Delete keyframe {keyframe_value}")
             if delete_keyframe:
                 st.session_state.areas.remove(area)
-                st.experimental_rerun()
+                #st.rerun()
 
         col_idx += 1
         if col_idx >= len(columns):
@@ -233,7 +211,7 @@ def plugin_tab(tabs, tab_names):
                     params["style"] = st.selectbox("Style", STYLE_NAMES)
                     params["keyframes"] = st.text_area("Keyframes", "0", placeholder="0\n5\n10")
 
-                    params["max_frames"] = st.slider("Max Frames:", min_value=1, max_value=2048, value=st.session_state['defaults'].txt2vid.max_frames, step=1)
+                    params["max_frames"] = st.number_input("Max Frames:", min_value=1, max_value=2048, value=st.session_state['defaults'].txt2vid.max_frames, step=1)
 
                     params["W"] = st.slider("Width:", min_value=64, max_value=2048, value=st.session_state['defaults'].txt2vid.W, step=64)
                     params["H"] = st.slider("Height:", min_value=64, max_value=2048, value=st.session_state['defaults'].txt2vid.H, step=64)
@@ -242,7 +220,126 @@ def plugin_tab(tabs, tab_names):
                                                                                          value=st.session_state['defaults'].txt2vid.scale,
                                                                                          step=1e-1, format="%.1f",
                                                                                          help="How strongly the image should follow the prompt.")
+                sampler_tab, sequence_tab, flip_sequence_tab, frames_tab = st.tabs(["Sampler",
+                                                                                    "3D Animation Sequence",
+                                                                                    "2D Flip Sequence",
+                                                                                    "Frame Setup"
+                                                                                    ])
 
+                with sampler_tab:
+                    params["steps"] = st.number_input('Sample Steps',
+                                                                           value=st.session_state[
+                                                                               'defaults'].txt2vid.steps, step=1)
+                    params["sampler_name"] = st.selectbox(
+                        'Sampler',
+                        SAMPLER_NAMES,
+                        help="DDIM and PLMS are for quick results, you can use low sample steps. for the rest go up with the steps maybe start at 50 and raise from there")
+                    params["scheduler_name"] = st.selectbox(
+                        'Sampler',
+                        SCHEDULER_NAMES,
+                        help="DDIM and PLMS are for quick results, you can use low sample steps. for the rest go up with the steps maybe start at 50 and raise from there")
+
+                    params["sampling_mode"] = st.selectbox(
+                        'Sampling Mode',
+                        ('bicubic', 'bilinear', 'nearest'))
+                    params["seed"] = st.text_input("Seed:",
+                                                                        value=st.session_state['defaults'].txt2vid.seed,
+                                                                        help=" The seed to use, if left blank a random seed will be generated.")
+                    params["seed_behavior"] = st.selectbox(
+                        'Seed Behavior',
+                        ("iter", "fixed", "random"))
+                with sequence_tab:
+                    # col4, col5 = st.columns([1,1], gap="medium")
+                    params["angle"] = st.text_input("Angle:", value=st.session_state[
+                        'defaults'].txt2vid.angle)
+                    params["zoom"] = st.text_input("Zoom:",
+                                                                        value=st.session_state['defaults'].txt2vid.zoom)
+                    params["translation_x"] = st.text_input("X Translation:",
+                                                                                 value=st.session_state[
+                                                                                     'defaults'].txt2vid.translation_x)
+                    params["translation_y"] = st.text_input("Y Translation:",
+                                                                                 value=st.session_state[
+                                                                                     'defaults'].txt2vid.translation_y)
+                    params["translation_z"] = st.text_input("Z Translation:",
+                                                                                 value=st.session_state[
+                                                                                     'defaults'].txt2vid.translation_z)
+                    params["rotation_3d_x"] = st.text_input("X 3D Rotaion:",
+                                                                                 value=st.session_state[
+                                                                                     'defaults'].txt2vid.rotation_3d_x)
+                    params["rotation_3d_y"] = st.text_input("Y 3D Rotaion:",
+                                                                                 value=st.session_state[
+                                                                                     'defaults'].txt2vid.rotation_3d_y)
+                    params["rotation_3d_z"] = st.text_input("Z 3D Rotaion:",
+                                                                                 value=st.session_state[
+                                                                                     'defaults'].txt2vid.rotation_3d_z)
+                    params["noise_schedule"] = st.text_input("Noise Schedule:",
+                                                                                  value=st.session_state[
+                                                                                      'defaults'].txt2vid.noise_schedule)
+                    params["strength_schedule"] = st.text_input("Strength Schedule:",
+                                                                                     value=st.session_state[
+                                                                                         'defaults'].txt2vid.strength_schedule)
+                    params["contrast_schedule"] = st.text_input("Contrast Schedule:",
+                                                                                     value=st.session_state[
+                                                                                         'defaults'].txt2vid.contrast_schedule)
+                with flip_sequence_tab:
+                    params["flip_2d_perspective"] = st.checkbox('Flip 2d Perspective', value=False)
+                    params["perspective_flip_theta"] = st.text_input("Flip Theta:",
+                                                                                          value=st.session_state[
+                                                                                              'defaults'].txt2vid.perspective_flip_theta)
+                    params["perspective_flip_phi"] = st.text_input("Flip Phi:",
+                                                                                        value=st.session_state[
+                                                                                            'defaults'].txt2vid.perspective_flip_phi)
+                    params["perspective_flip_gamma"] = st.text_input("Flip Gamma:",
+                                                                                          value=st.session_state[
+                                                                                              'defaults'].txt2vid.perspective_flip_gamma)
+                    params["perspective_flip_fv"] = st.text_input("Flip FV:",
+                                                                                       value=st.session_state[
+                                                                                           'defaults'].txt2vid.perspective_flip_fv)
+                with frames_tab:
+                    basic_tab, mask_tab, init_tab = st.tabs(["Basics", "Mask", "Init Image"])
+                    with basic_tab:
+                        params["ddim_eta"] = st.number_input('DDIM ETA',
+                                                                                  value=st.session_state[
+                                                                                      'defaults'].txt2vid.ddim_eta,
+                                                                                  step=1e-1, format="%.1f")
+
+                        params["make_grid"] = st.checkbox('Make Grid', value=False)
+                        params["grid_rows"] = st.number_input('Height',
+                                                                                   value=st.session_state[
+                                                                                       'defaults'].txt2vid.grid_rows,
+                                                                                   step=1)
+
+                    with mask_tab:
+                        params["use_mask"] = st.checkbox('Use Mask', value=False)
+                        params["use_alpha_as_mask"] = st.checkbox('Use Alpha as Mask', value=False)
+                        params["mask_file"] = st.text_input("Init Image:",
+                                                                                 value=st.session_state[
+                                                                                     'defaults'].txt2vid.mask_file,
+                                                                                 help="The Mask to be used")
+                        params["invert_mask"] = st.checkbox('Invert Mask', value=False)
+                        params["mask_brightness_adjust"] = st.number_input('Brightness Adjust',
+                                                                                                value=st.session_state[
+                                                                                                    'defaults'].txt2vid.mask_brightness_adjust,
+                                                                                                step=1e-1,
+                                                                                                format="%.1f",
+                                                                                                help="Adjust the brightness of the mask")
+                        params["mask_contrast_adjust"] = st.number_input('Contrast Adjust',
+                                                                                              value=st.session_state[
+                                                                                                  'defaults'].txt2vid.mask_contrast_adjust,
+                                                                                              step=1e-1, format="%.1f",
+                                                                                              help="Adjust the contrast of the mask")
+                    with init_tab:
+                        params["use_init"] = st.checkbox('Use Init', value=False)
+                        params["strength"] = st.number_input('Strength',
+                                                                                  value=st.session_state[
+                                                                                      'defaults'].txt2vid.strength,
+                                                                                  step=1e-1, format="%.1f")
+                        params["strength_0_no_init"] = st.checkbox('Strength 0', value=True,
+                                                                                        help="Set the strength to 0 automatically when no init image is used")
+                        params["init_image"] = st.text_input("Init Image:",
+                                                                                  value=st.session_state[
+                                                                                      'defaults'].txt2vid.init_image,
+                                                                                  help="The image to be used as init")
             # with st.expander(""):
             with col2:
                 preview_tab, prompt_tab, rendering_tab, settings_tab = st.tabs(["Preview",
@@ -260,7 +357,8 @@ def plugin_tab(tabs, tab_names):
                     # st.write("Image")
 
                     # create an empty container for the image, progress bar, etc so we can update it later and use session_state to hold them globally.
-                    st.session_state["preview_image"] = st.empty()
+
+                    st.session_state.preview_image = st.empty()
 
                     params["loading"] = st.empty()
 
@@ -274,123 +372,127 @@ def plugin_tab(tabs, tab_names):
                         params["preview_video"] = st.video(st.session_state["mp4_path"])
 
                     message = st.empty()
-                with rendering_tab:
-                    sampler_tab, sequence_tab, flip_sequence_tab, frames_tab = st.tabs(["Sampler",
-                                                                                        "3D Animation Sequence",
-                                                                                        "2D Flip Sequence",
-                                                                                        "Frame Setup"
-                                                                                        ])
-
-                    with sampler_tab:
-                        params["steps"] = st.number_input('Sample Steps',
-                                                                               value=st.session_state[
-                                                                                   'defaults'].txt2vid.steps, step=1)
-                        params["sampler"] = st.selectbox(
-                            'Sampler',
-                            ("ddim", "plms", "klms", "dpm2", "dpm2_ancestral", "heun", "euler", "euler_ancestral"),
-                            help="DDIM and PLMS are for quick results, you can use low sample steps. for the rest go up with the steps maybe start at 50 and raise from there")
-
-                        params["sampling_mode"] = st.selectbox(
-                            'Sampling Mode',
-                            ('bicubic', 'bilinear', 'nearest'))
-                        params["seed"] = st.text_input("Seed:",
-                                                                            value=st.session_state['defaults'].txt2vid.seed,
-                                                                            help=" The seed to use, if left blank a random seed will be generated.")
-                        params["seed_behavior"] = st.selectbox(
-                            'Seed Behavior',
-                            ("iter", "fixed", "random"))
-                    with sequence_tab:
-                        # col4, col5 = st.columns([1,1], gap="medium")
-                        params["angle"] = st.text_input("Angle:", value=st.session_state[
-                            'defaults'].txt2vid.angle)
-                        params["zoom"] = st.text_input("Zoom:",
-                                                                            value=st.session_state['defaults'].txt2vid.zoom)
-                        params["translation_x"] = st.text_input("X Translation:",
-                                                                                     value=st.session_state[
-                                                                                         'defaults'].txt2vid.translation_x)
-                        params["translation_y"] = st.text_input("Y Translation:",
-                                                                                     value=st.session_state[
-                                                                                         'defaults'].txt2vid.translation_y)
-                        params["translation_z"] = st.text_input("Z Translation:",
-                                                                                     value=st.session_state[
-                                                                                         'defaults'].txt2vid.translation_z)
-                        params["rotation_3d_x"] = st.text_input("X 3D Rotaion:",
-                                                                                     value=st.session_state[
-                                                                                         'defaults'].txt2vid.rotation_3d_x)
-                        params["rotation_3d_y"] = st.text_input("Y 3D Rotaion:",
-                                                                                     value=st.session_state[
-                                                                                         'defaults'].txt2vid.rotation_3d_y)
-                        params["rotation_3d_z"] = st.text_input("Z 3D Rotaion:",
-                                                                                     value=st.session_state[
-                                                                                         'defaults'].txt2vid.rotation_3d_z)
-                        params["noise_schedule"] = st.text_input("Noise Schedule:",
-                                                                                      value=st.session_state[
-                                                                                          'defaults'].txt2vid.noise_schedule)
-                        params["strength_schedule"] = st.text_input("Strength Schedule:",
-                                                                                         value=st.session_state[
-                                                                                             'defaults'].txt2vid.strength_schedule)
-                        params["contrast_schedule"] = st.text_input("Contrast Schedule:",
-                                                                                         value=st.session_state[
-                                                                                             'defaults'].txt2vid.contrast_schedule)
-                    with flip_sequence_tab:
-                        params["flip_2d_perspective"] = st.checkbox('Flip 2d Perspective', value=False)
-                        params["perspective_flip_theta"] = st.text_input("Flip Theta:",
-                                                                                              value=st.session_state[
-                                                                                                  'defaults'].txt2vid.perspective_flip_theta)
-                        params["perspective_flip_phi"] = st.text_input("Flip Phi:",
-                                                                                            value=st.session_state[
-                                                                                                'defaults'].txt2vid.perspective_flip_phi)
-                        params["perspective_flip_gamma"] = st.text_input("Flip Gamma:",
-                                                                                              value=st.session_state[
-                                                                                                  'defaults'].txt2vid.perspective_flip_gamma)
-                        params["perspective_flip_fv"] = st.text_input("Flip FV:",
-                                                                                           value=st.session_state[
-                                                                                               'defaults'].txt2vid.perspective_flip_fv)
-                    with frames_tab:
-                        basic_tab, mask_tab, init_tab = st.tabs(["Basics", "Mask", "Init Image"])
-                        with basic_tab:
-                            params["ddim_eta"] = st.number_input('DDIM ETA',
-                                                                                      value=st.session_state[
-                                                                                          'defaults'].txt2vid.ddim_eta,
-                                                                                      step=1e-1, format="%.1f")
-
-                            params["make_grid"] = st.checkbox('Make Grid', value=False)
-                            params["grid_rows"] = st.number_input('Height',
-                                                                                       value=st.session_state[
-                                                                                           'defaults'].txt2vid.grid_rows,
-                                                                                       step=1)
-
-                        with mask_tab:
-                            params["use_mask"] = st.checkbox('Use Mask', value=False)
-                            params["use_alpha_as_mask"] = st.checkbox('Use Alpha as Mask', value=False)
-                            params["mask_file"] = st.text_input("Init Image:",
-                                                                                     value=st.session_state[
-                                                                                         'defaults'].txt2vid.mask_file,
-                                                                                     help="The Mask to be used")
-                            params["invert_mask"] = st.checkbox('Invert Mask', value=False)
-                            params["mask_brightness_adjust"] = st.number_input('Brightness Adjust',
-                                                                                                    value=st.session_state[
-                                                                                                        'defaults'].txt2vid.mask_brightness_adjust,
-                                                                                                    step=1e-1,
-                                                                                                    format="%.1f",
-                                                                                                    help="Adjust the brightness of the mask")
-                            params["mask_contrast_adjust"] = st.number_input('Contrast Adjust',
-                                                                                                  value=st.session_state[
-                                                                                                      'defaults'].txt2vid.mask_contrast_adjust,
-                                                                                                  step=1e-1, format="%.1f",
-                                                                                                  help="Adjust the contrast of the mask")
-                        with init_tab:
-                            params["use_init"] = st.checkbox('Use Init', value=False)
-                            params["strength"] = st.number_input('Strength',
-                                                                                      value=st.session_state[
-                                                                                          'defaults'].txt2vid.strength,
-                                                                                      step=1e-1, format="%.1f")
-                            params["strength_0_no_init"] = st.checkbox('Strength 0', value=True,
-                                                                                            help="Set the strength to 0 automatically when no init image is used")
-                            params["init_image"] = st.text_input("Init Image:",
-                                                                                      value=st.session_state[
-                                                                                          'defaults'].txt2vid.init_image,
-                                                                                      help="The image to be used as init")
+                # with rendering_tab:
+                    # sampler_tab, sequence_tab, flip_sequence_tab, frames_tab = st.tabs(["Sampler",
+                    #                                                                     "3D Animation Sequence",
+                    #                                                                     "2D Flip Sequence",
+                    #                                                                     "Frame Setup"
+                    #                                                                     ])
+                    #
+                    # with sampler_tab:
+                    #     params["steps"] = st.number_input('Sample Steps',
+                    #                                                            value=st.session_state[
+                    #                                                                'defaults'].txt2vid.steps, step=1)
+                    #     params["sampler_name"] = st.selectbox(
+                    #         'Sampler',
+                    #         SAMPLER_NAMES,
+                    #         help="DDIM and PLMS are for quick results, you can use low sample steps. for the rest go up with the steps maybe start at 50 and raise from there")
+                    #     params["scheduler_name"] = st.selectbox(
+                    #         'Sampler',
+                    #         SCHEDULER_NAMES,
+                    #         help="DDIM and PLMS are for quick results, you can use low sample steps. for the rest go up with the steps maybe start at 50 and raise from there")
+                    #
+                    #     params["sampling_mode"] = st.selectbox(
+                    #         'Sampling Mode',
+                    #         ('bicubic', 'bilinear', 'nearest'))
+                    #     params["seed"] = st.text_input("Seed:",
+                    #                                                         value=st.session_state['defaults'].txt2vid.seed,
+                    #                                                         help=" The seed to use, if left blank a random seed will be generated.")
+                    #     params["seed_behavior"] = st.selectbox(
+                    #         'Seed Behavior',
+                    #         ("iter", "fixed", "random"))
+                    # with sequence_tab:
+                    #     # col4, col5 = st.columns([1,1], gap="medium")
+                    #     params["angle"] = st.text_input("Angle:", value=st.session_state[
+                    #         'defaults'].txt2vid.angle)
+                    #     params["zoom"] = st.text_input("Zoom:",
+                    #                                                         value=st.session_state['defaults'].txt2vid.zoom)
+                    #     params["translation_x"] = st.text_input("X Translation:",
+                    #                                                                  value=st.session_state[
+                    #                                                                      'defaults'].txt2vid.translation_x)
+                    #     params["translation_y"] = st.text_input("Y Translation:",
+                    #                                                                  value=st.session_state[
+                    #                                                                      'defaults'].txt2vid.translation_y)
+                    #     params["translation_z"] = st.text_input("Z Translation:",
+                    #                                                                  value=st.session_state[
+                    #                                                                      'defaults'].txt2vid.translation_z)
+                    #     params["rotation_3d_x"] = st.text_input("X 3D Rotaion:",
+                    #                                                                  value=st.session_state[
+                    #                                                                      'defaults'].txt2vid.rotation_3d_x)
+                    #     params["rotation_3d_y"] = st.text_input("Y 3D Rotaion:",
+                    #                                                                  value=st.session_state[
+                    #                                                                      'defaults'].txt2vid.rotation_3d_y)
+                    #     params["rotation_3d_z"] = st.text_input("Z 3D Rotaion:",
+                    #                                                                  value=st.session_state[
+                    #                                                                      'defaults'].txt2vid.rotation_3d_z)
+                    #     params["noise_schedule"] = st.text_input("Noise Schedule:",
+                    #                                                                   value=st.session_state[
+                    #                                                                       'defaults'].txt2vid.noise_schedule)
+                    #     params["strength_schedule"] = st.text_input("Strength Schedule:",
+                    #                                                                      value=st.session_state[
+                    #                                                                          'defaults'].txt2vid.strength_schedule)
+                    #     params["contrast_schedule"] = st.text_input("Contrast Schedule:",
+                    #                                                                      value=st.session_state[
+                    #                                                                          'defaults'].txt2vid.contrast_schedule)
+                    # with flip_sequence_tab:
+                    #     params["flip_2d_perspective"] = st.checkbox('Flip 2d Perspective', value=False)
+                    #     params["perspective_flip_theta"] = st.text_input("Flip Theta:",
+                    #                                                                           value=st.session_state[
+                    #                                                                               'defaults'].txt2vid.perspective_flip_theta)
+                    #     params["perspective_flip_phi"] = st.text_input("Flip Phi:",
+                    #                                                                         value=st.session_state[
+                    #                                                                             'defaults'].txt2vid.perspective_flip_phi)
+                    #     params["perspective_flip_gamma"] = st.text_input("Flip Gamma:",
+                    #                                                                           value=st.session_state[
+                    #                                                                               'defaults'].txt2vid.perspective_flip_gamma)
+                    #     params["perspective_flip_fv"] = st.text_input("Flip FV:",
+                    #                                                                        value=st.session_state[
+                    #                                                                            'defaults'].txt2vid.perspective_flip_fv)
+                    # with frames_tab:
+                    #     basic_tab, mask_tab, init_tab = st.tabs(["Basics", "Mask", "Init Image"])
+                    #     with basic_tab:
+                    #         params["ddim_eta"] = st.number_input('DDIM ETA',
+                    #                                                                   value=st.session_state[
+                    #                                                                       'defaults'].txt2vid.ddim_eta,
+                    #                                                                   step=1e-1, format="%.1f")
+                    #
+                    #         params["make_grid"] = st.checkbox('Make Grid', value=False)
+                    #         params["grid_rows"] = st.number_input('Height',
+                    #                                                                    value=st.session_state[
+                    #                                                                        'defaults'].txt2vid.grid_rows,
+                    #                                                                    step=1)
+                    #
+                    #     with mask_tab:
+                    #         params["use_mask"] = st.checkbox('Use Mask', value=False)
+                    #         params["use_alpha_as_mask"] = st.checkbox('Use Alpha as Mask', value=False)
+                    #         params["mask_file"] = st.text_input("Init Image:",
+                    #                                                                  value=st.session_state[
+                    #                                                                      'defaults'].txt2vid.mask_file,
+                    #                                                                  help="The Mask to be used")
+                    #         params["invert_mask"] = st.checkbox('Invert Mask', value=False)
+                    #         params["mask_brightness_adjust"] = st.number_input('Brightness Adjust',
+                    #                                                                                 value=st.session_state[
+                    #                                                                                     'defaults'].txt2vid.mask_brightness_adjust,
+                    #                                                                                 step=1e-1,
+                    #                                                                                 format="%.1f",
+                    #                                                                                 help="Adjust the brightness of the mask")
+                    #         params["mask_contrast_adjust"] = st.number_input('Contrast Adjust',
+                    #                                                                               value=st.session_state[
+                    #                                                                                   'defaults'].txt2vid.mask_contrast_adjust,
+                    #                                                                               step=1e-1, format="%.1f",
+                    #                                                                               help="Adjust the contrast of the mask")
+                    #     with init_tab:
+                    #         params["use_init"] = st.checkbox('Use Init', value=False)
+                    #         params["strength"] = st.number_input('Strength',
+                    #                                                                   value=st.session_state[
+                    #                                                                       'defaults'].txt2vid.strength,
+                    #                                                                   step=1e-1, format="%.1f")
+                    #         params["strength_0_no_init"] = st.checkbox('Strength 0', value=True,
+                    #                                                                         help="Set the strength to 0 automatically when no init image is used")
+                    #         params["init_image"] = st.text_input("Init Image:",
+                    #                                                                   value=st.session_state[
+                    #                                                                       'defaults'].txt2vid.init_image,
+                    #                                                                   help="The image to be used as init")
                 with settings_tab:
                     uploaded_file = st.file_uploader("Choose a settings txt file", type="txt")
                     if uploaded_file:
@@ -491,12 +593,10 @@ def plugin_tab(tabs, tab_names):
 
                     if generate_button:
                         # gen_args = get_args()
-                        from deforum.shared_storage import models
-                        if "deforum_pipe" not in models:
-                            print("LOADING DEFORUM INTO ST")
-                            from deforum.pipelines import DeforumAnimationPipeline
-                            models["deforum_pipe"] = DeforumAnimationPipeline.from_civitai(model_id="125703")
-                            models["deforum_pipe"].datacallback = datacallback
+
+                            # models["deforum_pipe"] = DeforumAnimationPipeline.from_file(model_path="/home/mix/Downloads/SSD-1B.safetensors")
+
+
 
                         # frames.clear()
 
@@ -522,13 +622,25 @@ def plugin_tab(tabs, tab_names):
                                     params[key].value(value)
                                 except:
                                     pass
-                        if st.session_state.use_areas == True:
-                            txt2vid_copy["use_areas"] = True
-                            txt2vid_copy["areas"] = st.session_state.areas
 
+                        if "use_areas" in st.session_state:
+                            if st.session_state.use_areas == True:
+                                txt2vid_copy["use_areas"] = True
+                                txt2vid_copy["areas"] = st.session_state.areas
+                        def datacallback(data):
+                            if "preview_image" not in st.session_state:
+                                with col2:
+                                    with preview_tab:
+                                        st.session_state["preview_image"] = st.empty()
+                            image = None
+                            if "cadence_frame" in data:
+                                image = data['cadence_frame']
+                            elif 'image' in data:
+                                image = data['image']
+                            if image is not None:
+                                st.session_state["preview_image"].image(image)
 
-                        success = models["deforum_pipe"](**txt2vid_copy)
-
+                        success = models["deforum_pipe"](callback=datacallback, **txt2vid_copy)
                         if hasattr(success, "video_path"):
                             st.session_state["preview_image"].video(success.video_path)
     with sub_tabs[1]:

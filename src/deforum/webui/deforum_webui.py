@@ -4,9 +4,9 @@ import json
 import os
 
 import streamlit as st
+from omegaconf import OmegaConf
 
 from deforum import shared_storage as gs
-from deforum_webui_modules import deforum_tab
 
 st.set_page_config(layout="wide")
 
@@ -59,6 +59,11 @@ def load_tabs_from_json():
         return {}
 
 def main():
+
+    if "defaults" not in st.session_state:
+        st.session_state["defaults"] = OmegaConf.load(os.path.join(curr_folder, "deforum_tab.yaml"))
+    from deforum_webui_modules import deforum_tab
+
     deforum_tab.plugin_tab(None, None)
     # Load the tabs from the JSON file if it exists
     # json_filepath = 'config/tabs.json'
@@ -189,12 +194,12 @@ def main__():
     #         x += 1
     # else:
     # Display buttons on the sidebar for each module
-    selected_module = st.sidebar.radio("Choose a module", list(modules.keys()))
-    x = 1
-    # Load the relevant module in the main section based on the selected button
-    if selected_module in modules:
-        modules[selected_module].plugin_tab(x, tab_names)
+    # selected_module = st.sidebar.radio("Choose a module", list(modules.keys()))
+    # x = 1
+    # # Load the relevant module in the main section based on the selected button
+    # if selected_module in modules:
+    modules[selected_module].plugin_tab(None, None)
 
 
 if __name__ == "__main__":
-    main__()
+    main()

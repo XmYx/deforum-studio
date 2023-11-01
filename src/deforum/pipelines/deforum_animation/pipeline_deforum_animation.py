@@ -377,6 +377,14 @@ class DeforumAnimationPipeline(DeforumBase):
 
         next_prompt, blend_value = get_next_prompt_and_blend(self.gen.frame_idx, self.gen.prompt_series)
 
+
+        if hasattr(self.gen, "sampler_name"):
+            from comfy.samplers import SAMPLER_NAMES
+
+            if self.gen.sampler_name not in SAMPLER_NAMES:
+                self.gen.sampler_name = auto_to_comfy[self.gen.sampler_name]["sampler"]
+                self.gen.scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
+
         if self.gen.scheduled_sampler_name is not None:
             if self.gen.scheduled_sampler_name in auto_to_comfy.keys():
                 self.gen.sampler_name = auto_to_comfy[self.gen.sampler_name]["sampler"]
