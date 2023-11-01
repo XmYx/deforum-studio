@@ -18,8 +18,9 @@ Expected output:
 """
 
 from types import SimpleNamespace
-import torch
+
 import numpy as np
+import torch
 
 philox_m = [0xD2511F53, 0xCD9E8D57]
 philox_w = [0x9E3779B9, 0xBB67AE85]

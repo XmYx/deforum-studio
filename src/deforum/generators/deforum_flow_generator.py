@@ -1,10 +1,10 @@
 import os
-import cv2
-import numpy as np
 import random
 
-from .deforum_flow_consistency import make_consistency
+import cv2
+import numpy as np
 
+from .deforum_flow_consistency import make_consistency
 from ..utils.image_utils import (get_resized_image_from_filename,
                                  custom_gaussian_blur,
                                  center_crop_image)

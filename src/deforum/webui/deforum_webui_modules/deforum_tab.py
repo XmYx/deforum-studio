@@ -1,10 +1,11 @@
 # base webui import and utils.
 import json
+import os
 import random
 import time
 from datetime import date
+
 import streamlit as st
-import os
 
 from deforum.pipelines.deforum_animation.animation_params import hybrid_params_dict
 from deforum.utils.sdxl_styles import STYLE_NAMES

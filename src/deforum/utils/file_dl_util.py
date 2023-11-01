@@ -3,9 +3,8 @@ import os
 import subprocess
 
 import requests
-from tqdm import tqdm
-
 from basicsr.utils.download_util import load_file_from_url
+from tqdm import tqdm
 
 
 def download_file_to(url: str = "",

@@ -1,7 +1,8 @@
 import os
+from urllib.parse import urlparse
+
 import requests
 from tqdm import tqdm
-from urllib.parse import urlparse
 
 
 def get_filename_from_url(url: str) -> str:

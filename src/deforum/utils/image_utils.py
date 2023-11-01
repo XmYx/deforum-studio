@@ -1,8 +1,10 @@
+import gc
 import os
 import re
 import socket
 import time
 
+import cv2
 import numpy as np
 import requests
 import torch
@@ -10,8 +12,6 @@ import torchvision.transforms.functional as TF
 from PIL import (Image, ImageChops, ImageOps)
 from scipy.ndimage import gaussian_filter
 from skimage.exposure import match_histograms
-import cv2
-import gc
 
 from .deforum_word_masking_util import get_word_mask
 from .video_frame_utils import get_frame_name

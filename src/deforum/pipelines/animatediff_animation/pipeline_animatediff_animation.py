@@ -1,7 +1,5 @@
-import importlib
 import json
 import os
-import re
 import sys
 from typing import Callable, Optional
 
@@ -52,7 +50,6 @@ class DeforumAnimateDiffPipeline(DeforumBase):
         self.logger = logger
         self.animatediff_path = os.path.join(comfy_path, "custom_nodes", "ComfyUI-AnimateDiff-Evolved")
         sys.path.append(self.animatediff_path)
-        import animatediff
         from animatediff import sampling
 
         import comfy.sample as comfy_sample

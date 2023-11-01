@@ -15,14 +15,14 @@
 # limitations under the License.
 #
 
-import onnx
-from onnx import shape_inference
 import os
-from polygraphy.backend.onnx.loader import fold_constants
 import tempfile
-import torch
-import torch.nn.functional as F
+
+import onnx
 import onnx_graphsurgeon as gs
+import torch
+from onnx import shape_inference
+from polygraphy.backend.onnx.loader import fold_constants
 
 
 class Optimizer:

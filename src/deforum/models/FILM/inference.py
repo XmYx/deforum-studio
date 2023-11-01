@@ -1,13 +1,12 @@
 import bisect
 import os.path
 
-import requests
-from tqdm import tqdm
-import torch
 import numpy as np
+import requests
+import torch
+from tqdm import tqdm
 
 from .film_util import load_image
-
 from ...utils.constants import root_path
 
 

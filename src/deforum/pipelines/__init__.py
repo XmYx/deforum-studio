@@ -1,3 +1,3 @@
-from .deforum_pipeline import DeforumBase
-from .deforum_animation.pipeline_deforum_animation import DeforumAnimationPipeline
 from .animatediff_animation.pipeline_animatediff_animation import DeforumAnimateDiffPipeline
+from .deforum_animation.pipeline_deforum_animation import DeforumAnimationPipeline
+from .deforum_pipeline import DeforumBase

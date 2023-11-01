@@ -1,5 +1,6 @@
-import os
 import importlib
+import os
+
 from ..utils.model_download import (
     get_filename_from_url,
     download_file,

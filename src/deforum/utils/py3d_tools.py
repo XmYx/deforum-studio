@@ -4,17 +4,14 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import copy
+import inspect
 import sys
-import math
 import warnings
-from typing import List, Optional, Sequence, Tuple, Union, Any
+from typing import List, Optional, Tuple, Union, Any
 
 import numpy as np
 import torch
-import torch.nn.functional as F
-
-import copy
-import inspect
 import torch.nn as nn
 
 Device = Union[str, torch.device]
@@ -26,7 +23,7 @@ _T = torch.zeros(1, 3)  # (1, 3)
 # Provide get_origin and get_args even in Python 3.7.
 
 if sys.version_info >= (3, 8, 0):
-    from typing import get_args, get_origin
+    pass
 elif sys.version_info >= (3, 7, 0):
 
     def get_origin(cls):  # pragma: no cover

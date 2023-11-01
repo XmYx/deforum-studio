@@ -1,9 +1,10 @@
 import os
 import re
 import shutil
+
+import numexpr
 import numpy as np
 import pandas as pd
-import numexpr
 
 from ..utils.constants import get_os
 

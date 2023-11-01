@@ -1,10 +1,13 @@
 # main_app.py
-import os
-import json
-import streamlit as st
-from deforum import shared_storage as gs
 import importlib.util
+import json
+import os
+
+import streamlit as st
+
+from deforum import shared_storage as gs
 from deforum_webui_modules import deforum_tab
+
 st.set_page_config(layout="wide")
 
 curr_folder = os.path.dirname(os.path.abspath(__file__))

@@ -4,8 +4,8 @@ import numpy as np
 import torch
 from PIL import Image
 
-from .rng_noise_generator import ImageRNGNoise
 from .comfy_utils import ensure_comfy
+from .rng_noise_generator import ImageRNGNoise
 from ..utils.deforum_cond_utils import blend_tensors
 
 
