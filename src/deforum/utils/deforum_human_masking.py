@@ -1,7 +1,9 @@
-import os, cv2
-import torch
-from pathlib import Path
+import cv2
+import os
 from multiprocessing import freeze_support
+from pathlib import Path
+
+import torch
 
 DEBUG_MODE = True
 

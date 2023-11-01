@@ -1,25 +1,22 @@
+import gc
+import logging
 import os
+from collections import defaultdict
 
+import torch
 from torch.cuda import nvtx
+
+from .exporter import export_onnx, export_trt
+from .model_manager import modelmanager
+from .models import make_OAIUNetXL
+from .utilities import PIPELINE_TYPE
+from ...utils.constants import root_path
 
 # from modules import sd_models, shared
 # import gradio as gr
-
 # from modules.call_queue import wrap_gradio_gpu_call
 # from modules.shared import cmd_opts
 # from modules.ui_components import FormRow
-
-from .exporter import export_onnx, export_trt
-from .utilities import PIPELINE_TYPE, Engine
-from .models import make_OAIUNetXL, make_OAIUNet
-import logging
-import gc
-import torch
-from .model_manager import modelmanager, cc_major
-from time import sleep
-from collections import defaultdict
-
-from ...utils.constants import root_path
 
 # from modules.ui_common import refresh_symbol
 # from modules.ui_components import ToolButton

@@ -12,6 +12,46 @@ def DeforumAnimPrompts():
     "280": "cinematic motion in an abstract twirl"
 }
     """
+
+
+areas = [
+    {
+        "0": [
+            {
+                "prompt": "a vast starscape with distant nebulae and galaxies",
+                "x": 0, "y": 0, "w": 1024, "h": 1024, "s": 0.7
+            },
+            {
+                "prompt": "detailed sci-fi spaceship",
+                "x": 512, "y": 512, "w": 50, "h": 50, "s": 0.7
+            }
+        ]
+    },
+    {
+        "50": [
+            {
+                "prompt": "a vast starscape with distant nebulae and galaxies",
+                "x": 0, "y": 0, "w": 1024, "h": 1024, "s": 0.7
+            },
+            {
+                "prompt": "detailed sci-fi spaceship",
+                "x": 412, "y": 412, "w": 200, "h": 200, "s": 0.7
+            }
+        ]
+    },
+    {
+        "100": [
+            {
+                "prompt": "a vast starscape with distant nebulae and galaxies",
+                "x": 0, "y": 0, "w": 1024, "h": 1024, "s": 0.7
+            },
+            {
+                "prompt": "detailed sci-fi spaceship",
+                "x": 112, "y": 112, "w": 800, "h": 800, "s": 0.7
+            }
+        ]
+    }
+]
 def RootArgs():
     return {
         "device": "cuda",
@@ -232,7 +272,7 @@ def DeforumAnimArgs():
         "seed_schedule": {
             "label": "Seed schedule",
             "type": "textbox",
-            "value": '0:(s), 1:(-1), "max_f-2":(-1), "max_f-1":(s)',
+            "value": '0:(-1)',
             "info": ""
         },
         "pix2pix_img_cfg_scale_schedule": {

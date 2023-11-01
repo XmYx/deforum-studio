@@ -1,14 +1,15 @@
-import torch
-import torch.nn.functional as F
-import onnx
-from logging import info, error
-import time
+import os
 import shutil
+import time
+from logging import info, error
 
-#from modules import sd_hijack, sd_unet, shared
+import onnx
+import torch
 
 from .utilities import Engine
-import os
+
+
+# from modules import sd_hijack, sd_unet, shared
 
 
 def get_cc():

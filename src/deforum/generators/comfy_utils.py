@@ -1,7 +1,7 @@
+import contextlib
 import os
 import subprocess
 import sys
-import contextlib
 
 import torch
 import torchsde
@@ -33,6 +33,11 @@ def clone_repo(repo_url):
         subprocess.run(["git", "clone", repo_url])
     except Exception as e:
         print(f"An error occurred while cloning: {e}")
+def clone_repo_to(repo_url, dest_path):
+    try:
+        subprocess.run(["git", "clone", repo_url, dest_path])
+    except Exception as e:
+        print(f"An error occurred while cloning: {e}")
 
 
 def add_to_sys_path(path):
@@ -42,7 +47,7 @@ def add_to_sys_path(path):
 def ensure_comfy():
     if not os.path.exists(comfy_path):
         # Clone the comfy repository if it doesn't exist
-        clone_repo("https://github.com/comfyanonymous/ComfyUI")
+        clone_repo_to("https://github.com/comfyanonymous/ComfyUI", comfy_path)
     else:
         # If comfy directory exists, update it.
         with change_dir(comfy_path):
@@ -129,7 +134,7 @@ mock_args = CLIArgs(
     use_pytorch_cross_attention=True,
     use_split_cross_attention=False,
     use_quad_cross_attention=False,
-    fp16_vae=True,
+    fp16_vae=False,
     bf16_vae=False,
     fp32_vae=False,
     force_fp32=False,
@@ -148,7 +153,7 @@ mock_args = CLIArgs(
     cuda_device=0,
     cuda_malloc=False,
     disable_cuda_malloc=True,
-    dont_upcast_attention=True,
+    dont_upcast_attention=False,
     bf16_unet=False,
     directml=None,
     preview_method="none",

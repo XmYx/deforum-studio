@@ -4,8 +4,8 @@ import numpy as np
 import torch
 from PIL import Image
 
-from .rng_noise_generator import ImageRNGNoise
 from .comfy_utils import ensure_comfy
+from .rng_noise_generator import ImageRNGNoise
 from ..utils.deforum_cond_utils import blend_tensors
 
 
@@ -153,6 +153,9 @@ class ComfyDeforumGenerator:
                  seed_resize_from_h=1024,
                  seed_resize_from_w=1024,
                  reset_noise=False,
+                 enable_prompt_blend=False,
+                 use_areas= False,
+                 areas= None,
                  *args,
                  **kwargs):
 
@@ -160,19 +163,19 @@ class ComfyDeforumGenerator:
             if seed == -1:
                 seed = secrets.randbelow(18446744073709551615)
 
-            if strength > 1:
+            if strength <= 0.0 or strength >= 1.0:
                 strength = 1.0
+                reset_noise = True
                 init_image = None
-            if strength == 0.0:
-                strength = 1.0
             if subseed == -1:
                 subseed = secrets.randbelow(18446744073709551615)
 
             if cnet_image is not None:
                 cnet_image = torch.from_numpy(np.array(cnet_image).astype(np.float32) / 255.0).unsqueeze(0)
 
-            if init_image is None:
-
+            if init_image is None or reset_noise:
+                print(reset_noise, strength)
+                strength = 1.0
                 if latent is None:
 
                     if width is None:
@@ -195,17 +198,31 @@ class ComfyDeforumGenerator:
             assert isinstance(latent, dict), \
                 "Our Latents have to be in a dict format with the latent being the 'samples' value"
 
+            cond = []
 
             if pooled_prompts is None:
                 cond = self.get_conds(prompt)
-            else:
+            elif pooled_prompts is not None:
                 cond = pooled_prompts
 
+            if use_areas and areas is not None:
+                from nodes import ConditioningSetArea
+                area_setter = ConditioningSetArea()
+                for area in areas:
+                    print("AREA TO USE", area)
+                    prompt = area.get("prompt", None)
+                    if prompt:
+
+                        new_cond = self.get_conds(area["prompt"])
+                        new_cond = area_setter.append(conditioning=new_cond, width=int(area["w"]), height=int(area["h"]), x=int(area["x"]),
+                                                      y=int(area["y"]), strength=area["s"])[0]
+                        cond += new_cond
 
             self.n_cond = self.get_conds(negative_prompt)
             self.prompt = prompt
 
-            if next_prompt is not None:
+
+            if next_prompt is not None and enable_prompt_blend:
                 if next_prompt != prompt and next_prompt != "":
                     if 0.0 < prompt_blend < 1.0:
                         next_cond = self.get_conds(next_prompt)
@@ -217,9 +234,9 @@ class ComfyDeforumGenerator:
 
             # from nodes import common_ksampler as ksampler
 
-            last_step = int((1 - strength) * steps) + 1 if strength != 1.0 else steps
-            last_step = steps if last_step is None else last_step
-
+            last_step = int((strength) * steps) if (strength != 1.0 or not reset_noise) else steps
+            # last_step = steps if last_step is None else last_step
+            last_step = steps
             sample = common_ksampler_with_custom_noise(model=self.model,
                                                        seed=seed,
                                                        steps=steps,

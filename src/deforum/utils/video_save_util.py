@@ -1,8 +1,9 @@
-from PIL import Image
-from tqdm import tqdm
-import numpy as np
 import subprocess
 import time
+
+import numpy as np
+from PIL import Image
+from tqdm import tqdm
 
 
 def save_as_gif(frames, filename):

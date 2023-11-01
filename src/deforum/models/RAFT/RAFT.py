@@ -1,7 +1,8 @@
-import torch
 import numpy as np
+import torch
 import torchvision.transforms.functional as F
 from torchvision.models.optical_flow import Raft_Large_Weights, raft_large
+
 
 class RAFT:
     def __init__(self):

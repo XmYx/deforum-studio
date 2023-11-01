@@ -1,6 +1,6 @@
 #from clip_interrogator import Config, Interrogator
-import torch.nn.functional as F
 import torch
+import torch.nn.functional as F
 
 
 def calculate_global_average(conds):

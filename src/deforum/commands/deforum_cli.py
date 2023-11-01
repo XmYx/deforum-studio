@@ -5,8 +5,10 @@ import os
 def start_deforum_cli():
 
     parser = argparse.ArgumentParser(description="Load settings from a txt file and run the deforum process.")
-    parser.add_argument("--webui", action="store_true", help="Path to the txt file containing dictionaries to merge.")
-    parser.add_argument("--animatediff", action="store_true", help="Path to the txt file containing dictionaries to merge.")
+    # Positional mode argument
+    parser.add_argument("mode", choices=['webui', 'animatediff', 'runpresets'], default=None, nargs='?',
+                        help="Choose the mode to run.")
+
     parser.add_argument("--file", type=str, help="Path to the txt file containing dictionaries to merge.")
     parser.add_argument("--options", nargs=argparse.REMAINDER,
                         help="Additional keyword arguments to pass to the deforum function.")
@@ -32,24 +34,43 @@ def start_deforum_cli():
     options = {}
     if args_main.options:
         for item in args_main.options:
-            print(item)
             key, value_str = item.split('=')
             value = convert_value(value_str)
             options[key] = value
 
-    if not args_main.webui:
-        if args_main.animatediff:
+    if args_main.mode:
+        if args_main.mode == "webui":
+            import streamlit.web.cli as stcli
+            root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            stcli.main(["run", f"{root_path}/webui/deforum_webui.py"])
+        elif args_main.mode == "animatediff":
             from deforum.pipelines.animatediff_animation.pipeline_animatediff_animation import DeforumAnimateDiffPipeline
-            # pipe = DeforumAnimateDiffPipeline.from_civitai()
-            pipe = DeforumAnimateDiffPipeline.from_single_file(pretrained_model_repo_or_path="/home/mix/Downloads/SSD-1B.safetensors")
-            print(pipe)
-        else:
+            modelid = options.get("modelid", "125703")
+            pipe = DeforumAnimateDiffPipeline.from_civitai(model_id=modelid)
+            _ = pipe(**extra_args, **options)
 
+        elif args_main.mode == "runpresets":
             from deforum import DeforumAnimationPipeline
-            deforum = DeforumAnimationPipeline.from_civitai()
-            _ = deforum(**extra_args, **options)
-    elif args_main.webui:
-        print("start")
-        import streamlit.web.cli as stcli
-        root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        stcli.main(["run", f"{root_path}/webui/deforum_webui.py"])
+            modelid = options.get("modelid", "125703")
+
+            deforum = DeforumAnimationPipeline.from_civitai(model_id=modelid)
+
+            filepath = "/home/mix/Documents/GitHub/deforum-studio/deforum-studio/presets/Shapes-Kalidascope.txt"
+            for dirpath, dirnames, filenames in os.walk("presets"):
+                for file in filenames:
+                    file_path = os.path.join(dirpath, file)
+                    print(file_path)
+
+                    extra_args["settings_file"] = file_path
+
+                    options["prompts"] = {
+                        "0": "travelling towards the core of earth, highly detailed illustration"
+                    }
+                    options["seed"] = 420
+                    options["subseed"] = 420
+
+                    _ = deforum(**extra_args, **options)
+    else:
+        from deforum import DeforumAnimationPipeline
+        deforum = DeforumAnimationPipeline.from_civitai()
+        _ = deforum(**extra_args, **options)

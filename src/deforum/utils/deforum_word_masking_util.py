@@ -1,9 +1,10 @@
 import os
+
+import cv2
 import torch
 from PIL import Image
-from torchvision import transforms
 from torch.nn.functional import interpolate
-import cv2
+from torchvision import transforms
 
 from ..models import CLIPDensePredT
 

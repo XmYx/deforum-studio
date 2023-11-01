@@ -1,17 +1,14 @@
 import os
-import numpy as np
-
-import ldm.modules.diffusionmodules.openaimodel
-
-import torch
-from torch.cuda import nvtx
-from modules import script_callbacks, sd_unet, devices
-
-import ui_trt
-from utilities import Engine
 from typing import List
+
+import numpy as np
+import torch
+import ui_trt
 from model_manager import TRT_MODEL_DIR, modelmanager
-from modules import sd_models, shared
+from modules import script_callbacks, sd_unet, devices
+from modules import shared
+from torch.cuda import nvtx
+from utilities import Engine
 
 
 class TrtUnetOption(sd_unet.SdUnetOption):

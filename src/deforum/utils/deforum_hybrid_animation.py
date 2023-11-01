@@ -1,16 +1,15 @@
 import os
 import pathlib
 
+import PIL
 import cv2
 import numpy as np
-import PIL
 from PIL import Image, ImageChops, ImageOps, ImageEnhance
 
 from ..utils.deforum_human_masking import video2humanmasks
 from ..utils.image_utils import (get_resized_image_from_filename,
                                  autocontrast_grayscale,
                                  load_image_with_mask)
-
 from ..utils.video_frame_utils import (vid2frames,
                                        get_quick_vid_info,
                                        get_frame_name)

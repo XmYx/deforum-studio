@@ -16,29 +16,28 @@
 # limitations under the License.
 #
 
+import copy
 from collections import OrderedDict
+from enum import Enum, auto
+from logging import error, warning
+
 import numpy as np
 import onnx
 import onnx_graphsurgeon as gs
-from polygraphy.backend.common import bytes_from_path
+import tensorrt as trt
+import torch
 from polygraphy import util
-from polygraphy.backend.trt import CreateConfig, ModifyNetworkOutputs, Profile
+from polygraphy.backend.common import bytes_from_path
+from polygraphy.backend.trt import ModifyNetworkOutputs, Profile
 from polygraphy.backend.trt import (
     engine_from_bytes,
     engine_from_network,
     network_from_onnx_path,
     save_engine,
 )
-import tensorrt as trt
-import torch
-from torch.cuda import nvtx
-from enum import Enum, auto
 from safetensors.numpy import save_file, load_file
-from logging import error, warning
-import os
-import sys
+from torch.cuda import nvtx
 from tqdm import tqdm
-import copy 
 
 TRT_LOGGER = trt.Logger(trt.Logger.ERROR)
 
