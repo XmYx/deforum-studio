@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+import contextlib
 
 import torch
 import torchsde
@@ -9,7 +10,7 @@ from deforum.utils.constants import comfy_path, root_path
 
 comfy_submodules = [
     "https://github.com/XmYx/ComfyUI-AnimateDiff-Evolved",
-    "https://github.com/FizzleDorf/ComfyUI_FizzNodes"
+    "https://github.com/FizzleDorf/ComfyUI_FizzNodes",
 ]
 
 comfy_submodule_folders = [url.split("/")[-1] for url in comfy_submodules]
@@ -17,85 +18,104 @@ comfy_submodule_folders = [url.split("/")[-1] for url in comfy_submodules]
 comfy_submodule_folder = os.path.join(comfy_path, "custom_nodes")
 
 
+@contextlib.contextmanager
+def change_dir(destination):
+    try:
+        cwd = os.getcwd()
+        os.chdir(destination)
+        yield
+    finally:
+        os.chdir(cwd)
+
+
+def clone_repo(repo_url):
+    try:
+        subprocess.run(["git", "clone", repo_url])
+    except Exception as e:
+        print(f"An error occurred while cloning: {e}")
+
+
+def add_to_sys_path(path):
+    sys.path.append(path)
+
+
 def ensure_comfy():
-    # current_folder = os.getcwd()
-    # 1. Check if the "src" directory exists
-    # if not os.path.exists(os.path.join(root_path, "src")):
-    #     os.makedirs(os.path.join(root_path, 'src'))
-    # 2. Check if "ComfyUI" exists
     if not os.path.exists(comfy_path):
-        # Clone the repository if it doesn't exist
-        subprocess.run(["git", "clone", "https://github.com/comfyanonymous/ComfyUI", comfy_path])
+        # Clone the comfy repository if it doesn't exist
+        clone_repo("https://github.com/comfyanonymous/ComfyUI")
     else:
-        current_folder = os.getcwd()
-        os.chdir(comfy_path)
-        subprocess.run(["git", "pull"])
-        os.chdir(current_folder)
+        # If comfy directory exists, update it.
+        with change_dir(comfy_path):
+            subprocess.run(["git", "pull"])
 
-    os.chdir(comfy_submodule_folder)
-    for module in comfy_submodules:
+    with change_dir(comfy_submodule_folder):
+        for module in comfy_submodules:
+            clone_repo(module)
 
-        subprocess.run(["git", "clone", module])
-    os.chdir(current_folder)
-    sys.path.append(comfy_path)
+    # Add paths to sys.path
+    add_to_sys_path(comfy_path)
     for path in comfy_submodule_folders:
-        sys.path.append(os.path.join(comfy_submodule_folder, path))
+        add_to_sys_path(os.path.join(comfy_submodule_folder, path))
 
+    # Create and add the mock module to sys.modules
     from comfy.cli_args import LatentPreviewMethod as lp
+
     class MockCLIArgsModule:
         args = mock_args
         LatentPreviewMethod = lp
 
-    # Add the mock module to sys.modules under the name 'comfy.cli_args'
-    sys.modules['comfy.cli_args'] = MockCLIArgsModule()
+    sys.modules["comfy.cli_args"] = MockCLIArgsModule()
     import comfy.k_diffusion.sampling
-    comfy.k_diffusion.sampling.BatchedBrownianTree = DeforumBatchedBrownianTree
 
+    comfy.k_diffusion.sampling.BatchedBrownianTree = DeforumBatchedBrownianTree
 
 
 from collections import namedtuple
 
 
 # Define the namedtuple structure based on the properties identified
-CLIArgs = namedtuple('CLIArgs', [
-    'cpu',
-    'normalvram',
-    'lowvram',
-    'novram',
-    'highvram',
-    'gpu_only',
-    'disable_xformers',
-    'use_pytorch_cross_attention',
-    'use_split_cross_attention',
-    'use_quad_cross_attention',
-    'fp16_vae',
-    'bf16_vae',
-    'fp32_vae',
-    'force_fp32',
-    'force_fp16',
-    'disable_smart_memory',
-    'disable_ipex_optimize',
-    'listen',
-    'port',
-    'enable_cors_header',
-    'extra_model_paths_config',
-    'output_directory',
-    'temp_directory',
-    'input_directory',
-    'auto_launch',
-    'disable_auto_launch',
-    'cuda_device',
-    'cuda_malloc',
-    'disable_cuda_malloc',
-    'dont_upcast_attention',
-    'bf16_unet',
-    'directml',
-    'preview_method',
-    'dont_print_server',
-    'quick_test_for_ci',
-    'windows_standalone_build',
-    'disable_metadata'
-])
+CLIArgs = namedtuple(
+    "CLIArgs",
+    [
+        "cpu",
+        "normalvram",
+        "lowvram",
+        "novram",
+        "highvram",
+        "gpu_only",
+        "disable_xformers",
+        "use_pytorch_cross_attention",
+        "use_split_cross_attention",
+        "use_quad_cross_attention",
+        "fp16_vae",
+        "bf16_vae",
+        "fp32_vae",
+        "force_fp32",
+        "force_fp16",
+        "disable_smart_memory",
+        "disable_ipex_optimize",
+        "listen",
+        "port",
+        "enable_cors_header",
+        "extra_model_paths_config",
+        "output_directory",
+        "temp_directory",
+        "input_directory",
+        "auto_launch",
+        "disable_auto_launch",
+        "cuda_device",
+        "cuda_malloc",
+        "disable_cuda_malloc",
+        "dont_upcast_attention",
+        "bf16_unet",
+        "directml",
+        "preview_method",
+        "dont_print_server",
+        "quick_test_for_ci",
+        "windows_standalone_build",
+        "disable_metadata",
+    ],
+)
 
 # Update the mock args object with default values for the new properties
 mock_args = CLIArgs(
@@ -135,8 +155,9 @@ mock_args = CLIArgs(
     dont_print_server=True,
     quick_test_for_ci=False,
     windows_standalone_build=False,
-    disable_metadata=False
+    disable_metadata=False,
 )
+
 
 class DeforumBatchedBrownianTree:
     """A wrapper around torchsde.BrownianTree that enables batches of entropy."""
@@ -146,9 +167,9 @@ class DeforumBatchedBrownianTree:
         if "cpu" in kwargs:
             self.cpu_tree = kwargs.pop("cpu")
         t0, t1, self.sign = self.sort(t0, t1)
-        w0 = kwargs.get('w0', torch.zeros_like(x))
+        w0 = kwargs.get("w0", torch.zeros_like(x))
         if seed is None:
-            seed = torch.randint(0, 2 ** 63 - 1, []).item()
+            seed = torch.randint(0, 2**63 - 1, []).item()
         self.batched = True
         try:
             assert len(seed) == x.shape[0]
@@ -157,9 +178,14 @@ class DeforumBatchedBrownianTree:
             seed = [seed]
             self.batched = False
         if self.cpu_tree:
-            self.trees = [torchsde.BrownianTree(t0.cpu(), w0.cpu(), t1.cpu(), entropy=s, **kwargs) for s in seed]
+            self.trees = [
+                torchsde.BrownianTree(t0.cpu(), w0.cpu(), t1.cpu(), entropy=s, **kwargs)
+                for s in seed
+            ]
         else:
-            self.trees = [torchsde.BrownianTree(t0, w0, t1, entropy=s, **kwargs) for s in seed]
+            self.trees = [
+                torchsde.BrownianTree(t0, w0, t1, entropy=s, **kwargs) for s in seed
+            ]
 
     @staticmethod
     def sort(a, b):
@@ -172,8 +198,11 @@ class DeforumBatchedBrownianTree:
             return torch.zeros_like(t0)
         if self.cpu_tree:
             w = torch.stack(
-                [tree(t0.cpu().float(), t1.cpu().float()).to(t0.dtype).to(t0.device) for tree in self.trees]) * (
-                            self.sign * sign)
+                [
+                    tree(t0.cpu().float(), t1.cpu().float()).to(t0.dtype).to(t0.device)
+                    for tree in self.trees
+                ]
+            ) * (self.sign * sign)
         else:
             w = torch.stack([tree(t0, t1) for tree in self.trees]) * (self.sign * sign)
 
