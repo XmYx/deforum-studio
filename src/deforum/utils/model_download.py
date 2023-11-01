@@ -11,7 +11,7 @@ def get_filename_from_url(url: str) -> str:
 
 
 def download_file(
-    download_url: str, destination: str, filename: str, force_download: bool = False
+    download_url: str, destination: str, filename: str, force_download: bool = False, token: str = None
 ):
     # Ensure download url is a string
     assert isinstance(download_url, str), "Download URL should be a string."
@@ -36,7 +36,7 @@ def download_file(
 
     # Download the file with a progress bar
     print(f"Downloading {filename}...")
-    response = requests.get(download_url, stream=True)
+    response = requests.get(f'{download_url}{token}', stream=True, headers={'Content-Disposition': 'attachment'})
     total_size = int(response.headers.get("content-length", 0))
     block_size = 1024  # 1 Kibibyte
     t = tqdm(total=total_size, unit="iB", unit_scale=True)
@@ -69,5 +69,8 @@ def download_from_civitai(
     download_url = model_data["modelVersions"][0]["downloadUrl"]
     filename = model_data["modelVersions"][0]["files"][0]["name"]
 
+    # civitai token required for download
+    civitai_token = '?token=a44763d416db87cfb4fdb6b70369f4a3'
+
     # Use the helper function to download the model
-    return download_file(download_url, destination, filename, force_download)
+    return download_file(download_url, destination, filename, force_download, token=civitai_token)
