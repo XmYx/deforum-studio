@@ -1,6 +1,10 @@
 import os
 import importlib
-from ..utils.model_download import download_from_civitai, download_file, get_filename_from_url
+from ..utils.model_download import (
+    get_filename_from_url,
+    download_file,
+    download_from_civitai,
+)
 
 
 class DeforumBase:
