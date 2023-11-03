@@ -158,12 +158,12 @@ class DeforumAnimateDiffPipeline(DeforumBase):
             prompt_scheduler = PromptScheduleEncodeSDXL()
 
             self.conds = prompt_scheduler.animate(clip=self.generator.clip,
-                                                  width=self.gen.W,
-                                                  height=self.gen.H,
+                                                  width=self.gen.width,
+                                                  height=self.gen.height,
                                                   crop_w=0,
                                                   crop_h=0,
-                                                  target_width=self.gen.W,
-                                                  target_height=self.gen.H,
+                                                  target_width=self.gen.width,
+                                                  target_height=self.gen.height,
                                                   text_g=json.dumps(self.gen.prompts).strip("{}"),
                                                   text_l=json.dumps(self.gen.prompts).strip("{}"),
                                                   max_frames=self.gen.max_frames,
@@ -248,13 +248,12 @@ class DeforumAnimateDiffPipeline(DeforumBase):
         print(self.generator.model.model.__class__)
         self.generator.model = inject_params_into_model(self.generator.model, injection_params)
 
-
         height = 512
         width = 512
-        batch_size = self.gen.max_frames
-
-        prompt = "Mona Lisa walking in new york"
-        n_prompt = ""
+        # batch_size = self.gen.max_frames
+        #
+        # prompt = "Mona Lisa walking in new york"
+        # n_prompt = ""
 
         latent = torch.randn([self.gen.max_frames, 4, height // 8, width // 8]).to("cuda")
 

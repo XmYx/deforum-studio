@@ -210,8 +210,8 @@ class DeforumAnimationPipeline(DeforumBase):
             device = "cuda"
             self.depth_model = DepthModel(other_model_dir, device, self.gen.half_precision,
                                      keep_in_vram=self.gen.keep_in_vram,
-                                     depth_algorithm=self.gen.depth_algorithm, Width=self.gen.W,
-                                     Height=self.gen.H,
+                                     depth_algorithm=self.gen.depth_algorithm, Width=self.gen.width,
+                                     Height=self.gen.height,
                                      midas_weight=self.gen.midas_weight)
             print(f"[ Loaded Depth model ]")
             # depth-based hybrid composite mask requires saved depth maps
@@ -384,14 +384,19 @@ class DeforumAnimationPipeline(DeforumBase):
         if hasattr(self.gen, "sampler_name"):
             from comfy.samplers import SAMPLER_NAMES
 
+
             if self.gen.sampler_name not in SAMPLER_NAMES:
-                self.gen.sampler_name = auto_to_comfy[self.gen.sampler_name]["sampler"]
-                self.gen.scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
+                sampler_name = auto_to_comfy[self.gen.sampler_name]["sampler"]
+                scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
+                self.gen.sampler_name = sampler_name
+                self.gen.scheduler = scheduler
 
         if self.gen.scheduled_sampler_name is not None:
             if self.gen.scheduled_sampler_name in auto_to_comfy.keys():
-                self.gen.sampler_name = auto_to_comfy[self.gen.sampler_name]["sampler"]
-                self.gen.scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
+                sampler_name = auto_to_comfy[self.gen.sampler_name]["sampler"]
+                scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
+                self.gen.sampler_name = sampler_name
+                self.gen.scheduler = scheduler
 
         img = self.gen.prev_img
         if img is not None:
@@ -406,8 +411,8 @@ class DeforumAnimationPipeline(DeforumBase):
             "scale": self.gen.scale,
             "strength": self.gen.strength,
             "init_image": img,
-            "width": self.gen.W,
-            "height": self.gen.H,
+            "width": self.gen.width,
+            "height": self.gen.height,
             "cnet_image": None,
             "next_prompt": next_prompt,
             "prompt_blend": blend_value,
@@ -509,7 +514,7 @@ class DeforumAnimationPipeline(DeforumBase):
             else:
                 print("LOOPER ERROR, AVOIDING DIVISION BY 0")
             init_image2, _ = load_image_with_mask(list(jsonImages.values())[frameToChoose],
-                                      shape=(self.gen.W, self.gen.H),
+                                      shape=(self.gen.width, self.gen.height),
                                       use_alpha_as_mask=self.gen.use_alpha_as_mask)
             image_init0 = list(jsonImages.values())[0]
             # print(" TYPE", type(image_init0))
@@ -568,7 +573,7 @@ class DeforumAnimationPipeline(DeforumBase):
         elif (self.gen.use_looper and self.gen.animation_mode in ['2D', '3D']) or (
                 self.gen.use_init and ((self.gen.init_image is not None and self.gen.init_image != ''))):
             init_image, mask_image = load_image_with_mask(image_init0,  # initial init image
-                                              shape=(self.gen.W, self.gen.H),
+                                              shape=(self.gen.width, self.gen.H),
                                               use_alpha_as_mask=self.gen.use_alpha_as_mask)
 
         else:
@@ -636,7 +641,7 @@ class DeforumAnimationPipeline(DeforumBase):
                 "scale": self.gen.scale,
                 "strength": self.genstrength,
                 "init_image": init_image,
-                "width": self.gen.W,
+                "width": self.gen.width,
                 "height": self.gen.H,
                 "cnet_image": cnet_image,
                 "next_prompt": next_prompt,
@@ -674,7 +679,7 @@ class DeforumAnimationPipeline(DeforumBase):
             if self.gen.use_mask:
                 mask_image = self.gen.mask_image
                 mask = prepare_mask(self.gen.mask_file if mask_image is None else mask_image,
-                                    (self.gen.W, self.gen.H),
+                                    (self.gen.width, self.gen.H),
                                     self.gen.mask_contrast_adjust,
                                     self.gen.mask_brightness_adjust)
                 inpainting_mask_invert = self.gen.invert_mask
@@ -727,7 +732,7 @@ class DeforumAnimationPipeline(DeforumBase):
                 "scale": self.gen.scale,
                 "strength": self.gen.strength,
                 "init_image": init_image,
-                "width": self.gen.W,
+                "width": self.gen.width,
                 "height": self.gen.H,
                 "cnet_image": cnet_image,
                 "next_prompt": next_prompt,

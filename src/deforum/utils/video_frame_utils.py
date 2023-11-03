@@ -159,7 +159,7 @@ def is_vid_path_valid(video_path):
     return True
 
 
-# quick-retreive frame count, FPS and H/W dimensions of a video (local or URL-based)
+# quick-retreive frame count, FPS and height/W dimensions of a video (local or URL-based)
 def get_quick_vid_info(vid_path):
     vidcap = cv2.VideoCapture(vid_path)
     video_fps = vidcap.get(cv2.CAP_PROP_FPS)

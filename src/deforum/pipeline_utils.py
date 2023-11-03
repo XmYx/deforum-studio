@@ -4,6 +4,7 @@ import os
 import random
 import secrets
 import time
+import uuid
 
 from .pipelines.deforum_animation.animation_params import (DeforumArgs, DeforumAnimArgs,
                                                            ParseqArgs, LoopArgs, RootArgs,
@@ -227,6 +228,7 @@ class DeforumGenerationObject(DeforumDataObject):
         self.opencv_image = None
         self.use_areas = False
         self.areas = areas
+        self.operation_id = uuid.uuid4().hex
 
         # Set all provided keyword arguments as attributes
         for key, value in kwargs.items():

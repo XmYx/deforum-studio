@@ -60,16 +60,30 @@ def load_tabs_from_json():
 
 def main():
 
+    from deforum.shared_storage import models
+
+    def load_deforum():
+        if "deforum_pipe" not in models:
+            print("LOADING DEFORUM INTO ST")
+            from deforum import DeforumAnimationPipeline
+            #["deforum_pipe"] = DeforumAnimationPipeline.from_civitai(model_id="125703")
+            models["deforum_pipe"] = DeforumAnimationPipeline.from_file("/home/mix/Downloads/D4ll34_001CKPT.safetensors")
+        else:
+            st.session_state['loaded'] = True
+
+
+    if 'loaded' not in st.session_state:
+        st.session_state['loaded'] = True
+        load_deforum()
+
+
     if "defaults" not in st.session_state:
         loaded = OmegaConf.load(os.path.join(curr_folder, "deforum_tab.yaml"))
         st.session_state["defaults"] = OmegaConf.to_container(loaded, resolve=True)
 
-        print(type(st.session_state["defaults"]))
-
-
     from deforum_webui_modules import deforum_tab
 
-    deforum_tab.plugin_tab(None, None)
+    deforum_tab.plugin_tab(model=models["deforum_pipe"])
     # Load the tabs from the JSON file if it exists
     # json_filepath = 'config/tabs.json'
     #

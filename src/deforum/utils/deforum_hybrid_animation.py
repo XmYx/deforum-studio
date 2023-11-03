@@ -110,7 +110,7 @@ def hybrid_composite(args, anim_args, frame_idx, prev_img, depth_model, hybrid_c
         video_image = load_image_with_mask(args.init_image, args.init_image_box)
     else:
         video_image = Image.open(video_frame)
-    video_image = video_image.resize((args.W, args.H), PIL.Image.LANCZOS)
+    video_image = video_image.resize((args.width, args.H), PIL.Image.LANCZOS)
     hybrid_mask = None
 
     # composite mask types

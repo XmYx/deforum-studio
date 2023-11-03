@@ -153,7 +153,7 @@ class ComfyDeforumGenerator:
                  seed_resize_from_h=1024,
                  seed_resize_from_w=1024,
                  reset_noise=False,
-                 enable_prompt_blend=False,
+                 enable_prompt_blend=True,
                  use_areas= False,
                  areas= None,
                  *args,
@@ -162,6 +162,8 @@ class ComfyDeforumGenerator:
         if self.pipeline_type == "comfy":
             if seed == -1:
                 seed = secrets.randbelow(18446744073709551615)
+
+            # strength = 1 - strength
 
             if strength <= 0.0 or strength >= 1.0:
                 strength = 1.0
@@ -234,8 +236,11 @@ class ComfyDeforumGenerator:
 
             from nodes import common_ksampler as ksampler
 
-            last_step = int((strength) * steps) if (strength != 1.0 or not reset_noise) else steps
-            # last_step = steps if last_step is None else last_step
+            steps = int((1 - strength) * steps) if (strength != 1.0 or not reset_noise) else steps
+            last_step = steps# if last_step is None else last_step
+
+            print(seed, strength, sampler_name, scheduler, scale)
+
             sample = common_ksampler_with_custom_noise(model=self.model,
                                                        seed=seed,
                                                        steps=steps,
