@@ -13,6 +13,22 @@ from ...utils.constants import comfy_path
 from ...utils.video_save_util import save_as_h264
 
 
+def generate_keyframe_sequence(prompts, max_frames):
+    keyframe_sequence = {}
+
+    # Calculate the interval for each prompt based on the number of prompts and max_frames
+    interval = max_frames // (len(prompts) - 1)
+
+    for index, prompt in enumerate(prompts):
+        frame_number = index * interval
+
+        # If it's the last prompt, ensure it's assigned to the last frame
+        if index == len(prompts) - 1:
+            frame_number = max_frames
+
+        keyframe_sequence[frame_number] = prompt
+
+    return keyframe_sequence
 def parse_weight_string(weight_string, max_frames):
     # If empty string, return list with all 1.0 values
     if not weight_string:
@@ -63,20 +79,53 @@ class DeforumAnimateDiffPipeline(DeforumBase):
 
     def __call__(self, settings_file:Optional[str] = None, *args, **kwargs):
         """
-        AnimateDiff / HotshotCo-XL Sampler function with sliding context
+        AnimateDiff / HotshotCo-XL Sampler function with sliding context.
 
-        We must do some imports on the call level since they are not part of the base repo and are downloaded /
-        maintained separately by (generators.comfy_utils.ensure_comfy)
+        This method initializes a DeforumGenerationObject with either default settings or settings loaded from a given file.
+        It then updates the generation parameters based on provided keyword arguments and creates a sliding context
+        for animation or HotshotCo-XL generation.
+
         Args:
-            settings_file:
-            *args:
-            **kwargs:
+            settings_file (Optional[str]): Path to a .txt settings file to load. Defaults to None, which will load default settings.
+
+        Keyword Args:
+            context_length (int): Length of the context for the animation sequence. Defaults to 16.
+            context_stride (int): Stride of the context for the animation sequence. Defaults to 1.
+            context_overlap (int): Overlap of the context in the animation sequence. Defaults to 4.
+            max_frames (int): Maximum number of frames for the animation sequence. Defaults to 32.
+            closed_loop (bool): Whether the animation should loop back to the start. Defaults to True.
+            Any additional keyword arguments will be passed to the update_from_kwargs method.
+            sampler_name: ["euler", "euler_ancestral", "heun", "dpm_2", "dpm_2_ancestral",
+                  "lms", "dpm_fast", "dpm_adaptive", "dpmpp_2s_ancestral", "dpmpp_sde", "dpmpp_sde_gpu",
+                  "dpmpp_2m", "dpmpp_2m_sde", "dpmpp_2m_sde_gpu", "dpmpp_3m_sde", "dpmpp_3m_sde_gpu", "ddpm",
+                   "ddim", "uni_pc", "uni_pc_bh2"]
+            scheduler: ["normal", "karras", "exponential", "sgm_uniform", "simple", "ddim_uniform"]
+            steps (int): 25
+            scale (float): 7.5
+
+        Default Values:
+            - context_length: 16 (range: 0-32)
+            - context_stride: 1 (range: 1-32)
+            - context_overlap: 4 (range: 0-32)
+            - max_frames: 32 (range: 1-4096)
+            - closed_loop: True
+
+        Prompts:
+            A dictionary mapping frame numbers to text prompts for keyframes in the animation sequence.
+            Example:
+                {
+                    0: "Enchanted forest, beautiful trees and butterflies flying around",
+                    32: "Abstract art of an enchanted forest with butterflies"
+                }
+
+        Prompt List:
+            A list of strings that will be converted into a keyframe sequence if provided. The 'generate_keyframe_sequence'
+            function will be used to distribute these prompts evenly across the animation sequence.
 
         Returns:
+            None. This method operates by side effects, updating the internal state of the DeforumGenerationObject instance.
 
         """
-
-
         if settings_file:
             self.gen = DeforumGenerationObject.from_settings_file(settings_file)
         else:
@@ -116,7 +165,7 @@ class DeforumAnimateDiffPipeline(DeforumBase):
                 "minimum": 1,
                 "maximum": 4096,
                 "step": 1,
-                "value": 64,
+                "value": 32,
                 "visible": True
             },
             "closed_loop": {
@@ -132,13 +181,26 @@ class DeforumAnimateDiffPipeline(DeforumBase):
             0: "Enchanted forest, beautiful trees and butterflies flying around",
             32: "Abstract art of an enchanted forest with butterflies"
         }
-
+        self.gen.seed = -1
+        self.gen.scale = 7.5
+        self.gen.steps = 25
         #Create default values needed for animatediff / Hotshotco-XL generation
         self.gen.prompts = json.loads(json.dumps(prompts))
 
         defaults = extract_values(animate_diff_defaults)
         #Update generation params from any kwarg passed to the call
         self.gen.update_from_kwargs(prompts=prompts, **defaults)
+        self.gen.update_from_kwargs(**kwargs)
+        if isinstance(self.gen.prompts, str):
+            self.gen.prompts = json.loads(json.dumps({0:str(self.gen.prompts)}))
+
+        if hasattr(self.gen, "prompt_list"):
+            try:
+                seq = generate_keyframe_sequence(self.gen.prompt_list, self.gen.max_frames)
+                self.gen.prompts = seq
+            except:
+                pass
+
         #Create 'sliding context' for animatediff / Hotshotco-XL
         #TODO Move functions in the the loops as and if they make sense
         _ = self.run_animatediff()
@@ -260,7 +322,11 @@ class DeforumAnimateDiffPipeline(DeforumBase):
         images = self.generator( pooled_prompts=self.conds,
                                  latent=latent,
                                  strength=1.0,
-                                 steps=25)
+                                 steps=self.gen.steps,
+                                 scale=self.gen.scale,
+                                 sampler_name=self.gen.sampler_name,
+                                 scheduler=self.gen.scheduler,
+                                 seed=self.gen.seed)
 
         self.gen.frame_interpolation_engine = "FILM"
         self.gen.frame_interpolation_x_amount = 2
