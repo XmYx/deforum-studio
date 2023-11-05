@@ -131,69 +131,20 @@ class DeforumAnimateDiffPipeline(DeforumBase):
         else:
             self.gen = DeforumGenerationObject()
 
-        animate_diff_defaults = {
-            "context_length": {
-                "label": "Context Length",
-                "type": "number",
-                "minimum": 0,
-                "maximum": 32,
-                "step": 1,
-                "value": 16,
-                "visible": True
-            },
-            "context_stride": {
-                "label": "Context Stride",
-                "type": "number",
-                "minimum": 1,
-                "maximum": 32,
-                "step": 1,
-                "value": 1,
-                "visible": True
-            },
-            "context_overlap": {
-                "label": "Context Overlap",
-                "type": "number",
-                "minimum": 0,
-                "maximum": 32,
-                "step": 1,
-                "value": 4,
-                "visible": True
-            },
-            "max_frames": {
-                "label": "Max Frames",
-                "type": "number",
-                "minimum": 1,
-                "maximum": 4096,
-                "step": 1,
-                "value": 32,
-                "visible": True
-            },
-            "closed_loop": {
-                "label": "Closed Loop",
-                "type": "checkbox",
-                "value": True,
-                "info": "",
-                "visible": True
-            },
 
-        }
-        prompts = {
-            0: "Enchanted forest, beautiful trees and butterflies flying around",
-            32: "Abstract art of an enchanted forest with butterflies"
-        }
         self.gen.seed = -1
         self.gen.scale = 7.5
         self.gen.steps = 25
         #Create default values needed for animatediff / Hotshotco-XL generation
-        self.gen.prompts = json.loads(json.dumps(prompts))
+        self.gen.prompts = json.loads(json.dumps(animatediff_default_prompts))
 
         defaults = extract_values(animate_diff_defaults)
         #Update generation params from any kwarg passed to the call
-        self.gen.update_from_kwargs(prompts=prompts, **defaults)
+        self.gen.update_from_kwargs(prompts=animatediff_default_prompts, **defaults)
         self.gen.update_from_kwargs(**kwargs)
         if isinstance(self.gen.prompts, str):
-            self.gen.prompts = json.loads(json.dumps({0:str(self.gen.prompts)}))
-
+            self.gen.prompts = {0:str(self.gen.prompts),
+                                self.gen.max_frames:str(self.gen.prompts)}
         if hasattr(self.gen, "prompt_list"):
             try:
                 seq = generate_keyframe_sequence(self.gen.prompt_list, self.gen.max_frames)
@@ -201,12 +152,18 @@ class DeforumAnimateDiffPipeline(DeforumBase):
             except:
                 pass
 
+
+
         #Create 'sliding context' for animatediff / Hotshotco-XL
         #TODO Move functions in the the loops as and if they make sense
-        _ = self.run_animatediff()
+
+        latent = kwargs.get('latent')
+        _ = self.run_animatediff(latent=latent)
+
+        return self.gen
 
     def create_context(self, version="1.5"):
-        from custom_nodes.ComfyUI_FizzNodes import PromptScheduleEncodeSDXL, BatchPromptSchedule
+        from custom_nodes.ComfyUI_FizzNodes import PromptScheduleEncodeSDXL, BatchPromptSchedule, BatchPromptScheduleLatentInput
         from animatediff.context import UniformContextOptions
         self.context_options = UniformContextOptions(
             context_length=self.gen.context_length, # ("INT", {"default": 16, "min": 1, "max": 32})
@@ -240,20 +197,26 @@ class DeforumAnimateDiffPipeline(DeforumBase):
                                                   pw_d=[1.0 for _ in range(self.gen.max_frames)],#parse_weight_string("", self.gen.max_frames),
                                                   )[0]
         else:
-            prompt_scheduler = BatchPromptSchedule()
-            self.conds = prompt_scheduler.animate(text=json.dumps(self.gen.prompts).strip("{}"),
-                                                 max_frames=self.gen.max_frames,
-                                                 print_output=True,
-                                                 clip=self.generator.clip,
-                                                 pw_a=parse_weight_string("", self.gen.max_frames),
-                                                 pw_b=parse_weight_string("", self.gen.max_frames),
-                                                 pw_c=parse_weight_string("", self.gen.max_frames),
-                                                 pw_d=parse_weight_string("", self.gen.max_frames),
-                                                 )[0]
+            prompt_scheduler = BatchPromptScheduleLatentInput()
+
+            # self.conds = self.generator.get_conds(self.gen.prompt)
+
+            assert self.gen.max_frames % 16 == 0, "Make sure to pass an animatediff max frames value that is a multiple of 16"
+            self.latents = {"samples":torch.randn([self.gen.max_frames, 4, self.gen.height // 8, self.gen.width // 8])}
+            print(self.gen.prompts)
+            self.conds, self.n_conds, self.latents = prompt_scheduler.animate(text=json.dumps(self.gen.prompts).strip("{}"),
+                                                                             num_latents=self.latents,
+                                                                             print_output=True,
+                                                                             clip=self.generator.clip,
+                                                                             pw_a=parse_weight_string("", self.gen.max_frames),
+                                                                             pw_b=parse_weight_string("", self.gen.max_frames),
+                                                                             pw_c=parse_weight_string("", self.gen.max_frames),
+                                                                             pw_d=parse_weight_string("", self.gen.max_frames),
+                                                                             )
 
 
     @torch.inference_mode()
-    def run_animatediff(self):
+    def run_animatediff(self, latent=None):
         from animatediff.model_utils import BetaSchedules
         from animatediff.motion_module import load_motion_module, inject_params_into_model, InjectionParams
         from animatediff.context import UniformContextOptions
@@ -286,7 +249,7 @@ class DeforumAnimateDiffPipeline(DeforumBase):
         mm = load_motion_module(self.module_filename, motion_lora, model=self.generator.model)
         # set injection params
         injection_params = InjectionParams(
-                video_length=None,
+                video_length=self.gen.max_frames,
                 unlimited_area_hack=False,
                 apply_mm_groupnorm_hack=True,
                 beta_schedule=BetaSchedules.LINEAR, # beta_schedule
@@ -307,38 +270,94 @@ class DeforumAnimateDiffPipeline(DeforumBase):
             injection_params.set_loras(motion_lora)
         # inject for use in sampling code
 
-        print(self.generator.model.model.__class__)
         self.generator.model = inject_params_into_model(self.generator.model, injection_params)
 
-        height = 512
-        width = 512
+        #height = 512
+        #width = 512
         # batch_size = self.gen.max_frames
         #
         # prompt = "Mona Lisa walking in new york"
         # n_prompt = ""
 
-        latent = torch.randn([self.gen.max_frames, 4, height // 8, width // 8]).to("cuda")
 
+
+        if latent == None and self.latents == None:
+            self.latents = torch.randn([self.gen.max_frames, 4, self.gen.height // 8, self.gen.width // 8]).to("cuda")
+            strength = 1.0
+        else:
+            strength = 0.5
         images = self.generator( pooled_prompts=self.conds,
-                                 latent=latent,
-                                 strength=1.0,
+                                 latent=self.latents,
+                                 strength=strength,
                                  steps=self.gen.steps,
                                  scale=self.gen.scale,
                                  sampler_name=self.gen.sampler_name,
                                  scheduler=self.gen.scheduler,
                                  seed=self.gen.seed)
 
-        self.gen.frame_interpolation_engine = "FILM"
+        #self.gen.frame_interpolation_engine = "FILM"
         self.gen.frame_interpolation_x_amount = 2
 
         self.images = [np.array(image) for image in images]
-
+        self.gen.images = self.images
         from deforum.pipelines.deforum_animation.animation_helpers import film_interpolate_cls
 
-        film_interpolate_cls(self)
+        if self.gen.frame_interpolation_engine != "None":
+            film_interpolate_cls(self)
 
-        save_as_h264(self.images, f"output/video/{self.gen.batch_name}.mp4")
-
-        self.gen.video_path = f"output/video/{self.gen.batch_name}.mp4"
-
+        if not self.gen.store_frames_in_ram:
+            save_as_h264(self.images, f"output/video/{self.gen.batch_name}.mp4")
+            self.gen.video_path = f"output/video/{self.gen.batch_name}.mp4"
+            print("ANIMATEDIFF SAVED", self.gen.video_path)
         return self.gen
+
+animate_diff_defaults = {
+    "context_length": {
+        "label": "Context Length",
+        "type": "number",
+        "minimum": 0,
+        "maximum": 32,
+        "step": 1,
+        "value": 16,
+        "visible": True
+    },
+    "context_stride": {
+        "label": "Context Stride",
+        "type": "number",
+        "minimum": 1,
+        "maximum": 32,
+        "step": 1,
+        "value": 1,
+        "visible": True
+    },
+    "context_overlap": {
+        "label": "Context Overlap",
+        "type": "number",
+        "minimum": 0,
+        "maximum": 32,
+        "step": 1,
+        "value": 4,
+        "visible": True
+    },
+    "max_frames": {
+        "label": "Max Frames",
+        "type": "number",
+        "minimum": 1,
+        "maximum": 4096,
+        "step": 1,
+        "value": 32,
+        "visible": True
+    },
+    "closed_loop": {
+        "label": "Closed Loop",
+        "type": "checkbox",
+        "value": True,
+        "info": "",
+        "visible": True
+    },
+
+}
+animatediff_default_prompts = {
+    0: "Enchanted forest, beautiful trees and butterflies flying around",
+    32: "Abstract art of an enchanted forest with butterflies"
+}

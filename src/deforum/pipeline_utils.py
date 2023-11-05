@@ -229,6 +229,9 @@ class DeforumGenerationObject(DeforumDataObject):
         self.use_areas = False
         self.areas = areas
         self.operation_id = uuid.uuid4().hex
+        self.depth = None
+        self.skip_hybrid_paths = False
+        self.inputfiles = None
 
         # Set all provided keyword arguments as attributes
         for key, value in kwargs.items():

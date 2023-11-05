@@ -4,6 +4,7 @@ import re
 import socket
 import time
 
+import PIL.Image
 import cv2
 import numpy as np
 import requests
@@ -44,28 +45,31 @@ def maintain_colors(prev_img, color_match_sample, mode):
 
 
 def load_image(image_path: str):
-    image_path = clean_gradio_path_strings(image_path)
-    if image_path.startswith('http://') or image_path.startswith('https://'):
-        try:
-            host = socket.gethostbyname("www.google.com")
-            s = socket.create_connection((host, 80), 2)
-            s.close()
-        except:
-            raise ConnectionError(
-                "There is no active internet connection available - please use local masks and init files only.")
+    if isinstance(image_path, str):
+        image_path = clean_gradio_path_strings(image_path)
+        if image_path.startswith('http://') or image_path.startswith('https://'):
+            try:
+                host = socket.gethostbyname("www.google.com")
+                s = socket.create_connection((host, 80), 2)
+                s.close()
+            except:
+                raise ConnectionError(
+                    "There is no active internet connection available - please use local masks and init files only.")
 
-        try:
-            response = requests.get(image_path, stream=True)
-        except requests.exceptions.RequestException as e:
-            raise ConnectionError("Failed to download image due to no internet connection. Error: {}".format(e))
-        if response.status_code == 404 or response.status_code != 200:
-            raise ConnectionError("Init image url or mask image url is not valid")
-        image = Image.open(response.raw).convert('RGB')
-    else:
-        if not os.path.exists(image_path):
-            raise RuntimeError("Init image path or mask image path is not valid")
-        image = Image.open(image_path).convert('RGB')
-    return image
+            try:
+                response = requests.get(image_path, stream=True)
+            except requests.exceptions.RequestException as e:
+                raise ConnectionError("Failed to download image due to no internet connection. Error: {}".format(e))
+            if response.status_code == 404 or response.status_code != 200:
+                raise ConnectionError("Init image url or mask image url is not valid")
+            image = Image.open(response.raw).convert('RGB')
+        else:
+            if not os.path.exists(image_path):
+                raise RuntimeError("Init image path or mask image path is not valid")
+            image = Image.open(image_path).convert('RGB')
+        return image
+    elif isinstance(image_path, PIL.Image.Image):
+        return image_path
 
 
 def blank_if_none(mask, w, h, mode):

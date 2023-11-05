@@ -170,9 +170,10 @@ class DeforumAnimationPipeline(DeforumBase):
 
         # if self.gen.animation_mode in frame_warp_modes:
         #     # handle hybrid video generation
-        if self.gen.hybrid_composite != 'None' or self.gen.hybrid_motion in hybrid_motion_modes:
-            _, _, self.gen.inputfiles = hybrid_generation(self.gen, self.gen, self.gen)
-            self.gen.hybrid_frame_path = os.path.join(self.gen.outdir, 'hybridframes')
+        if not self.gen.skip_hybrid_paths:
+            if self.gen.hybrid_composite != 'None' or self.gen.hybrid_motion in hybrid_motion_modes:
+                _, _, self.gen.inputfiles = hybrid_generation(self.gen, self.gen, self.gen)
+                self.gen.hybrid_frame_path = os.path.join(self.gen.outdir, 'hybridframes')
 
         if int(self.gen.seed) == -1:
             self.gen.seed = secrets.randbelow(18446744073709551615)
@@ -398,11 +399,17 @@ class DeforumAnimationPipeline(DeforumBase):
                 self.gen.sampler_name = sampler_name
                 self.gen.scheduler = scheduler
 
-        img = self.gen.prev_img
-        if img is not None:
+        img = None
+        if self.gen.opencv_image is not None:
             if not isinstance(img, PIL.Image.Image):
-                img = Image.fromarray(cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB))
+                img = Image.fromarray(cv2.cvtColor(self.gen.opencv_image.astype(np.uint8), cv2.COLOR_BGR2RGB))
+
+        if self.gen.use_init and self.gen.init_image:
+            img = self.gen.init_image
+
+
         self.gen.strength = 1.0 if img is None else self.gen.strength
+
         gen_args = {
             "prompt": prompt,
             "negative_prompt": negative_prompt,
@@ -420,8 +427,9 @@ class DeforumAnimationPipeline(DeforumBase):
             "sampler_name": self.gen.sampler_name,
             "reset_noise": False if self.gen.strength < 1.0 else True
         }
-        if self.gen.frame_idx == 0:
+        if self.gen.frame_idx == 0 and not self.gen.use_init:
             gen_args["reset_noise"] = True
+
         if hasattr(self.gen, "style"):
             if self.gen.style is not "(No Style)" and self.gen.style in STYLE_NAMES:
                 gen_args["prompt"], gen_args["negative_prompt"] = apply_style(self.gen.style, gen_args["prompt"],
@@ -471,8 +479,8 @@ class DeforumAnimationPipeline(DeforumBase):
 
         # blend_value = 1.0
         # next_prompt = ""
-        if not self.gen.use_init and self.gen.strength > 0 and self.gen.strength_0_no_init:
-            self.gen.strength = 0
+        if not self.gen.use_init and self.gen.strength < 1.0 and self.gen.strength_0_no_init:
+            self.gen.strength = 1.0
         processed = None
         mask_image = None
         init_image = None
@@ -573,7 +581,7 @@ class DeforumAnimationPipeline(DeforumBase):
         elif (self.gen.use_looper and self.gen.animation_mode in ['2D', '3D']) or (
                 self.gen.use_init and ((self.gen.init_image is not None and self.gen.init_image != ''))):
             init_image, mask_image = load_image_with_mask(image_init0,  # initial init image
-                                              shape=(self.gen.width, self.gen.H),
+                                              shape=(self.gen.width, self.gen.height),
                                               use_alpha_as_mask=self.gen.use_alpha_as_mask)
 
         else:
@@ -733,7 +741,7 @@ class DeforumAnimationPipeline(DeforumBase):
                 "strength": self.gen.strength,
                 "init_image": init_image,
                 "width": self.gen.width,
-                "height": self.gen.H,
+                "height": self.gen.height,
                 "cnet_image": cnet_image,
                 "next_prompt": next_prompt,
                 "prompt_blend": blend_value

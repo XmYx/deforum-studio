@@ -5,7 +5,7 @@ import torch
 from PIL import Image
 
 from .comfy_utils import ensure_comfy
-from .rng_noise_generator import ImageRNGNoise
+from .rng_noise_generator import ImageRNGNoise, slerp
 from ..utils.deforum_cond_utils import blend_tensors
 
 
@@ -53,12 +53,23 @@ class ComfyDeforumGenerator:
 
         self.rng = None
 
-    def encode_latent(self, latent):
+    def encode_latent(self, latent, seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w, reset_noise=False):
+
+        subseed_strength = 0.6
+
         with torch.inference_mode():
             latent = latent.to(torch.float32)
             latent = self.vae.encode_tiled(latent[:, :, :, :3])
             latent = latent.to("cuda")
-
+        if self.rng is None or reset_noise:
+            self.rng = ImageRNGNoise(shape=latent[0].shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
+                                     seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
+        #     noise = self.rng.first()
+        #     noise = slerp(subseed_strength, noise, latent)
+        # else:
+        #     #noise = self.rng.next()
+        #     #noise = slerp(subseed_strength, noise, latent)
+        #     noise = latent
         return {"samples": latent}
 
     def generate_latent(self, width, height, seed, subseed, subseed_strength, seed_resize_from_h=None,
@@ -194,9 +205,8 @@ class ComfyDeforumGenerator:
                     else:
                         latent = latent
             else:
-
                 latent = torch.from_numpy(np.array(init_image).astype(np.float32) / 255.0).unsqueeze(0)
-                latent = self.encode_latent(latent)
+                latent = self.encode_latent(latent, seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w)
             assert isinstance(latent, dict), \
                 "Our Latents have to be in a dict format with the latent being the 'samples' value"
 
@@ -236,7 +246,7 @@ class ComfyDeforumGenerator:
 
             from nodes import common_ksampler as ksampler
 
-            steps = int((1 - strength) * steps) if (strength != 1.0 or not reset_noise) else steps
+            steps = int((strength) * steps) if (strength != 1.0 or not reset_noise) else steps
             last_step = steps# if last_step is None else last_step
 
             print(seed, strength, sampler_name, scheduler, scale)

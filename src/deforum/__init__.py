@@ -9,4 +9,5 @@ from .models import (FilmModel)
 
 from .pipelines import (DeforumBase,
                         DeforumAnimationPipeline,
-                        DeforumAnimateDiffPipeline)
+                        DeforumAnimateDiffPipeline,
+                        DeforumAnimateDifforumPipeline)

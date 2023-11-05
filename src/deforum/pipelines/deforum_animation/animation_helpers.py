@@ -286,7 +286,7 @@ def optical_flow_motion(cls: Any) -> None:
     Returns:
         None: Modifies the class instance attributes in place.
     """
-    if cls.gen.prev_img is not None:
+    if cls.gen.prev_img is not None and cls.gen.inputfiles is not None:
         if cls.gen.hybrid_motion_use_prev_img:
             cls.gen.flow = get_flow_for_hybrid_motion_prev(cls.gen.frame_idx - 1, (cls.gen.width, cls.gen.height),
                                                            cls.gen.inputfiles,
@@ -720,7 +720,7 @@ def post_gen_cls(cls: Any) -> None:
         else:
             filename = f"{cls.gen.timestring}_{cls.gen.frame_idx:09}.png"
             # cls.logger(f"                                   [ filename generated: {filename} ]", True)
-
+            cv2.imwrite("current_deforum_debug.png", cls.gen.opencv_image)
             if not cls.gen.store_frames_in_ram:
                 p = Process(target=save_image, args=(cls.gen.image, 'PIL', filename, cls.gen, cls.gen, cls.gen))
                 p.start()
@@ -886,7 +886,7 @@ def generate_interpolated_frames(cls):
             # saving cadence frames
             filename = f"{cls.gen.timestring}_{tween_frame_idx:09}.png"
             cv2.imwrite(os.path.join(cls.gen.outdir, filename), img)
-
+            cv2.imwrite("current_cadence.png", img)
             cb_img = Image.fromarray(cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB))
             cls.datacallback({"image":cb_img, "operation_id":cls.gen.operation_id, "frame_idx":cls.gen.frame_idx})
             cls.images.append(cb_img)
