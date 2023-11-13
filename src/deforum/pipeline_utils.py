@@ -234,6 +234,7 @@ class DeforumGenerationObject(DeforumDataObject):
         self.inputfiles = None
         self.amount = 0
         self.noise = 0.002
+        self.skip_video_creation = False
 
         # Set all provided keyword arguments as attributes
         for key, value in kwargs.items():
