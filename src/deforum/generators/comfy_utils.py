@@ -9,7 +9,7 @@ import torchsde
 from deforum.utils.constants import comfy_path, root_path
 
 comfy_submodules = [
-    "https://github.com/XmYx/ComfyUI-AnimateDiff-Evolved",
+    "https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved",
     "https://github.com/FizzleDorf/ComfyUI_FizzNodes",
     "https://github.com/WASasquatch/PPF_Noise_ComfyUI",
 ]
