@@ -96,7 +96,10 @@ class ComfyDeforumGenerator:
             return [[cond, {"pooled_output": pooled}]]
 
     def load_model(self, model_path: str, trt: bool = False):
-
+        try:
+            self.cleanup()
+        except:
+            pass
         import comfy.sd
         self.model, self.clip, self.vae, clipvision = (
             comfy.sd.load_checkpoint_guess_config(model_path,
@@ -379,6 +382,14 @@ class ComfyDeforumGenerator:
             decoded = self.vae.decode_tiled(sample).detach()
 
         return decoded
+
+    def cleanup(self):
+        self.model.unpatch_model(device_to='cpu')
+        self.vae.first_stage_model.to('cpu')
+        #self.clip.to('cpu')
+        del self.model
+        del self.vae
+        del self.clip
 
 
 def common_ksampler_with_custom_noise(model, seed, steps, cfg, sampler_name, scheduler, positive, negative, latent,
