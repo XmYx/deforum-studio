@@ -166,6 +166,26 @@ def anim_frame_warp_3d_cls(cls: Any, image: Union[None, Any]) -> Tuple[Any, Any]
     return result, mask
 
 
+def anim_frame_warp_3d_direct(cls, image, x, y, z, rx, ry, rz):
+    TRANSLATION_SCALE = 1.0 / 200.0  # matches Disco
+    translate_xyz = [
+        -x * TRANSLATION_SCALE,
+        y * TRANSLATION_SCALE,
+        -z * TRANSLATION_SCALE
+    ]
+    rotate_xyz = [
+        math.radians(rx),
+        math.radians(ry),
+        math.radians(rz)
+    ]
+    if cls.gen.enable_perspective_flip:
+        image = flip_3d_perspective(cls.gen, image, cls.gen.keys, cls.gen.frame_idx)
+    rot_mat = p3d.euler_angles_to_matrix(torch.tensor(rotate_xyz, device="cuda"), "XYZ").unsqueeze(0)
+    result, mask = transform_image_3d_new(torch.device('cuda'), image, cls.gen.depth, rot_mat, translate_xyz,
+                                          cls.gen, cls.gen.keys, cls.gen.frame_idx)
+    torch.cuda.empty_cache()
+    return result, mask
+
 def hybrid_composite_cls(cls: Any) -> None:
     """
     Creates a hybrid composite frame for the given class instance based on various conditions and transformation
@@ -704,6 +724,7 @@ def post_gen_cls(cls: Any) -> None:
         # cls.logger(f"                                   [ frame added ]", True)
 
         cls.gen.opencv_image = cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR)
+        # cls.gen.opencv_image = np.array(cls.gen.image)
 
 
         # cls.logger(f"                                   [ cvtColor completed ]", True)

@@ -35,6 +35,7 @@ import torch
 from PIL import Image
 from tqdm import tqdm
 
+from ..deforum_animation.animation_helpers import anim_frame_warp_3d_direct
 from ..deforum_animation.pipeline_deforum_animation import (DeforumAnimationPipeline)
 from ...generators.deforum_flow_generator import get_reliable_flow_from_images
 
@@ -123,6 +124,28 @@ def enhanced_pixel_diffusion_blend(image1, image2, alpha=0.5, beta=0.5, noise='u
 
     return result
 
+
+def calculate_blurriness_metric(image_np_array):
+    """
+    Calculates the blurriness metric of an image.
+
+    :param image_np_array: np.array of the image
+    :return: Blurriness metric, where 1.0 is very blurry and 0.0 is sharp
+    """
+    # Convert the image to grayscale
+    gray_image = cv2.cvtColor(image_np_array, cv2.COLOR_BGR2GRAY)
+
+    # Apply Laplacian operator to the grayscale image
+    laplacian_var = cv2.Laplacian(gray_image, cv2.CV_64F).var()
+
+    # Invert the normalized variance to get the blurriness metric
+    # This is a simple transformation and may need to be adjusted based on the expected range of variances
+    blurriness_metric = 1 / (1 + laplacian_var)
+
+    # Make sure the metric is between 0 and 1
+    blurriness_metric = np.clip(blurriness_metric, 0, 1)
+
+    return blurriness_metric
 def custom_pixel_diffusion_blend(image1, alpha, image2, beta):
     if alpha + beta > 1:
         raise ValueError("Alpha + Beta should not exceed 1.")
@@ -154,7 +177,7 @@ def animatediff_handler(cls):
     alpha = 0.55
     beta = 1.0 - alpha
 
-    if (cls.gen.frame_idx + 1) % cls.gen.animatediff_max_frames == 0 or cls.gen.frame_idx == 0 or (cls.gen.frame_idx - cls.gen.animatediff_last_gen) > cls.gen.animatediff_max_frames:
+    if ((cls.gen.frame_idx + 1) - cls.gen.animatediff_last_gen) % cls.gen.animatediff_max_frames == 0 or cls.gen.frame_idx == 0:# or (cls.gen.frame_idx - cls.gen.animatediff_last_gen) > cls.gen.animatediff_max_frames + 1:
         # if cls.gen.prev_img is not None:
         #
         #     to_encode = cv2.resize(cls.gen.prev_img,
@@ -183,14 +206,14 @@ def animatediff_handler(cls):
                                width = width,
                                height = height,
                                latents=latents,
-                               scale=12.5)
+                               scale=7)
         cls.gen.animatediff_frames = anim.images
         cls.gen.animatediff_last_gen = cls.gen.frame_idx
         #cls.gen.image = Image.fromarray(cls.gen.animatediff_frames[0])
         if cls.gen.frame_idx == 0:
             cls.gen.use_init = True
             cls.gen.init_image = Image.fromarray(cls.gen.animatediff_frames[0]).resize((cls.gen.width, cls.gen.height), resample=Image.Resampling.LANCZOS)
-
+            cls.gen.animatediff_prev_img = cv2.resize(cv2.cvtColor(cls.gen.animatediff_frames[0], cv2.COLOR_RGB2BGR), (cls.gen.width, cls.gen.height))
         if cls.gen.prev_img is not None:
             cls.gen.use_init = False
             cls.gen.init_image = None
@@ -198,7 +221,7 @@ def animatediff_handler(cls):
             animatediff_img = cv2.resize(animatediff_img,
                                          (cls.gen.prev_img.shape[1], cls.gen.prev_img.shape[0]))
             cls.gen.opencv_image = cv2.addWeighted(cls.gen.opencv_image, alpha, animatediff_img, beta, 0)
-
+            cls.gen.animatediff_prev_img = animatediff_img
             #cls.gen.image = Image.fromarray(cv2.cvtColor(cls.gen.opencv_image, cv2.COLOR_BGR2RGB))
             cv2.imwrite("current_previmg.png", cls.gen.prev_img)
             cv2.imwrite("current_opencv.png", cls.gen.opencv_image)
@@ -212,13 +235,36 @@ def animatediff_handler(cls):
         animatediff_img = cls.gen.animatediff_frames[animatediff_index]
         animatediff_img = cv2.resize(animatediff_img, (cls.gen.opencv_image.shape[1], cls.gen.opencv_image.shape[0]))
         animatediff_img = cv2.cvtColor(animatediff_img, cv2.COLOR_RGB2BGR)
-        animatediff_prev_img = cls.gen.animatediff_frames[animatediff_index - 1]
-        animatediff_prev_img = cv2.resize(animatediff_prev_img, (cls.gen.opencv_image.shape[1], cls.gen.opencv_image.shape[0]))
-        animatediff_prev_img = cv2.cvtColor(animatediff_prev_img, cv2.COLOR_RGB2BGR)
+        # animatediff_prev_img = cls.gen.animatediff_frames[animatediff_index - 1]
+        # animatediff_prev_img = cv2.resize(animatediff_prev_img, (cls.gen.opencv_image.shape[1], cls.gen.opencv_image.shape[0]))
+        # animatediff_prev_img = cv2.cvtColor(animatediff_prev_img, cv2.COLOR_RGB2BGR)
 
-        cls.animate_flow, reliable_flow = get_reliable_flow_from_images(animatediff_prev_img, animatediff_img, cls.gen.hybrid_flow_method, cls.raft_model, cls.animate_flow,
+        x = 0.0
+        y = 0.0
+        z = 0.0
+        rx = 0.0
+        ry = 0.0
+        rz = 0.0
+        for key in range(cls.gen.animatediff_last_gen, cls.gen.frame_idx):
+            """
+            Here we gather and add up all warp values between last_anim_frame - frame_idx
+            """
+            x += cls.gen.keys.translation_x_series[key]
+            y += cls.gen.keys.translation_y_series[key]
+            z += cls.gen.keys.translation_z_series[key]
+            rx += cls.gen.keys.rotation_3d_x_series[key]
+            ry += cls.gen.keys.rotation_3d_y_series[key]
+            rz += cls.gen.keys.rotation_3d_z_series[key]
+        if any(value > 0.0 for value in [x, y, z, rx, ry, rz]):
+            animatediff_img, mask = anim_frame_warp_3d_direct(cls, animatediff_img, x, y, z, rx, ry, rz)
+
+
+
+        cls.animate_flow, reliable_flow = get_reliable_flow_from_images(cls.gen.animatediff_prev_img, animatediff_img, cls.gen.hybrid_flow_method, cls.raft_model, cls.animate_flow,
                                                             1.0)
         cls.gen.opencv_image = image_transform_optical_flow(cls.gen.opencv_image, cls.animate_flow,
+                                                        cls.gen.hybrid_comp_schedules['flow_factor'])
+        cls.gen.prev_img = image_transform_optical_flow(cls.gen.prev_img, cls.animate_flow,
                                                         cls.gen.hybrid_comp_schedules['flow_factor'])
 
 
@@ -228,18 +274,18 @@ def animatediff_handler(cls):
         #
         #
         # # Define the weight of each image
-        alpha_opencv = 0.95  # Weight of the first image. The value should be between 0 and 1.
+        alpha_opencv = 0.75  # Weight of the first image. The value should be between 0 and 1.
         # alpha_prev = 0.42  # Weight of the first image. The value should be between 0 and 1.
         beta_opencv = 1.0 - alpha_opencv  # Weight of the second image. beta = 1 - alpha
         # beta_prev = 1.0 - alpha_prev
         # # Blend the images
-        use_custom_blend = True
+        use_custom_blend = False
         blend_at_all = True
         if blend_at_all:
             if not use_custom_blend:
-                cls.gen.opencv_image = cv2.addWeighted(cls.gen.opencv_image, alpha_opencv, animatediff_img, beta_opencv, 0)
+                cls.gen.prev_img = cv2.addWeighted(cls.gen.prev_img, alpha_opencv, animatediff_img, beta_opencv, 0)
             else:
-                cls.gen.opencv_image = enhanced_pixel_diffusion_blend(cls.gen.opencv_image,
+                cls.gen.prev_img = enhanced_pixel_diffusion_blend(cls.gen.prev_img,
                                                                       animatediff_img,
                                                                       alpha_opencv,
                                                                       beta_opencv,
@@ -252,12 +298,16 @@ def animatediff_handler(cls):
 
         #cls.gen.image = Image.fromarray(cv2.cvtColor(cls.gen.opencv_image, cv2.COLOR_BGR2RGB))
         #cls.gen.prev_img = animatediff_prev_img
+        cls.gen.animatediff_prev_img = animatediff_img
 
-        for key in range(cls.gen.animatediff_last_gen, cls.gen.frame_idx):
-            """
-            Here we gather and add up all warp values between last_anim_frame - frame_idx
-            """
-            pass
+        print("BLURRINESS",calculate_blurriness_metric(cls.gen.opencv_image))
+        str = cls.gen.keys.strength_schedule_series[cls.gen.frame_idx]
+        adj = calculate_blurriness_metric(cls.gen.prev_img)
+        if adj > 0.05:
+            cls.gen.keys.strength_schedule_series[cls.gen.frame_idx] = str + (2 * adj)
+
+
+
         """
         Then do the warp on the animatediff_frame to use
         Blend in with cls.gen.image, replace cls.gen.opencv_image
