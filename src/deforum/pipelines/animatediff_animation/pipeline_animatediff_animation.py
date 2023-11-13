@@ -199,6 +199,15 @@ class DeforumAnimateDiffPipeline(DeforumBase):
         else:
             prompt_scheduler = BatchPromptScheduleLatentInput()
 
+            from comfy import model_management
+
+            def maximum_batch_area():
+                from comfy.model_management import get_free_memory
+                memory_free = get_free_memory() / (1024 * 1024)
+                area = ((memory_free - 1024) * 0.9) / (0.6)
+                return int(max(area, 0))
+
+            model_management.maximum_batch_area = maximum_batch_area
             # self.conds = self.generator.get_conds(self.gen.prompt)
 
             assert self.gen.max_frames % 16 == 0, "Make sure to pass an animatediff max frames value that is a multiple of 16"
@@ -208,11 +217,60 @@ class DeforumAnimateDiffPipeline(DeforumBase):
                                                                              num_latents=self.latents,
                                                                              print_output=True,
                                                                              clip=self.generator.clip,
+                                                                              start_frame=0,
                                                                              pw_a=parse_weight_string("", self.gen.max_frames),
                                                                              pw_b=parse_weight_string("", self.gen.max_frames),
                                                                              pw_c=parse_weight_string("", self.gen.max_frames),
                                                                              pw_d=parse_weight_string("", self.gen.max_frames),
                                                                              )
+            from custom_nodes.PPF_Noise_ComfyUI.nodes import PPFNoiseNode
+            noise_generator = PPFNoiseNode()
+            """
+                        "required": {
+                "batch_size": ("INT", {"default": 1, "max": 64, "min": 1, "step": 1}),
+                "width": ("INT", {"default": 512, "max": 8192, "min": 64, "step": 1}),
+                "height": ("INT", {"default": 512, "max": 8192, "min": 64, "step": 1}),
+                "resampling": (["nearest-exact", "bilinear", "area", "bicubic", "bislerp"],),
+                "X": ("FLOAT", {"default": 0, "max": 99999999, "min": -99999999, "step": 0.01}),
+                "Y": ("FLOAT", {"default": 0, "max": 99999999, "min": -99999999, "step": 0.01}),
+                "Z": ("FLOAT", {"default": 0, "max": 99999999, "min": -99999999, "step": 0.01}),
+                "evolution": ("FLOAT", {"default": 0.0, "max": 1.0, "min": 0.0, "step": 0.01}),
+                "frame": ("INT", {"default": 0, "max": 99999999, "min": 0, "step": 1}),
+                "scale": ("FLOAT", {"default": 5, "max": 2048, "min": 2, "step": 0.01}),
+                "octaves": ("INT", {"default": 8, "max": 8, "min": 1, "step": 1}),
+                "persistence": ("FLOAT", {"default": 1.5, "max": 23.0, "min": 0.01, "step": 0.01}),
+                "lacunarity": ("FLOAT", {"default": 2.0, "max": 99.0, "min": 0.01, "step": 0.01}),
+                "exponent": ("FLOAT", {"default": 4.0, "max": 38.0, "min": 0.01, "step": 0.01}),
+                "brightness": ("FLOAT", {"default": 0.0, "max": 1.0, "min": -1.0, "step": 0.01}),
+                "contrast": ("FLOAT", {"default": 0.0, "max": 1.0, "min": -1.0, "step": 0.01}),
+                "clamp_min": ("FLOAT", {"default": 0.0, "max": 10.0, "min": -10.0, "step": 0.01}),
+                "clamp_max": ("FLOAT", {"default": 1.0, "max": 10.0, "min": -10.0, "step": 0.01}),
+                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}), 
+                "device": (["cpu", "cuda"],),
+            },
+            
+            
+            """
+            self.latents = noise_generator.power_fractal_latent(batch_size=self.gen.max_frames,
+                                                                width=self.gen.width,
+                                                                height=self.gen.height,
+                                                                resampling="area",
+                                                                X=0.0,
+                                                                Y=0.0,
+                                                                Z=0.0,
+                                                                evolution=0.2,
+                                                                frame=0,
+                                                                scale=5,
+                                                                octaves=8,
+                                                                persistence=1.5,
+                                                                lacunarity=2.0,
+                                                                exponent=4.0,
+                                                                brightness=0.0,
+                                                                contrast=0.0,
+                                                                clamp_min=0.0,
+                                                                clamp_max=1.0,
+                                                                seed=self.gen.seed,
+                                                                device='cuda')[0]
 
 
     @torch.inference_mode()
@@ -351,7 +409,7 @@ animate_diff_defaults = {
     "closed_loop": {
         "label": "Closed Loop",
         "type": "checkbox",
-        "value": True,
+        "value": False,
         "info": "",
         "visible": True
     },

@@ -232,6 +232,8 @@ class DeforumGenerationObject(DeforumDataObject):
         self.depth = None
         self.skip_hybrid_paths = False
         self.inputfiles = None
+        self.amount = 0
+        self.noise = 0.002
 
         # Set all provided keyword arguments as attributes
         for key, value in kwargs.items():

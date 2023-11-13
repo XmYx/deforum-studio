@@ -34,6 +34,7 @@ class ComfyDeforumGenerator:
         self.clip = None
         self.vae = None
         self.pipe = None
+        self.loaded_lora = None
 
         if not lcm:
             # if model_path is None:
@@ -105,11 +106,35 @@ class ComfyDeforumGenerator:
                                                   output_clipvision=False,
                                                   )
         )
-
+        # from comfy import utils
+        # lora_path = "/home/mix/Downloads/pytorch_lora_weights.safetensors"
+        # lora = utils.load_torch_file(lora_path, safe_load=True)
+        # self.model, self.clip = comfy.sd.load_lora_for_models(
+        #     self.model, self.clip, lora, 1.0, 1.0)
+        trt = False
         if trt:
             from ..optimizations.deforum_comfy_trt.deforum_trt_comfyunet import TrtUnet
             self.model.model.diffusion_model = TrtUnet()
+    def load_lora(self, model, clip, lora_path, strength_model, strength_clip):
+        import comfy
+        if strength_model == 0 and strength_clip == 0:
+            return (model, clip)
 
+        lora = None
+        if self.loaded_lora is not None:
+            if self.loaded_lora[0] == lora_path:
+                lora = self.loaded_lora[1]
+            else:
+                temp = self.loaded_lora
+                self.loaded_lora = None
+                del temp
+
+        if lora is None:
+            lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
+            self.loaded_lora = (lora_path, lora)
+
+        model_lora, clip_lora = comfy.sd.load_lora_for_models(model, clip, lora, strength_model, strength_clip)
+        return model_lora, clip_lora
     @staticmethod
     def load_lcm():
         print("Deprecated for now")
@@ -246,7 +271,7 @@ class ComfyDeforumGenerator:
 
             from nodes import common_ksampler as ksampler
 
-            steps = int((strength) * steps) if (strength != 1.0 or not reset_noise) else steps
+            #steps = int((strength) * steps) if (strength != 1.0 or not reset_noise) else steps
             last_step = steps# if last_step is None else last_step
 
             print(seed, strength, sampler_name, scheduler, scale)
@@ -361,8 +386,8 @@ def common_ksampler_with_custom_noise(model, seed, steps, cfg, sampler_name, sch
                                       force_full_denoise=False, noise=None):
     latent_image = latent["samples"]
     if noise is not None:
-        rng_noise = noise.next().detach().cpu()
-        noise = rng_noise.clone()
+        noise = noise.next()#.detach().cpu()
+        # noise = rng_noise.clone()
     else:
         if disable_noise:
             noise = torch.zeros(latent_image.size(), dtype=latent_image.dtype, layout=latent_image.layout, device="cpu")

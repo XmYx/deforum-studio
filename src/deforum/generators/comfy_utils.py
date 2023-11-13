@@ -11,6 +11,7 @@ from deforum.utils.constants import comfy_path, root_path
 comfy_submodules = [
     "https://github.com/XmYx/ComfyUI-AnimateDiff-Evolved",
     "https://github.com/FizzleDorf/ComfyUI_FizzNodes",
+    "https://github.com/WASasquatch/PPF_Noise_ComfyUI",
 ]
 
 comfy_submodule_folders = [url.split("/")[-1] for url in comfy_submodules]
@@ -75,7 +76,7 @@ def ensure_comfy():
     sys.modules["comfy.cli_args"] = MockCLIArgsModule()
     import comfy.k_diffusion.sampling
 
-    # comfy.k_diffusion.sampling.BatchedBrownianTree = DeforumBatchedBrownianTree
+    comfy.k_diffusion.sampling.BatchedBrownianTree = DeforumBatchedBrownianTree
 
 
 from collections import namedtuple
