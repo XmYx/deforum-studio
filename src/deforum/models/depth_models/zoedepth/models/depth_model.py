@@ -138,6 +138,10 @@ class DepthModel(nn.Module):
             output_type (str, optional): output type. Supported values are 'numpy', 'pil' and 'tensor'. Defaults to "numpy".
         """
         x = transforms.ToTensor()(pil_img).unsqueeze(0).to(self.device)
+
+        print("WTF IS WRONG WITH EARTH NOW", x.shape)
+
+
         out_tensor = self.infer(x, pad_input=pad_input, with_flip_aug=with_flip_aug, **kwargs)
         if output_type == "numpy":
             return out_tensor.squeeze().cpu().numpy()

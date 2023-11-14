@@ -221,6 +221,9 @@ class DeforumAnimationPipeline(DeforumBase):
                                      depth_algorithm=self.gen.depth_algorithm, Width=self.gen.width,
                                      Height=self.gen.height,
                                      midas_weight=self.gen.midas_weight)
+            if 'adabins' in self.gen.depth_algorithm.lower():
+                self.gen.use_adabins = True
+                print("Setting AdaBins usage")
             print(f"[ Loaded Depth model ]")
             # depth-based hybrid composite mask requires saved depth maps
             if self.gen.hybrid_composite != 'None' and self.gen.hybrid_comp_mask_type == 'Depth':

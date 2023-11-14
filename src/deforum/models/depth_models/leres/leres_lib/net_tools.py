@@ -17,7 +17,7 @@ def get_func(func_name):
         if len(parts) == 1:
             return globals()[parts[0]]
         # Otherwise, assume we're referencing a module under modeling
-        module_name = 'leres.lib.' + '.'.join(parts[:-1])
+        module_name = 'deforum.models.depth_models.leres.leres_lib.' + '.'.join(parts[:-1])
         module = importlib.import_module(module_name)
         return getattr(module, parts[-1])
     except Exception:

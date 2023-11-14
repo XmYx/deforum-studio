@@ -1,3 +1,4 @@
+import copy
 import gc
 import math
 import os
@@ -59,8 +60,19 @@ def anim_frame_warp_cls(cls: Any) -> None:
         cls.gen.mask = None
         if cls.gen.use_depth_warping:
             if cls.gen.depth is None and cls.depth_model is not None:
-                cls.gen.depth = cls.depth_model.predict(cls.gen.opencv_image, cls.gen.midas_weight,
-                                                        cls.gen.half_precision)
+
+
+                #img = Image.fromarray(cv2.cvtColor(cls.gen.prev_img, cv2.COLOR_BGR2RGB))
+
+                #print("ERROR HERE", type(img))
+                if cls.depth_model.device != 'cuda':
+                    cls.depth_model.to('cuda')
+                    cls.depth_model.device = 'cuda'
+                with torch.no_grad():
+                    cls.gen.depth = cls.depth_model.predict(cls.gen.prev_img, cls.gen.midas_weight, True)
+                                                            #cls.gen.half_precision)
+                    torch.cuda.empty_cache()
+                #cls.depth_model.to('cpu')
         else:
             cls.gen.depth = None
 
@@ -160,6 +172,8 @@ def anim_frame_warp_3d_cls(cls: Any, image: Union[None, Any]) -> Tuple[Any, Any]
     if cls.gen.enable_perspective_flip:
         image = flip_3d_perspective(cls.gen, image, cls.gen.keys, cls.gen.frame_idx)
     rot_mat = p3d.euler_angles_to_matrix(torch.tensor(rotate_xyz, device="cuda"), "XYZ").unsqueeze(0)
+
+
     result, mask = transform_image_3d_new(torch.device('cuda'), image, cls.gen.depth, rot_mat, translate_xyz,
                                           cls.gen, cls.gen.keys, cls.gen.frame_idx)
     torch.cuda.empty_cache()
@@ -810,7 +824,8 @@ def generate_interpolated_frames(cls):
 
             if cls.depth_model is not None:
                 assert (turbo_next_image is not None)
-                depth = cls.depth_model.predict(turbo_next_image, cls.gen.midas_weight, cls.gen.half_precision)
+                with torch.inference_mode():
+                    depth = cls.depth_model.predict(turbo_next_image, cls.gen.midas_weight, cls.gen.half_precision)
             if cls.gen.animation_mode in ["3D", "2D"]:
                 if advance_prev:
                     turbo_prev_image, _, _ = anim_frame_warp(turbo_prev_image, cls.gen, cls.gen, cls.gen.keys, tween_frame_idx,

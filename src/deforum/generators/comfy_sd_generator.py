@@ -35,32 +35,32 @@ class ComfyDeforumGenerator:
         self.vae = None
         self.pipe = None
         self.loaded_lora = None
-
-        if not lcm:
-            # if model_path is None:
-            #     models_dir = os.path.join(default_cache_folder)
-            #     fetch_and_download_model("125703", default_cache_folder)
-            #     model_path = os.path.join(models_dir, "protovisionXLHighFidelity3D_release0620Bakedvae.safetensors")
-            #     # model_path = os.path.join(models_dir, "SSD-1B.safetensors")
-
-            self.load_model(model_path, trt)
-
-            self.pipeline_type = "comfy"
-        if lcm:
-            self.load_lcm()
-            self.pipeline_type = "diffusers_lcm"
+        self.model_path = model_path
+        # if not lcm:
+        #     # if model_path is None:
+        #     #     models_dir = os.path.join(default_cache_folder)
+        #     #     fetch_and_download_model("125703", default_cache_folder)
+        #     #     model_path = os.path.join(models_dir, "protovisionXLHighFidelity3D_release0620Bakedvae.safetensors")
+        #     #     # model_path = os.path.join(models_dir, "SSD-1B.safetensors")
+        #
+        #     self.load_model(model_path, trt)
+        #
+        #     self.pipeline_type = "comfy"
+        # if lcm:
+        #     self.load_lcm()
+        #     self.pipeline_type = "diffusers_lcm"
 
         # self.controlnet = controlnet.load_controlnet(model_name)
-
+        self.pipeline_type = "comfy"
         self.rng = None
 
-    def encode_latent(self, latent, seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w, reset_noise=False):
+    def encode_latent(self, vae, latent, seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w, reset_noise=False):
 
         subseed_strength = 0.6
 
         with torch.inference_mode():
             latent = latent.to(torch.float32)
-            latent = self.vae.encode_tiled(latent[:, :, :, :3])
+            latent = vae.encode_tiled(latent[:, :, :, :3])
             latent = latent.to("cuda")
         if self.rng is None or reset_noise:
             self.rng = ImageRNGNoise(shape=latent[0].shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
@@ -83,16 +83,16 @@ class ComfyDeforumGenerator:
         # noise = torch.zeros([1, 4, width // 8, height // 8])
         return {"samples": noise}
 
-    def get_conds(self, prompt):
+    def get_conds(self, clip, prompt):
         with torch.inference_mode():
             clip_skip = -1
-            if self.clip_skip != clip_skip or self.clip.layer_idx != clip_skip:
-                self.clip.layer_idx = clip_skip
-                self.clip.clip_layer(clip_skip)
+            if clip_skip != clip_skip or clip.layer_idx != clip_skip:
+                clip.layer_idx = clip_skip
+                clip.clip_layer(clip_skip)
                 self.clip_skip = clip_skip
 
-            tokens = self.clip.tokenize(prompt)
-            cond, pooled = self.clip.encode_from_tokens(tokens, return_pooled=True)
+            tokens = clip.tokenize(prompt)
+            cond, pooled = clip.encode_from_tokens(tokens, return_pooled=True)
             return [[cond, {"pooled_output": pooled}]]
 
     def load_model(self, model_path: str, trt: bool = False):
@@ -101,7 +101,7 @@ class ComfyDeforumGenerator:
         except:
             pass
         import comfy.sd
-        self.model, self.clip, self.vae, clipvision = (
+        model, clip, vae, clipvision = (
             comfy.sd.load_checkpoint_guess_config(model_path,
                                                   output_vae=True,
                                                   output_clip=True,
@@ -117,7 +117,8 @@ class ComfyDeforumGenerator:
         trt = False
         if trt:
             from ..optimizations.deforum_comfy_trt.deforum_trt_comfyunet import TrtUnet
-            self.model.model.diffusion_model = TrtUnet()
+            model.model.diffusion_model = TrtUnet()
+        return model, clip, vae, clipvision
     def load_lora(self, model, clip, lora_path, strength_model, strength_clip):
         import comfy
         if strength_model == 0 and strength_clip == 0:
@@ -199,6 +200,14 @@ class ComfyDeforumGenerator:
                  **kwargs):
 
         if self.pipeline_type == "comfy":
+            import comfy.sd
+            model, clip, vae, clipvision = comfy.sd.load_checkpoint_guess_config(self.model_path,
+                                                  output_vae=True,
+                                                  output_clip=True,
+                                                  embedding_directory="models/embeddings",
+                                                  output_clipvision=False,
+                                                  )
+
             if seed == -1:
                 seed = secrets.randbelow(18446744073709551615)
 
@@ -234,14 +243,14 @@ class ComfyDeforumGenerator:
                         latent = latent
             else:
                 latent = torch.from_numpy(np.array(init_image).astype(np.float32) / 255.0).unsqueeze(0)
-                latent = self.encode_latent(latent, seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w)
+                latent = self.encode_latent(vae, latent, seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w)
             assert isinstance(latent, dict), \
                 "Our Latents have to be in a dict format with the latent being the 'samples' value"
 
             cond = []
 
             if pooled_prompts is None and prompt is not None:
-                cond = self.get_conds(prompt)
+                cond = self.get_conds(clip, prompt)
             elif pooled_prompts is not None:
                 cond = pooled_prompts
 
@@ -253,19 +262,19 @@ class ComfyDeforumGenerator:
                     prompt = area.get("prompt", None)
                     if prompt:
 
-                        new_cond = self.get_conds(area["prompt"])
+                        new_cond = self.get_conds(clip, area["prompt"])
                         new_cond = area_setter.append(conditioning=new_cond, width=int(area["w"]), height=int(area["h"]), x=int(area["x"]),
                                                       y=int(area["y"]), strength=area["s"])[0]
                         cond += new_cond
 
-            self.n_cond = self.get_conds(negative_prompt)
+            self.n_cond = self.get_conds(clip, negative_prompt)
             self.prompt = prompt
 
 
             if next_prompt is not None and enable_prompt_blend:
                 if next_prompt != prompt and next_prompt != "":
                     if 0.0 < prompt_blend < 1.0:
-                        next_cond = self.get_conds(next_prompt)
+                        next_cond = self.get_conds(clip, next_prompt)
 
                         cond = blend_tensors(cond[0], next_cond[0], blend_value=prompt_blend)
 
@@ -279,7 +288,7 @@ class ComfyDeforumGenerator:
 
             print(seed, strength, sampler_name, scheduler, scale)
 
-            sample = common_ksampler_with_custom_noise(model=self.model,
+            sample = common_ksampler_with_custom_noise(model=model,
                                                        seed=seed,
                                                        steps=steps,
                                                        cfg=scale,
@@ -319,7 +328,7 @@ class ComfyDeforumGenerator:
 
 
             if sample[0]["samples"].shape[0] == 1:
-                decoded = self.decode_sample(sample[0]["samples"])
+                decoded = self.decode_sample(vae, sample[0]["samples"])
                 np_array = np.clip(255. * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[0]
                 image = Image.fromarray(np_array)
                 # image = Image.fromarray(np.clip(255. * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[0])
@@ -334,7 +343,7 @@ class ComfyDeforumGenerator:
             else:
                 print("decoding multi images")
                 images = []
-                x_samples = self.vae.decode_tiled(sample[0]["samples"])
+                x_samples = vae.decode_tiled(sample[0]["samples"])
                 for sample in x_samples:
                     np_array = np.clip(255. * sample.cpu().numpy(), 0, 255).astype(np.uint8)
                     image = Image.fromarray(np_array)
@@ -375,15 +384,16 @@ class ComfyDeforumGenerator:
 
             return image
 
-    def decode_sample(self, sample):
+    def decode_sample(self, vae, sample):
         with torch.inference_mode():
             sample = sample.to(torch.float32)
-            self.vae.first_stage_model.cuda()
-            decoded = self.vae.decode_tiled(sample).detach()
+            vae.first_stage_model.cuda()
+            decoded = vae.decode_tiled(sample).detach()
 
         return decoded
 
     def cleanup(self):
+        return
         self.model.unpatch_model(device_to='cpu')
         self.vae.first_stage_model.to('cpu')
         #self.clip.to('cpu')

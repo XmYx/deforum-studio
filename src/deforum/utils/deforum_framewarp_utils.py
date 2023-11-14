@@ -310,6 +310,13 @@ def transform_image_3d_new(device, prev_img_cv2, depth_tensor, rot_mat, translat
         raise Exception(f"Unknown depth_algorithm passed to transform_image_3d function: {anim_args.depth_algorithm}")
 
     w, h = prev_img_cv2.shape[1], prev_img_cv2.shape[0]
+    depth_tensor_shape = depth_tensor.shape
+
+
+    # if depth_tensor_shape[2] != h or depth_tensor_shape[3] != w:
+    #     # Reshape depth_tensor to match image dimensions
+    #     import torch.nn.functional as F
+    #     depth_tensor = F.interpolate(depth_tensor, size=(h, w), mode='bilinear', align_corners=False)
 
     # depth stretching aspect ratio (has nothing to do with image dimensions - which is why the old formula was flawed)
     aspect_ratio = float(w) / float(h) if anim_args.aspect_ratio_use_old_formula else keys.aspect_ratio_series[
@@ -365,6 +372,10 @@ def transform_image_3d_new(device, prev_img_cv2, depth_tensor, rot_mat, translat
         z = torch.as_tensor(depth_final, dtype=torch.float32, device=device)
 
     # calculate offset_xy
+
+
+    print("ADABINS ERROR HERE", x.shape, y.shape, z.shape)
+
     xyz_old_world = torch.stack((x.flatten(), y.flatten(), z.flatten()), dim=1)
     xyz_old_cam_xy = persp_cam_old.get_full_projection_transform().transform_points(xyz_old_world)[:, 0:2]
     xyz_new_cam_xy = persp_cam_new.get_full_projection_transform().transform_points(xyz_old_world)[:, 0:2]

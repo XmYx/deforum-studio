@@ -6,6 +6,7 @@ from PIL import Image
 
 from ...utils.file_dl_util import download_file_with_checksum
 from torchvision import transforms as TF
+import torch.nn.functional as F
 
 
 # from deforum.general_utils import download_file_with_checksum
@@ -37,6 +38,9 @@ class AdaBinsModel:
 
         image_pil_area, resized = w * h, False
 
+
+        print("AdaBins resize error debug", w, h, image_pil_area, resized)
+
         if image_pil_area not in range(MIN_ADABINS_AREA, MAX_ADABINS_AREA + 1):
             scale = ((MAX_ADABINS_AREA if image_pil_area > MAX_ADABINS_AREA else MIN_ADABINS_AREA) / image_pil_area) ** 0.5
             depth_input = img_pil.resize((int(w * scale), int(h * scale)), Image.LANCZOS if image_pil_area > MAX_ADABINS_AREA else Image.BICUBIC)
@@ -45,15 +49,34 @@ class AdaBinsModel:
         else:
             depth_input = img_pil
 
-        try:
-            with torch.no_grad():
-                _, adabins_depth = self.adabins_helper.predict_pil(depth_input)
-            if resized:
-                adabins_depth = TF.resize(torch.from_numpy(adabins_depth), torch.Size([h, w]), interpolation=TF.InterpolationMode.BICUBIC).cpu().numpy()
-            adabins_depth = adabins_depth.squeeze()
-        except Exception as e:
-            print("AdaBins exception encountered. Falling back to pure MiDaS/Zoe (only if running in Legacy Midas/Zoe+AdaBins mode)")
-            use_adabins = False
+        # try:
+        with torch.no_grad():
+            print("Adabins predict", depth_input)
+            _, adabins_depth = self.adabins_helper.predict_pil(depth_input)
+        if resized:
+            # Convert adabins_depth numpy array to a PyTorch tensor and add dimensions
+
+            print("ADABINS SHAPE 0", adabins_depth.shape)
+
+
+            adabins_depth_tensor = torch.from_numpy(adabins_depth)
+
+            # Resize using F.interpolate
+            adabins_depth_resized = F.interpolate(adabins_depth_tensor, size=(h,w), mode='bicubic',
+                                                  align_corners=False)
+
+            # Remove added dimensions and convert back to numpy array
+            adabins_depth = adabins_depth_resized.cpu().numpy()
+
+            print("ADABINS SHAPE 1", adabins_depth.shape)
+
+            #adabins_depth = TF.resize(torch.from_numpy(adabins_depth), torch.Size([h, w]), interpolation=TF.InterpolationMode.BICUBIC).cpu().numpy()
+        #adabins_depth = adabins_depth.squeeze()
+        print("ADABINS SHAPE 2", adabins_depth.shape)
+
+        # except Exception as e:
+        #     print("AdaBins exception encountered. Falling back to pure MiDaS/Zoe (only if running in Legacy Midas/Zoe+AdaBins mode)")
+        #     use_adabins = False
         torch.cuda.empty_cache()
 
         return use_adabins, adabins_depth
