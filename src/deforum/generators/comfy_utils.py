@@ -2,6 +2,7 @@ import contextlib
 import os
 import subprocess
 import sys
+from collections import namedtuple
 
 import torch
 import torchsde
@@ -9,9 +10,8 @@ import torchsde
 from deforum.utils.constants import comfy_path, root_path
 
 comfy_submodules = [
-    "https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved",
+    "https://github.com/XmYx/ComfyUI-AnimateDiff-Evolved",
     "https://github.com/FizzleDorf/ComfyUI_FizzNodes",
-    "https://github.com/WASasquatch/PPF_Noise_ComfyUI",
 ]
 
 comfy_submodule_folders = [url.split("/")[-1] for url in comfy_submodules]
@@ -34,6 +34,8 @@ def clone_repo(repo_url):
         subprocess.run(["git", "clone", repo_url])
     except Exception as e:
         print(f"An error occurred while cloning: {e}")
+
+
 def clone_repo_to(repo_url, dest_path):
     try:
         subprocess.run(["git", "clone", repo_url, dest_path])
@@ -46,9 +48,6 @@ def add_to_sys_path(path):
 
 
 def ensure_comfy():
-
-    print("ENSURING COMFY IN PATH", comfy_path)
-
     if not os.path.exists(comfy_path):
         # Clone the comfy repository if it doesn't exist
         clone_repo_to("https://github.com/comfyanonymous/ComfyUI", comfy_path)
@@ -79,9 +78,6 @@ def ensure_comfy():
     comfy.k_diffusion.sampling.BatchedBrownianTree = DeforumBatchedBrownianTree
 
 
-from collections import namedtuple
-
-
 # Define the namedtuple structure based on the properties identified
 CLIArgs = namedtuple(
     "CLIArgs",
@@ -96,6 +92,13 @@ CLIArgs = namedtuple(
         "use_pytorch_cross_attention",
         "use_split_cross_attention",
         "use_quad_cross_attention",
+        "fp16_unet",
+        "fp8_e4m3fn_unet",
+        "fp8_e5m2_unet",
+        "fp8_e4m3fn_text_enc",
+        "fp8_e5m2_text_enc",
+        "fp16_text_enc",
+        "fp32_text_enc",
         "fp16_vae",
         "bf16_vae",
         "fp32_vae",
@@ -123,32 +126,41 @@ CLIArgs = namedtuple(
         "quick_test_for_ci",
         "windows_standalone_build",
         "disable_metadata",
+        'deterministic',
     ],
 )
 
 # Update the mock args object with default values for the new properties
 mock_args = CLIArgs(
     cpu=False,
-    normalvram=True,
+    normalvram=False,
     lowvram=False,
     novram=False,
-    highvram=False,
+    highvram=True,
     gpu_only=True,
     disable_xformers=True,
     use_pytorch_cross_attention=True,
     use_split_cross_attention=False,
     use_quad_cross_attention=False,
+    bf16_unet=False,
+    fp16_unet=False,
+    fp8_e4m3fn_unet=False,
+    fp8_e5m2_unet=False,
+    fp8_e4m3fn_text_enc=False,
+    fp8_e5m2_text_enc=False,
+    fp16_text_enc=False,
+    fp32_text_enc=False,
     fp16_vae=False,
     bf16_vae=False,
     fp32_vae=False,
     force_fp32=False,
     force_fp16=False,
-    disable_smart_memory=True,
+    disable_smart_memory=False,
     disable_ipex_optimize=False,
     listen="127.0.0.1",
     port=8188,
     enable_cors_header=None,
-    extra_model_paths_config=None,
+    extra_model_paths_config="config/comfy_paths.yaml",
     output_directory=root_path,
     temp_directory=None,
     input_directory=None,
@@ -156,15 +168,15 @@ mock_args = CLIArgs(
     disable_auto_launch=True,
     cuda_device=0,
     cuda_malloc=False,
-    disable_cuda_malloc=False,
-    dont_upcast_attention=True,
-    bf16_unet=True,
+    disable_cuda_malloc=True,
+    dont_upcast_attention=False,
     directml=None,
     preview_method="none",
     dont_print_server=True,
     quick_test_for_ci=False,
     windows_standalone_build=False,
     disable_metadata=False,
+    deterministic=True,
 )
 
 
