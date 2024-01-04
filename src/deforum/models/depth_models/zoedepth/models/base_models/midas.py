@@ -171,9 +171,6 @@ class Resize(object):
     def __call__(self, x):
         width, height = self.get_size(*x.shape[-2:][::-1])
 
-
-        print("THIS IS REALLY MESSED UP", width, height)
-
         return nn.functional.interpolate(x, (int(height), int(width)), mode='bilinear', align_corners=True)
 
 class PrepForMidas(object):

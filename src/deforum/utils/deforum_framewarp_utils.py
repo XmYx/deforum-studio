@@ -373,9 +373,6 @@ def transform_image_3d_new(device, prev_img_cv2, depth_tensor, rot_mat, translat
 
     # calculate offset_xy
 
-
-    print("ADABINS ERROR HERE", x.shape, y.shape, z.shape)
-
     xyz_old_world = torch.stack((x.flatten(), y.flatten(), z.flatten()), dim=1)
     xyz_old_cam_xy = persp_cam_old.get_full_projection_transform().transform_points(xyz_old_world)[:, 0:2]
     xyz_new_cam_xy = persp_cam_new.get_full_projection_transform().transform_points(xyz_old_world)[:, 0:2]

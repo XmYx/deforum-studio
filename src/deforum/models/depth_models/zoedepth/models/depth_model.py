@@ -139,8 +139,6 @@ class DepthModel(nn.Module):
         """
         x = transforms.ToTensor()(pil_img).unsqueeze(0).to(self.device)
 
-        print("WTF IS WRONG WITH EARTH NOW", x.shape)
-
 
         out_tensor = self.infer(x, pad_input=pad_input, with_flip_aug=with_flip_aug, **kwargs)
         if output_type == "numpy":
