@@ -51,6 +51,8 @@ def ensure_comfy(custom_path=None):
 
     if custom_path is not None:
         comfy_path = custom_path
+        comfy_submodule_folder = os.path.join(comfy_path, "custom_nodes")
+
     if not os.path.exists(comfy_path):
         # Clone the comfy repository if it doesn't exist
         clone_repo_to("https://github.com/comfyanonymous/ComfyUI", comfy_path)
