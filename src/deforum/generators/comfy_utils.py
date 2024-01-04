@@ -47,7 +47,10 @@ def add_to_sys_path(path):
     sys.path.append(path)
 
 
-def ensure_comfy():
+def ensure_comfy(custom_path=None):
+
+    if custom_path is not None:
+        comfy_path = custom_path
     if not os.path.exists(comfy_path):
         # Clone the comfy repository if it doesn't exist
         clone_repo_to("https://github.com/comfyanonymous/ComfyUI", comfy_path)
