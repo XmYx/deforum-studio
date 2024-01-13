@@ -410,8 +410,8 @@ class SenceUnderstand(nn.Module):
 
 if __name__ == '__main__':
     net = DepthNet(depth=50, pretrained=True)
-    print(net)
+    # print(net)
     inputs = torch.ones(4,3,128,128)
     out = net(inputs)
-    print(out.size())
+    # print(out.size())
 

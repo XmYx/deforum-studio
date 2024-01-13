@@ -39,24 +39,24 @@ class AdaBinsModel:
         image_pil_area, resized = w * h, False
 
 
-        print("AdaBins resize error debug", w, h, image_pil_area, resized)
+        # print("AdaBins resize error debug", w, h, image_pil_area, resized)
 
         if image_pil_area not in range(MIN_ADABINS_AREA, MAX_ADABINS_AREA + 1):
             scale = ((MAX_ADABINS_AREA if image_pil_area > MAX_ADABINS_AREA else MIN_ADABINS_AREA) / image_pil_area) ** 0.5
             depth_input = img_pil.resize((int(w * scale), int(h * scale)), Image.LANCZOS if image_pil_area > MAX_ADABINS_AREA else Image.BICUBIC)
-            print(f"AdaBins depth resized to {depth_input.width}x{depth_input.height}")
+            # print(f"AdaBins depth resized to {depth_input.width}x{depth_input.height}")
             resized = True
         else:
             depth_input = img_pil
 
         # try:
         with torch.no_grad():
-            print("Adabins predict", depth_input)
+            # print("Adabins predict", depth_input)
             _, adabins_depth = self.adabins_helper.predict_pil(depth_input)
         if resized:
             # Convert adabins_depth numpy array to a PyTorch tensor and add dimensions
 
-            print("ADABINS SHAPE 0", adabins_depth.shape)
+            # print("ADABINS SHAPE 0", adabins_depth.shape)
 
 
             adabins_depth_tensor = torch.from_numpy(adabins_depth)
@@ -68,11 +68,11 @@ class AdaBinsModel:
             # Remove added dimensions and convert back to numpy array
             adabins_depth = adabins_depth_resized.cpu().numpy()
 
-            print("ADABINS SHAPE 1", adabins_depth.shape)
+            # print("ADABINS SHAPE 1", adabins_depth.shape)
 
             #adabins_depth = TF.resize(torch.from_numpy(adabins_depth), torch.Size([h, w]), interpolation=TF.InterpolationMode.BICUBIC).cpu().numpy()
         #adabins_depth = adabins_depth.squeeze()
-        print("ADABINS SHAPE 2", adabins_depth.shape)
+        # print("ADABINS SHAPE 2", adabins_depth.shape)
 
         # except Exception as e:
         #     print("AdaBins exception encountered. Falling back to pure MiDaS/Zoe (only if running in Legacy Midas/Zoe+AdaBins mode)")

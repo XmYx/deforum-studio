@@ -37,7 +37,7 @@ def build_model(config) -> DepthModel:
     """
     module_name = f"deforum.exttools.zoedepth.models.{config.model}"
 
-    print("MODULE_NAME:", module_name)
+    # print("MODULE_NAME:", module_name)
 
     try:
         module = import_module(module_name)

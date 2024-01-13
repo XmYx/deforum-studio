@@ -338,7 +338,7 @@ class MidasCore(nn.Module):
         if "img_size" in kwargs:
             kwargs = MidasCore.parse_img_size(kwargs)
         img_size = kwargs.pop("img_size", [384, 384])
-        print("img_size", img_size)
+        # print("img_size", img_size)
         # midas = torch.hub.load("intel-isl/MiDaS", midas_model_type,
         #                        pretrained=use_pretrained_midas, force_reload=force_reload)
         from deforum.models.depth_models.midas.dpt_depth import DPTDepthModel
