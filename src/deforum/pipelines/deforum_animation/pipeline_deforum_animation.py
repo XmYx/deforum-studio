@@ -259,8 +259,8 @@ class DeforumAnimationPipeline(DeforumBase):
 
         hybrid_available = self.gen.hybrid_composite != 'None' or self.gen.hybrid_motion in ['Optical Flow', 'Affine', 'Perspective']
 
-        turbo_steps = self.gen.get('turbo_steps', 1)
-        if turbo_steps > 1:
+        self.gen.turbo_steps = self.gen.get('diffusion_cadence', 1)
+        if self.gen.turbo_steps > 1:
             self.shoot_fns.append(generate_interpolated_frames)
         if self.gen.color_coherence == 'Video Input' and hybrid_available:
             self.shoot_fns.append(color_match_video_input)

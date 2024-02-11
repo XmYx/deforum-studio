@@ -3,7 +3,7 @@ import gc
 import math
 import os
 import random
-from multiprocessing import Process
+#from multiprocessing import Process
 from typing import Any, Union, Tuple, Optional
 
 import PIL.Image
@@ -757,8 +757,9 @@ def post_gen_cls(cls: Any) -> None:
             # cls.logger(f"                                   [ filename generated: {filename} ]", True)
             cv2.imwrite("current_deforum_debug.png", cls.gen.opencv_image)
             if not cls.gen.store_frames_in_ram:
-                p = Process(target=save_image, args=(cls.gen.image, 'PIL', filename, cls.gen, cls.gen, cls.gen))
-                p.start()
+                # p = Process(target=save_image, args=(cls.gen.image, 'PIL', filename, cls.gen, cls.gen, cls.gen))
+                # p.start()
+                save_image(cls.gen.image, 'PIL', filename, cls.gen, cls.gen, cls.gen)
 
                 # cls.logger(f"                                   [ image saved ]", True)
 
@@ -1188,8 +1189,10 @@ def save_video_cls(cls):
         fps = cls.gen.fps
     else:
         fps = 24
-
-    save_as_h264(cls.images, output_filename_base + "_FILM.mp4", fps=fps)
+    try:
+        save_as_h264(cls.images, output_filename_base + "_FILM.mp4", fps=fps)
+    except:
+        print("save as h264 failed")
     cls.gen.video_path = output_filename_base + "_FILM.mp4"
 
 

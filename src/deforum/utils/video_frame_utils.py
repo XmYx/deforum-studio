@@ -9,7 +9,7 @@ import time
 
 import cv2
 import requests
-from basicsr.utils.download_util import load_file_from_url
+from deforum.utils.download_util import load_file_from_url
 from pkg_resources import resource_filename
 
 from deforum.utils.file_dl_util import checksum
