@@ -170,8 +170,7 @@ class Resize(object):
 
     def __call__(self, x):
         width, height = self.get_size(*x.shape[-2:][::-1])
-
-        return nn.functional.interpolate(x, (int(height), int(width)), mode='bilinear', align_corners=True)
+        return nn.functional.interpolate(x, (height, width), mode='bilinear', align_corners=True)
 
 class PrepForMidas(object):
     def __init__(self, resize_mode="minimal", keep_aspect_ratio=True, img_size=384, do_resize=True):
@@ -338,11 +337,9 @@ class MidasCore(nn.Module):
         if "img_size" in kwargs:
             kwargs = MidasCore.parse_img_size(kwargs)
         img_size = kwargs.pop("img_size", [384, 384])
-        # print("img_size", img_size)
-        # midas = torch.hub.load("intel-isl/MiDaS", midas_model_type,
-        #                        pretrained=use_pretrained_midas, force_reload=force_reload)
-        from deforum.models.depth_models.midas.dpt_depth import DPTDepthModel
-        midas = DPTDepthModel()
+        print("img_size", img_size)
+        midas = torch.hub.load("intel-isl/MiDaS", midas_model_type,
+                               pretrained=use_pretrained_midas, force_reload=force_reload)
         kwargs.update({'keep_aspect_ratio': force_keep_ar})
         midas_core = MidasCore(midas, trainable=train_midas, fetch_features=fetch_features,
                                freeze_bn=freeze_bn, img_size=img_size, **kwargs)

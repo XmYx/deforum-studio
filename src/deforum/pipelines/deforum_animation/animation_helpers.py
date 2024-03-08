@@ -174,10 +174,10 @@ def anim_frame_warp_3d_cls(cls: Any, image: Union[None, Any]) -> Tuple[Any, Any]
     rot_mat = p3d.euler_angles_to_matrix(torch.tensor(rotate_xyz, device="cuda"), "XYZ").unsqueeze(0)
 
 
-    result, mask = transform_image_3d_new(torch.device('cuda'), image, cls.gen.depth, rot_mat, translate_xyz,
+    result = transform_image_3d_new(torch.device('cuda'), image, cls.gen.depth, rot_mat, translate_xyz,
                                           cls.gen, cls.gen.keys, cls.gen.frame_idx)
     torch.cuda.empty_cache()
-    return result, mask
+    return result, None
 
 
 def anim_frame_warp_3d_direct(cls, image, x, y, z, rx, ry, rz):
