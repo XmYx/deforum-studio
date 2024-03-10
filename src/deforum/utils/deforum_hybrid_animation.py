@@ -189,6 +189,22 @@ def get_matrix_for_hybrid_motion_prev(frame_idx, dimensions, inputfiles, prev_im
                            cv2.COLOR_BGR2GRAY)
         M = get_transformation_matrix_from_images(prev_img_gray, img, hybrid_motion)
         return M
+def get_matrix_for_hybrid_motion_prev_imgs(frame_idx, dimensions, goal_img, prev_img, hybrid_motion):
+    print(f"Calculating {hybrid_motion} RANSAC matrix for frames {frame_idx} to {frame_idx + 1}")
+    # first handle invalid images by returning default matrix
+    height, width = prev_img.shape[:2]
+    #x = prev_img.astype(np.float32)
+    if height == 0 or width == 0 or prev_img != np.uint8:
+        return get_hybrid_motion_default_matrix(hybrid_motion)
+    else:
+
+
+        prev_img_gray = cv2.cvtColor(prev_img, cv2.COLOR_BGR2GRAY)
+        img = cv2.cvtColor(goal_img, cv2.COLOR_BGR2GRAY)
+
+
+        M = get_transformation_matrix_from_images(prev_img_gray.astype(np.uint8), img.astype(np.uint8), hybrid_motion)
+        return M
 
 
 def get_matrix_for_hybrid_motion_from_images(input_image, prev_img, hybrid_motion):

@@ -1368,14 +1368,15 @@ class FrameInterpolator:
         # it extracts the value in form of some stuff
         # which has previously been enclosed with brackets and
         # with a comma or end of line existing after the closing one
-
+        global max_f, s
         frames = dict()
         if string is None:
             string = ""
         for match_object in string.split(","):
             frameParam = match_object.split(":")
-            # max_f = self.max_frames - 1
-            # s = self.seed
+            max_f = self.max_frames - 1
+            s = self.seed
+            print(max_f, s)
             frame = int(self.sanitize_value(frameParam[0])) if check_is_number(
                 self.sanitize_value(frameParam[0].strip())) else int(numexpr.evaluate(
                 frameParam[0].strip().replace("'", "", 1).replace('"', "", 1)[::-1].replace("'", "", 1).replace('"', "",
