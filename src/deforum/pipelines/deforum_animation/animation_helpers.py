@@ -1376,7 +1376,6 @@ class FrameInterpolator:
             frameParam = match_object.split(":")
             max_f = self.max_frames - 1
             s = self.seed
-            print(max_f, s)
             frame = int(self.sanitize_value(frameParam[0])) if check_is_number(
                 self.sanitize_value(frameParam[0].strip())) else int(numexpr.evaluate(
                 frameParam[0].strip().replace("'", "", 1).replace('"', "", 1)[::-1].replace("'", "", 1).replace('"', "",
