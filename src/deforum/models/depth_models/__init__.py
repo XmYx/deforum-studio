@@ -1,1 +1,1 @@
-#from zoedepth.models.zoedepth_nk import *
+from .zoedepth.models.zoedepth_nk import *

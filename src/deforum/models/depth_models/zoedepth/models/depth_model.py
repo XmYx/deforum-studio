@@ -35,7 +35,7 @@ from typing import Union
 class DepthModel(nn.Module):
     def __init__(self):
         super().__init__()
-        self.device = 'cpu'
+        self.device = 'cuda'
     
     def to(self, device) -> nn.Module:
         self.device = device
@@ -138,6 +138,8 @@ class DepthModel(nn.Module):
             output_type (str, optional): output type. Supported values are 'numpy', 'pil' and 'tensor'. Defaults to "numpy".
         """
         x = transforms.ToTensor()(pil_img).unsqueeze(0).to(self.device)
+
+
         out_tensor = self.infer(x, pad_input=pad_input, with_flip_aug=with_flip_aug, **kwargs)
         if output_type == "numpy":
             return out_tensor.squeeze().cpu().numpy()
