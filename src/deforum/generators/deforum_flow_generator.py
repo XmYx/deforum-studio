@@ -64,35 +64,31 @@ def get_flow_for_hybrid_motion_prev(frame_idx,
     if do_flow_visualization: save_flow_visualization(frame_idx, dimensions, flow, inputfiles, hybrid_frame_path)
     return flow
 
-def get_flow_for_hybrid_motion_prev_imgs(frame_idx,
-                                    dimensions,
-                                    current_img,
-                                    prev_flow,
-                                    prev_img,
-                                    method,
-                                    raft_model,
-                                    consistency_check=True,
-                                    consistency_blur=0,
-                                    do_flow_visualization=False):
-    print(
-        f"Calculating {method} optical flow {'w/consistency mask' if consistency_check else ''} for frames {frame_idx} to {frame_idx + 1}")
+def get_flow_for_hybrid_motion_prev_imgs(current_img,
+                                        prev_flow,
+                                        prev_img,
+                                        method,
+                                        raft_model,
+                                        consistency_check=True,
+                                        consistency_blur=0):
+    # print(
+        # f"Calculating {method} optical flow {'w/consistency mask' if consistency_check else ''} for frames {frame_idx} to {frame_idx + 1}")
     reliable_flow = None
     # first handle invalid images by returning default flow
     height, width = prev_img.shape[:2]
-    if height == 0 or width == 0:
-        flow = get_hybrid_motion_default_flow(dimensions)
+    # if height == 0 or width == 0:
+    #     flow = get_hybrid_motion_default_flow(dimensions)
+    # else:
+    i1 = prev_img.astype(np.uint8)
+    i2 = current_img.astype(np.uint8)
+    if consistency_check:
+
+
+        flow, reliable_flow = get_reliable_flow_from_images(i1, i2, method, raft_model, prev_flow,
+                                                            consistency_blur)  # forward flow w/backward consistency check
+        #if do_flow_visualization: save_flow_mask_visualization(frame_idx, reliable_flow, hybrid_frame_path)
     else:
-        i1 = prev_img.astype(np.uint8)
-        i2 = current_img.astype(np.uint8)
-        if consistency_check:
-
-            print(type(i1), type(i2))
-
-            flow, reliable_flow = get_reliable_flow_from_images(i1, i2, method, raft_model, prev_flow,
-                                                                consistency_blur)  # forward flow w/backward consistency check
-            #if do_flow_visualization: save_flow_mask_visualization(frame_idx, reliable_flow, hybrid_frame_path)
-        else:
-            flow = get_flow_from_images(i1, i2, method, raft_model, prev_flow)
+        flow = get_flow_from_images(i1, i2, method, raft_model, prev_flow)
     #if do_flow_visualization: save_flow_visualization(frame_idx, dimensions, flow, inputfiles, hybrid_frame_path)
     return flow
 

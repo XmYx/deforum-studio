@@ -17,7 +17,7 @@ class LeReSDepth:
         self.checkpoint_name = checkpoint_name
         self.backbone = backbone
 
-        download_file_with_checksum(url='https://cloudstor.aarnet.edu.au/plus/s/lTIJF4vrvHCAI31/download', expected_checksum='7fdc870ae6568cb28d56700d0be8fc45541e09cea7c4f84f01ab47de434cfb7463cacae699ad19fe40ee921849f9760dedf5e0dec04a62db94e169cf203f55b1', dest_folder=models_path, dest_filename=self.checkpoint_name)
+        download_file_with_checksum(url='https://huggingface.co/lllyasviel/Annotators/resolve/af19c34529d974eb965a00250f7b743431d56047/res101.pth', expected_checksum='7fdc870ae6568cb28d56700d0be8fc45541e09cea7c4f84f01ab47de434cfb7463cacae699ad19fe40ee921849f9760dedf5e0dec04a62db94e169cf203f55b1', dest_folder=models_path, dest_filename=self.checkpoint_name)
 
         self.depth_model = RelDepthModel(backbone=self.backbone)
         self.depth_model.eval()
