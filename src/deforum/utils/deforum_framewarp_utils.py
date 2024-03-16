@@ -19,7 +19,7 @@ def sample_from_cv2(sample: np.ndarray) -> torch.Tensor:
 
 
 def sample_to_cv2(sample: torch.Tensor, dtype=np.uint8) -> np.ndarray:
-    sample_f32 = rearrange(sample.squeeze().cpu().numpy(), "c h w -> h w c").astype(np.float32)
+    sample_f32 = rearrange(sample.squeeze().cpu().numpy(), "c h w -> h w c").astype(np.float16)
     sample_f32 = ((sample_f32 * 0.5) + 0.5).clip(0, 1)
     sample_int8 = (sample_f32 * 255)
     return sample_int8.astype(dtype)
@@ -84,8 +84,8 @@ def getPoints_for_PerspectiveTranformEstimation(ptsIn, ptsOut, W, H, sidelength)
 
     pin = np.array(ptsIn2Dlist) + [W / 2., H / 2.]
     pout = (np.array(ptsOut2Dlist) + [1., 1.]) * (0.5 * sidelength)
-    pin = pin.astype(np.float32)
-    pout = pout.astype(np.float32)
+    pin = pin.astype(np.float16)
+    pout = pout.astype(np.float16)
 
     return pin, pout
 
@@ -129,9 +129,9 @@ def warpMatrix(W, H, theta, phi, gamma, scale, fV):
 
     ptsInPt2f, ptsOutPt2f = getPoints_for_PerspectiveTranformEstimation(ptsIn, ptsOut, W, H, sideLength)
 
-    # check float32 otherwise OpenCV throws an error
-    assert (ptsInPt2f.dtype == np.float32)
-    assert (ptsOutPt2f.dtype == np.float32)
+    # check float16 otherwise OpenCV throws an error
+    assert (ptsInPt2f.dtype == np.float16)
+    assert (ptsOutPt2f.dtype == np.float16)
     M33 = cv2.getPerspectiveTransform(ptsInPt2f, ptsOutPt2f)
 
     return M33, sideLength
@@ -144,7 +144,7 @@ def get_flip_perspective_matrix(W, H, keys, frame_idx):
     perspective_flip_fv = keys.perspective_flip_fv_series[frame_idx]
     M, sl = warpMatrix(W, H, perspective_flip_theta, perspective_flip_phi, perspective_flip_gamma, 1.,
                        perspective_flip_fv)  # TODO check why this ";" was here
-    post_trans_mat = np.float32([[1, 0, (W - sl) / 2], [0, 1, (H - sl) / 2]])
+    post_trans_mat = np.float16([[1, 0, (W - sl) / 2], [0, 1, (H - sl) / 2]])
     post_trans_mat = np.vstack([post_trans_mat, [0, 0, 1]])
     bM = np.matmul(M, post_trans_mat)
     return bM
@@ -186,7 +186,7 @@ def anim_frame_warp_2d(prev_img_cv2, args, anim_args, keys, frame_idx):
     transform_center_y = keys.transform_center_y_series[frame_idx]
     center_point = (args.width * transform_center_x, args.height * transform_center_y)
     rot_mat = cv2.getRotationMatrix2D(center_point, angle, zoom)
-    trans_mat = np.float32([[1, 0, translation_x], [0, 1, translation_y]])
+    trans_mat = np.float16([[1, 0, translation_x], [0, 1, translation_y]])
     trans_mat = np.vstack([trans_mat, [0, 0, 1]])
     rot_mat = np.vstack([rot_mat, [0, 0, 1]])
     if anim_args.enable_perspective_flip:
@@ -250,12 +250,12 @@ def transform_image_3d_legacy(device, prev_img_cv2, depth_tensor, rot_mat, trans
                                               T=torch.tensor([translate]), device=device)
 
     # range of [-1,1] is important to torch grid_sample's padding handling
-    y, x = torch.meshgrid(torch.linspace(-1., 1., h, dtype=torch.float32, device=device),
-                          torch.linspace(-1., 1., w, dtype=torch.float32, device=device))
+    y, x = torch.meshgrid(torch.linspace(-1., 1., h, dtype=torch.float16, device=device),
+                          torch.linspace(-1., 1., w, dtype=torch.float16, device=device))
     if depth_tensor is None:
         z = torch.ones_like(x)
     else:
-        z = torch.as_tensor(depth_tensor, dtype=torch.float32, device=device)
+        z = torch.as_tensor(depth_tensor, dtype=torch.float16, device=device)
     xyz_old_world = torch.stack((x.flatten(), y.flatten(), z.flatten()), dim=1)
 
     xyz_old_cam_xy = persp_cam_old.get_full_projection_transform().transform_points(xyz_old_world)[:, 0:2]
@@ -268,7 +268,7 @@ def transform_image_3d_legacy(device, prev_img_cv2, depth_tensor, rot_mat, trans
     coords_2d = torch.nn.functional.affine_grid(identity_2d_batch, [1, 1, h, w], align_corners=False)
     offset_coords_2d = coords_2d - torch.reshape(offset_xy, (h, w, 2)).unsqueeze(0)
 
-    image_tensor = rearrange(torch.from_numpy(prev_img_cv2.astype(np.float32)), 'h w c -> c h w').to(device)
+    image_tensor = rearrange(torch.from_numpy(prev_img_cv2.astype(np.float16)), 'h w c -> c h w').to(device)
     new_image = torch.nn.functional.grid_sample(
         image_tensor.add(1 / 512 - 0.0001).unsqueeze(0),
         offset_coords_2d,
@@ -331,15 +331,15 @@ def transform_image_3d_new(device, prev_img_cv2, depth_tensor, rot_mat, translat
                                               T=torch.tensor([translate]), device=device)
 
     # make xy meshgrid - range of [-1,1] is important to torch grid_sample's padding handling
-    y, x = torch.meshgrid(torch.linspace(-1., 1., h, dtype=torch.float32, device=device),
-                          torch.linspace(-1., 1., w, dtype=torch.float32, device=device))
+    y, x = torch.meshgrid(torch.linspace(-1., 1., h, dtype=torch.float16, device=device),
+                          torch.linspace(-1., 1., w, dtype=torch.float16, device=device))
 
     # test tensor for validity (some are corrupted for some reason)
-    depth_tensor_invalid = depth_tensor is None or torch.isnan(depth_tensor).any() or torch.isinf(
-        depth_tensor).any() or depth_tensor.min() == depth_tensor.max()
+    depth_tensor_invalid = depth_tensor is None# or torch.isnan(depth_tensor).any() or torch.isinf(
+        #depth_tensor).any() or depth_tensor.min() == depth_tensor.max()
 
-    if depth_tensor is not None:
-        print(f"Depth_T.min: {depth_tensor.min()}, Depth_T.max: {depth_tensor.max()}")
+    # if depth_tensor is not None:
+    #     print(f"Depth_T.min: {depth_tensor.min()}, Depth_T.max: {depth_tensor.max()}")
     # if invalid, create flat z for this frame
     if depth_tensor_invalid:
         # if none, then 3D depth is turned off, so no warning is needed.
@@ -365,10 +365,10 @@ def transform_image_3d_new(device, prev_img_cv2, depth_tensor, rot_mat, translat
             float(depth_tensor.max()))
         diff = '{:.2f}'.format(float(depth_tensor.max()) - float(depth_tensor.min()))
         console_txt = f"\033[36mDepth normalized to {depth_final.min()}/{depth_final.max()} from"
-        print(f"{console_txt} {txt_depth_min}/{txt_depth_max} diff {diff}\033[0m")
+        #print(f"{console_txt} {txt_depth_min}/{txt_depth_max} diff {diff}\033[0m")
 
         # add z from depth
-        z = torch.as_tensor(depth_final, dtype=torch.float32, device=device)
+        z = torch.as_tensor(depth_final, dtype=torch.float16, device=device)
 
     # calculate offset_xy
     xyz_old_world = torch.stack((x.flatten(), y.flatten(), z.flatten()), dim=1)
@@ -491,8 +491,8 @@ def depth_equalization(depth_tensor):
 #                                               T=torch.tensor([translate]), device=device)
 #
 #     # make xy meshgrid - range of [-1,1] is important to torch grid_sample's padding handling
-#     y, x = torch.meshgrid(torch.linspace(-1., 1., h, dtype=torch.float32, device=device),
-#                           torch.linspace(-1., 1., w, dtype=torch.float32, device=device))
+#     y, x = torch.meshgrid(torch.linspace(-1., 1., h, dtype=torch.float16, device=device),
+#                           torch.linspace(-1., 1., w, dtype=torch.float16, device=device))
 #
 #     # test tensor for validity (some are corrupted for some reason)
 #     depth_tensor_invalid = depth_tensor is None or torch.isnan(depth_tensor).any() or torch.isinf(
@@ -527,7 +527,7 @@ def depth_equalization(depth_tensor):
 #         # debug_print(f"{console_txt} {txt_depth_min}/{txt_depth_max} diff {diff}\033[0m")
 #
 #         # add z from depth
-#         z = torch.as_tensor(depth_final, dtype=torch.float32, device=device)
+#         z = torch.as_tensor(depth_final, dtype=torch.float16, device=device)
 #
 #     # calculate offset_xy
 #
@@ -544,7 +544,7 @@ def depth_equalization(depth_tensor):
 #     offset_coords_2d = coords_2d - torch.reshape(offset_xy, (h, w, 2)).unsqueeze(0)
 #
 #     # do the hyperdimensional remap
-#     image_tensor = rearrange(torch.from_numpy(prev_img_cv2.astype(np.float32)), 'h w c -> c h w').to(device)
+#     image_tensor = rearrange(torch.from_numpy(prev_img_cv2.astype(np.float16)), 'h w c -> c h w').to(device)
 #     # if anim_args.padding_mode == "zeros":
 #     #     image_tensor[image_tensor == 0] += 1e-5
 #     new_image = torch.nn.functional.grid_sample(
