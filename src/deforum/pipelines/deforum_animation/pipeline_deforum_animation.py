@@ -259,6 +259,8 @@ class DeforumAnimationPipeline(DeforumBase):
 
         hybrid_available = self.gen.hybrid_composite != 'None' or self.gen.hybrid_motion in ['Optical Flow', 'Affine', 'Perspective']
 
+        self.shoot_fns.append(get_generation_params)
+
         self.gen.turbo_steps = self.gen.get('diffusion_cadence', 1)
         if self.gen.turbo_steps > 1:
             self.shoot_fns.append(generate_interpolated_frames)
@@ -288,8 +290,6 @@ class DeforumAnimationPipeline(DeforumBase):
             self.shoot_fns.append(handle_noise_mask)
 
         self.shoot_fns.append(add_noise_cls)
-
-        self.shoot_fns.append(get_generation_params)
 
         if self.gen.optical_flow_redo_generation != 'None':
             self.shoot_fns.append(optical_flow_redo)
