@@ -200,13 +200,14 @@ class ComfyDeforumGenerator:
                  **kwargs):
 
         if self.pipeline_type == "comfy":
-            import comfy.sd
-            model, clip, vae, clipvision = comfy.sd.load_checkpoint_guess_config(self.model_path,
-                                                  output_vae=True,
-                                                  output_clip=True,
-                                                  embedding_directory="models/embeddings",
-                                                  output_clipvision=False,
-                                                  )
+            if (self.vae is None):
+                import comfy.sd
+                self.model, self.clip, self.vae, self.clipvision = comfy.sd.load_checkpoint_guess_config(self.model_path,
+                                                    output_vae=True,
+                                                    output_clip=True,
+                                                    embedding_directory="models/embeddings",
+                                                    output_clipvision=False,
+                                                    )
 
             if seed == -1:
                 seed = secrets.randbelow(18446744073709551615)
@@ -243,14 +244,14 @@ class ComfyDeforumGenerator:
                         latent = latent
             else:
                 latent = torch.from_numpy(np.array(init_image).astype(np.float32) / 255.0).unsqueeze(0)
-                latent = self.encode_latent(vae, latent, seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w)
+                latent = self.encode_latent(self.vae, latent, seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w)
             assert isinstance(latent, dict), \
                 "Our Latents have to be in a dict format with the latent being the 'samples' value"
 
             cond = []
 
             if pooled_prompts is None and prompt is not None:
-                cond = self.get_conds(clip, prompt)
+                cond = self.get_conds(self.clip, prompt)
             elif pooled_prompts is not None:
                 cond = pooled_prompts
 
@@ -262,19 +263,19 @@ class ComfyDeforumGenerator:
                     prompt = area.get("prompt", None)
                     if prompt:
 
-                        new_cond = self.get_conds(clip, area["prompt"])
+                        new_cond = self.get_conds(self.clip, area["prompt"])
                         new_cond = area_setter.append(conditioning=new_cond, width=int(area["w"]), height=int(area["h"]), x=int(area["x"]),
                                                       y=int(area["y"]), strength=area["s"])[0]
                         cond += new_cond
 
-            self.n_cond = self.get_conds(clip, negative_prompt)
+            self.n_cond = self.get_conds(self.clip, negative_prompt)
             self.prompt = prompt
 
 
             if next_prompt is not None and enable_prompt_blend:
                 if next_prompt != prompt and next_prompt != "":
                     if 0.0 < prompt_blend < 1.0:
-                        next_cond = self.get_conds(clip, next_prompt)
+                        next_cond = self.get_conds(self.clip, next_prompt)
 
                         cond = blend_tensors(cond[0], next_cond[0], blend_value=prompt_blend)
 
@@ -288,7 +289,7 @@ class ComfyDeforumGenerator:
 
             print(seed, strength, sampler_name, scheduler, scale)
 
-            sample = common_ksampler_with_custom_noise(model=model,
+            sample = common_ksampler_with_custom_noise(model=self.model,
                                                        seed=seed,
                                                        steps=steps,
                                                        cfg=scale,
@@ -328,7 +329,7 @@ class ComfyDeforumGenerator:
 
 
             if sample[0]["samples"].shape[0] == 1:
-                decoded = self.decode_sample(vae, sample[0]["samples"])
+                decoded = self.decode_sample(self.vae, sample[0]["samples"])
                 np_array = np.clip(255. * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[0]
                 image = Image.fromarray(np_array)
                 # image = Image.fromarray(np.clip(255. * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[0])
@@ -343,7 +344,7 @@ class ComfyDeforumGenerator:
             else:
                 print("decoding multi images")
                 images = []
-                x_samples = vae.decode_tiled(sample[0]["samples"])
+                x_samples = self.vae.decode_tiled(sample[0]["samples"])
                 for sample in x_samples:
                     np_array = np.clip(255. * sample.cpu().numpy(), 0, 255).astype(np.uint8)
                     image = Image.fromarray(np_array)
