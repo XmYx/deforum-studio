@@ -320,6 +320,10 @@ def optical_flow_motion(cls: Any) -> None:
     Returns:
         None: Modifies the class instance attributes in place.
     """
+    if cls.gen.frame_idx < 1:
+        print("Skipping optical flow motion for first frame.")
+        return
+
     if cls.gen.prev_img is not None and cls.gen.inputfiles is not None:
         if cls.gen.hybrid_motion_use_prev_img:
             cls.gen.flow = get_flow_for_hybrid_motion_prev(cls.gen.frame_idx - 1, (cls.gen.width, cls.gen.height),
