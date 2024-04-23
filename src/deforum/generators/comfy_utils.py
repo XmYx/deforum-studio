@@ -47,7 +47,12 @@ def add_to_sys_path(path):
     sys.path.append(path)
 
 
-def ensure_comfy():
+def ensure_comfy(custom_path=None):
+
+    if custom_path is not None:
+        comfy_path = custom_path
+        comfy_submodule_folder = os.path.join(comfy_path, "custom_nodes")
+
     if not os.path.exists(comfy_path):
         # Clone the comfy repository if it doesn't exist
         clone_repo_to("https://github.com/comfyanonymous/ComfyUI", comfy_path)
@@ -92,11 +97,19 @@ CLIArgs = namedtuple(
         "use_pytorch_cross_attention",
         "use_split_cross_attention",
         "use_quad_cross_attention",
+        "fp16_unet",
+        "fp8_e4m3fn_unet",
+        "fp8_e5m2_unet",
+        "fp8_e4m3fn_text_enc",
+        "fp8_e5m2_text_enc",
+        "fp16_text_enc",
+        "fp32_text_enc",
         "fp16_vae",
         "bf16_vae",
         "fp32_vae",
         "force_fp32",
         "force_fp16",
+        "cpu_vae",
         "disable_smart_memory",
         "disable_ipex_optimize",
         "listen",
@@ -119,6 +132,7 @@ CLIArgs = namedtuple(
         "quick_test_for_ci",
         "windows_standalone_build",
         "disable_metadata",
+        'deterministic',
     ],
 )
 
@@ -129,22 +143,31 @@ mock_args = CLIArgs(
     lowvram=False,
     novram=False,
     highvram=True,
-    gpu_only=True,
-    disable_xformers=True,
+    gpu_only=False,
+    disable_xformers=False,
     use_pytorch_cross_attention=True,
     use_split_cross_attention=False,
     use_quad_cross_attention=False,
+    bf16_unet=False,
+    fp16_unet=True,
+    fp8_e4m3fn_unet=False,
+    fp8_e5m2_unet=False,
+    fp8_e4m3fn_text_enc=False,
+    fp8_e5m2_text_enc=False,
+    fp16_text_enc=True,
+    fp32_text_enc=False,
     fp16_vae=False,
-    bf16_vae=False,
+    bf16_vae=True,
     fp32_vae=False,
     force_fp32=False,
     force_fp16=False,
+    cpu_vae=False,
     disable_smart_memory=False,
     disable_ipex_optimize=False,
     listen="127.0.0.1",
     port=8188,
     enable_cors_header=None,
-    extra_model_paths_config=None,
+    extra_model_paths_config="config/comfy_paths.yaml",
     output_directory=root_path,
     temp_directory=None,
     input_directory=None,
@@ -152,15 +175,15 @@ mock_args = CLIArgs(
     disable_auto_launch=True,
     cuda_device=0,
     cuda_malloc=False,
-    disable_cuda_malloc=True,
+    disable_cuda_malloc=False,
     dont_upcast_attention=False,
-    bf16_unet=False,
     directml=None,
     preview_method="none",
     dont_print_server=True,
     quick_test_for_ci=False,
     windows_standalone_build=False,
     disable_metadata=False,
+    deterministic=False,
 )
 
 

@@ -84,7 +84,7 @@ class ZoeDepth:
         #self.model_zoe = build_model(conf)
         model = zoedepth_nk
         get_version = getattr(model, "get_version")
-        print("CONF", conf)
+        # print("CONF", conf)
         self.model_zoe = ZoeDepthNK.build_from_config(conf["model"])
 
 

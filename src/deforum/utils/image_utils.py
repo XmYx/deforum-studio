@@ -4,6 +4,7 @@ import re
 import socket
 import time
 
+import PIL.Image
 import cv2
 import numpy as np
 import requests
@@ -44,28 +45,31 @@ def maintain_colors(prev_img, color_match_sample, mode):
 
 
 def load_image(image_path: str):
-    image_path = clean_gradio_path_strings(image_path)
-    if image_path.startswith('http://') or image_path.startswith('https://'):
-        try:
-            host = socket.gethostbyname("www.google.com")
-            s = socket.create_connection((host, 80), 2)
-            s.close()
-        except:
-            raise ConnectionError(
-                "There is no active internet connection available - please use local masks and init files only.")
+    if isinstance(image_path, str):
+        image_path = clean_gradio_path_strings(image_path)
+        if image_path.startswith('http://') or image_path.startswith('https://'):
+            try:
+                host = socket.gethostbyname("www.google.com")
+                s = socket.create_connection((host, 80), 2)
+                s.close()
+            except:
+                raise ConnectionError(
+                    "There is no active internet connection available - please use local masks and init files only.")
 
-        try:
-            response = requests.get(image_path, stream=True)
-        except requests.exceptions.RequestException as e:
-            raise ConnectionError("Failed to download image due to no internet connection. Error: {}".format(e))
-        if response.status_code == 404 or response.status_code != 200:
-            raise ConnectionError("Init image url or mask image url is not valid")
-        image = Image.open(response.raw).convert('RGB')
-    else:
-        if not os.path.exists(image_path):
-            raise RuntimeError("Init image path or mask image path is not valid")
-        image = Image.open(image_path).convert('RGB')
-    return image
+            try:
+                response = requests.get(image_path, stream=True)
+            except requests.exceptions.RequestException as e:
+                raise ConnectionError("Failed to download image due to no internet connection. Error: {}".format(e))
+            if response.status_code == 404 or response.status_code != 200:
+                raise ConnectionError("Init image url or mask image url is not valid")
+            image = Image.open(response.raw).convert('RGB')
+        else:
+            if not os.path.exists(image_path):
+                raise RuntimeError("Init image path or mask image path is not valid")
+            image = Image.open(image_path).convert('RGB')
+        return image
+    elif isinstance(image_path, PIL.Image.Image):
+        return image_path
 
 
 def blank_if_none(mask, w, h, mode):
@@ -232,16 +236,16 @@ def check_mask_for_errors(mask_input, invert_mask=False):
 
 def get_mask(args):
     # return check_mask_for_errors(
-    #     prepare_mask(args.mask_file, (args.W, args.H), args.mask_contrast_adjust, args.mask_brightness_adjust)
+    #     prepare_mask(args.mask_file, (args.width, args.height), args.mask_contrast_adjust, args.mask_brightness_adjust)
     # )
-    return prepare_mask(args.mask_file, (args.W, args.H), args.mask_contrast_adjust, args.mask_brightness_adjust)
+    return prepare_mask(args.mask_file, (args.width, args.height), args.mask_contrast_adjust, args.mask_brightness_adjust)
 
 
 def get_mask_from_file(mask_file, args):
     # return check_mask_for_errors(
-    #     prepare_mask(mask_file, (args.W, args.H), args.mask_contrast_adjust, args.mask_brightness_adjust)
+    #     prepare_mask(mask_file, (args.width, args.height), args.mask_contrast_adjust, args.mask_brightness_adjust)
     # )
-    return prepare_mask(mask_file, (args.W, args.H), args.mask_contrast_adjust, args.mask_brightness_adjust)
+    return prepare_mask(mask_file, (args.width, args.height), args.mask_contrast_adjust, args.mask_brightness_adjust)
 
 
 def unsharp_mask(img, kernel_size=(5, 5), sigma=1.0, amount=1.0, threshold=0, mask=None):
@@ -284,8 +288,8 @@ def do_overlay_mask(args, anim_args, img, frame_idx, is_bgr_array=False):
         else:
             current_frame = load_image(args.init_image)
     if current_mask is not None and current_frame is not None:
-        current_mask = current_mask.resize((args.W, args.H), Image.LANCZOS)
-        current_frame = current_frame.resize((args.W, args.H), Image.LANCZOS)
+        current_mask = current_mask.resize((args.width, args.height), Image.LANCZOS)
+        current_frame = current_frame.resize((args.width, args.height), Image.LANCZOS)
         current_mask = ImageOps.grayscale(current_mask)
 
         if args.invert_mask:
@@ -482,7 +486,7 @@ def compose_mask(root, args, mask_seq, val_masks, frame_image, inner_idx: int = 
 
 def compose_mask_with_check(root, args, mask_seq, val_masks, frame_image):
     for k, v in val_masks.items():
-        val_masks[k] = blank_if_none(v, args.W, args.H, '1').convert('1')
+        val_masks[k] = blank_if_none(v, args.width, args.height, '1').convert('1')
     return check_mask_for_errors(
         val_masks[compose_mask(root, args, mask_seq, val_masks, frame_image, 0)[1:-1]].convert('L'))
 

@@ -1,8 +1,9 @@
+import copy
 import gc
 import math
 import os
 import random
-from multiprocessing import Process
+#from multiprocessing import Process
 from typing import Any, Union, Tuple, Optional
 
 import PIL.Image
@@ -59,8 +60,19 @@ def anim_frame_warp_cls(cls: Any) -> None:
         cls.gen.mask = None
         if cls.gen.use_depth_warping:
             if cls.gen.depth is None and cls.depth_model is not None:
-                cls.gen.depth = cls.depth_model.predict(cls.gen.opencv_image, cls.gen.midas_weight,
-                                                        cls.gen.half_precision)
+
+
+                #img = Image.fromarray(cv2.cvtColor(cls.gen.prev_img, cv2.COLOR_BGR2RGB))
+
+                #print("ERROR HERE", type(img))
+                if cls.depth_model.device != 'cuda':
+                    cls.depth_model.to('cuda')
+                    cls.depth_model.device = 'cuda'
+                with torch.no_grad():
+                    cls.gen.depth = cls.depth_model.predict(cls.gen.prev_img, cls.gen.midas_weight, True)
+                                                            #cls.gen.half_precision)
+                    torch.cuda.empty_cache()
+                #cls.depth_model.to('cpu')
         else:
             cls.gen.depth = None
 
@@ -117,13 +129,13 @@ def anim_frame_warp_2d_cls(cls: Any, image: Union[None, Any]) -> Any:
     translation_y = cls.gen.keys.translation_y_series[cls.gen.frame_idx]
     transform_center_x = cls.gen.keys.transform_center_x_series[cls.gen.frame_idx]
     transform_center_y = cls.gen.keys.transform_center_y_series[cls.gen.frame_idx]
-    center_point = (cls.gen.W * transform_center_x, cls.gen.H * transform_center_y)
+    center_point = (cls.gen.width * transform_center_x, cls.gen.height * transform_center_y)
     rot_mat = cv2.getRotationMatrix2D(center_point, angle, zoom)
     trans_mat = np.float32([[1, 0, translation_x], [0, 1, translation_y]])
     trans_mat = np.vstack([trans_mat, [0, 0, 1]])
     rot_mat = np.vstack([rot_mat, [0, 0, 1]])
     if cls.gen.enable_perspective_flip:
-        bM = get_flip_perspective_matrix(cls.gen.W, cls.gen.H, cls.gen.keys, cls.gen.frame_idx)
+        bM = get_flip_perspective_matrix(cls.gen.width, cls.gen.height, cls.gen.keys, cls.gen.frame_idx)
         rot_mat = np.matmul(bM, rot_mat, trans_mat)
     else:
         rot_mat = np.matmul(rot_mat, trans_mat)
@@ -160,11 +172,33 @@ def anim_frame_warp_3d_cls(cls: Any, image: Union[None, Any]) -> Tuple[Any, Any]
     if cls.gen.enable_perspective_flip:
         image = flip_3d_perspective(cls.gen, image, cls.gen.keys, cls.gen.frame_idx)
     rot_mat = p3d.euler_angles_to_matrix(torch.tensor(rotate_xyz, device="cuda"), "XYZ").unsqueeze(0)
+
+
+    result = transform_image_3d_new(torch.device('cuda'), image, cls.gen.depth, rot_mat, translate_xyz,
+                                          cls.gen, cls.gen.keys, cls.gen.frame_idx)
+    torch.cuda.empty_cache()
+    return result, None
+
+
+def anim_frame_warp_3d_direct(cls, image, x, y, z, rx, ry, rz):
+    TRANSLATION_SCALE = 1.0 / 200.0  # matches Disco
+    translate_xyz = [
+        -x * TRANSLATION_SCALE,
+        y * TRANSLATION_SCALE,
+        -z * TRANSLATION_SCALE
+    ]
+    rotate_xyz = [
+        math.radians(rx),
+        math.radians(ry),
+        math.radians(rz)
+    ]
+    if cls.gen.enable_perspective_flip:
+        image = flip_3d_perspective(cls.gen, image, cls.gen.keys, cls.gen.frame_idx)
+    rot_mat = p3d.euler_angles_to_matrix(torch.tensor(rotate_xyz, device="cuda"), "XYZ").unsqueeze(0)
     result, mask = transform_image_3d_new(torch.device('cuda'), image, cls.gen.depth, rot_mat, translate_xyz,
                                           cls.gen, cls.gen.keys, cls.gen.frame_idx)
     torch.cuda.empty_cache()
     return result, mask
-
 
 def hybrid_composite_cls(cls: Any) -> None:
     """
@@ -196,7 +230,7 @@ def hybrid_composite_cls(cls: Any) -> None:
             video_image = load_image(cls.gen.init_image, cls.gen.init_image_box)
         else:
             video_image = Image.open(video_frame)
-        video_image = video_image.resize((cls.gen.W, cls.gen.H), Image.LANCZOS)
+        video_image = video_image.resize((cls.gen.width, cls.gen.height), Image.LANCZOS)
         hybrid_mask = None
 
         # composite mask types
@@ -266,11 +300,11 @@ def affine_persp_motion(cls: Any) -> None:
         None: Modifies the class instance attributes in place.
     """
     if cls.gen.hybrid_motion_use_prev_img:
-        matrix = get_matrix_for_hybrid_motion_prev(cls.gen.frame_idx - 1, (cls.gen.W, cls.gen.H), cls.gen.inputfiles,
+        matrix = get_matrix_for_hybrid_motion_prev(cls.gen.frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
                                                    cls.gen.prev_img,
                                                    cls.gen.hybrid_motion)
     else:
-        matrix = get_matrix_for_hybrid_motion(cls.gen.frame_idx - 1, (cls.gen.W, cls.gen.H), cls.gen.inputfiles,
+        matrix = get_matrix_for_hybrid_motion(cls.gen.frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
                                               cls.gen.hybrid_motion)
     cls.gen.prev_img = image_transform_ransac(cls.gen.prev_img, matrix, cls.gen.hybrid_motion)
     return
@@ -286,9 +320,13 @@ def optical_flow_motion(cls: Any) -> None:
     Returns:
         None: Modifies the class instance attributes in place.
     """
-    if cls.gen.prev_img is not None:
+    if cls.gen.frame_idx < 1:
+        print("Skipping optical flow motion for first frame.")
+        return
+
+    if cls.gen.prev_img is not None and cls.gen.inputfiles is not None:
         if cls.gen.hybrid_motion_use_prev_img:
-            cls.gen.flow = get_flow_for_hybrid_motion_prev(cls.gen.frame_idx - 1, (cls.gen.W, cls.gen.H),
+            cls.gen.flow = get_flow_for_hybrid_motion_prev(cls.gen.frame_idx - 1, (cls.gen.width, cls.gen.height),
                                                            cls.gen.inputfiles,
                                                            cls.gen.hybrid_frame_path, cls.gen.prev_flow,
                                                            cls.gen.prev_img,
@@ -299,7 +337,7 @@ def optical_flow_motion(cls: Any) -> None:
 
 
         else:
-            cls.gen.flow = get_flow_for_hybrid_motion(cls.gen.frame_idx - 1, (cls.gen.W, cls.gen.H), cls.gen.inputfiles,
+            cls.gen.flow = get_flow_for_hybrid_motion(cls.gen.frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
                                                       cls.gen.hybrid_frame_path,
                                                       cls.gen.prev_flow, cls.gen.hybrid_flow_method, cls.raft_model,
                                                       cls.gen.hybrid_flow_consistency,
@@ -704,6 +742,7 @@ def post_gen_cls(cls: Any) -> None:
         # cls.logger(f"                                   [ frame added ]", True)
 
         cls.gen.opencv_image = cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR)
+        # cls.gen.opencv_image = np.array(cls.gen.image)
 
 
         # cls.logger(f"                                   [ cvtColor completed ]", True)
@@ -720,10 +759,11 @@ def post_gen_cls(cls: Any) -> None:
         else:
             filename = f"{cls.gen.timestring}_{cls.gen.frame_idx:09}.png"
             # cls.logger(f"                                   [ filename generated: {filename} ]", True)
-
+            cv2.imwrite("current_deforum_debug.png", cls.gen.opencv_image)
             if not cls.gen.store_frames_in_ram:
-                p = Process(target=save_image, args=(cls.gen.image, 'PIL', filename, cls.gen, cls.gen, cls.gen))
-                p.start()
+                # p = Process(target=save_image, args=(cls.gen.image, 'PIL', filename, cls.gen, cls.gen, cls.gen))
+                # p.start()
+                save_image(cls.gen.image, 'PIL', filename, cls.gen, cls.gen, cls.gen)
 
                 # cls.logger(f"                                   [ image saved ]", True)
 
@@ -737,8 +777,8 @@ def post_gen_cls(cls: Any) -> None:
 
             cls.gen.frame_idx += 1
             # cls.logger(f"                                   [ frame_idx incremented ]", True)
-        if cls.gen.turbo_steps == 1:
-            done = cls.datacallback({"image": cls.gen.image})
+        if cls.gen.turbo_steps < 2:
+            done = cls.datacallback({"image": cls.gen.image, "operation_id":cls.gen.operation_id, "frame_idx":cls.gen.frame_idx})
         # cls.logger(f"                                   [ datacallback executed ]", True)
 
         cls.gen.seed = next_seed(cls.gen, cls.gen)
@@ -789,7 +829,8 @@ def generate_interpolated_frames(cls):
 
             if cls.depth_model is not None:
                 assert (turbo_next_image is not None)
-                depth = cls.depth_model.predict(turbo_next_image, cls.gen.midas_weight, cls.gen.half_precision)
+                with torch.inference_mode():
+                    depth = cls.depth_model.predict(turbo_next_image, cls.gen.midas_weight, cls.gen.half_precision)
             if cls.gen.animation_mode in ["3D", "2D"]:
                 if advance_prev:
                     turbo_prev_image, _, _ = anim_frame_warp(turbo_prev_image, cls.gen, cls.gen, cls.gen.keys, tween_frame_idx,
@@ -804,14 +845,14 @@ def generate_interpolated_frames(cls):
             if tween_frame_idx > 0:
                 if cls.gen.hybrid_motion in ['Affine', 'Perspective']:
                     if cls.gen.hybrid_motion_use_prev_img:
-                        matrix = get_matrix_for_hybrid_motion_prev(tween_frame_idx - 1, (cls.gen.W, cls.gen.H), cls.gen.inputfiles,
+                        matrix = get_matrix_for_hybrid_motion_prev(tween_frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
                                                                    prev_img, cls.gen.hybrid_motion)
                         if advance_prev:
                             turbo_prev_image = image_transform_ransac(turbo_prev_image, matrix, cls.gen.hybrid_motion)
                         if advance_next:
                             turbo_next_image = image_transform_ransac(turbo_next_image, matrix, cls.gen.hybrid_motion)
                     else:
-                        matrix = get_matrix_for_hybrid_motion(tween_frame_idx - 1, (cls.gen.W, cls.gen.H), cls.gen.inputfiles,
+                        matrix = get_matrix_for_hybrid_motion(tween_frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
                                                               cls.gen.hybrid_motion)
                         if advance_prev:
                             turbo_prev_image = image_transform_ransac(turbo_prev_image, matrix, cls.gen.hybrid_motion)
@@ -819,7 +860,7 @@ def generate_interpolated_frames(cls):
                             turbo_next_image = image_transform_ransac(turbo_next_image, matrix, cls.gen.hybrid_motion)
                 if cls.gen.hybrid_motion in ['Optical Flow']:
                     if cls.gen.hybrid_motion_use_prev_img:
-                        flow = get_flow_for_hybrid_motion_prev(tween_frame_idx - 1, (cls.gen.W, cls.gen.H), cls.gen.inputfiles,
+                        flow = get_flow_for_hybrid_motion_prev(tween_frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
                                                                cls.gen.hybrid_frame_path, cls.gen.prev_flow, prev_img,
                                                                cls.gen.hybrid_flow_method, cls.raft_model,
                                                                cls.gen.hybrid_flow_consistency,
@@ -833,7 +874,7 @@ def generate_interpolated_frames(cls):
                                                                             cls.gen.hybrid_comp_schedules['flow_factor'])
                         cls.gen.prev_flow = flow
                     else:
-                        flow = get_flow_for_hybrid_motion(tween_frame_idx - 1, (cls.gen.W, cls.gen.H), cls.gen.inputfiles,
+                        flow = get_flow_for_hybrid_motion(tween_frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
                                                           cls.gen.hybrid_frame_path, cls.gen.prev_flow, cls.gen.hybrid_flow_method,
                                                           cls.raft_model,
                                                           cls.gen.hybrid_flow_consistency,
@@ -849,10 +890,10 @@ def generate_interpolated_frames(cls):
 
             # do optical flow cadence after animation warping
             if cadence_flow is not None:
-                cadence_flow = abs_flow_to_rel_flow(cadence_flow, cls.gen.W, cls.gen.H)
+                cadence_flow = abs_flow_to_rel_flow(cadence_flow, cls.gen.width, cls.gen.height)
                 cadence_flow, _, _ = anim_frame_warp(cadence_flow, cls.gen, cls.gen, cls.gen.keys, tween_frame_idx, cls.depth_model,
                                                   depth=depth, device=cls.gen.device, half_precision=cls.gen.half_precision)
-                cadence_flow_inc = rel_flow_to_abs_flow(cadence_flow, cls.gen.W, cls.gen.H) * tween
+                cadence_flow_inc = rel_flow_to_abs_flow(cadence_flow, cls.gen.width, cls.gen.height) * tween
                 if advance_prev:
                     turbo_prev_image = image_transform_optical_flow(turbo_prev_image, cadence_flow_inc,
                                                                     cls.gen.cadence_flow_factor)
@@ -886,9 +927,9 @@ def generate_interpolated_frames(cls):
             # saving cadence frames
             filename = f"{cls.gen.timestring}_{tween_frame_idx:09}.png"
             cv2.imwrite(os.path.join(cls.gen.outdir, filename), img)
-
+            cv2.imwrite("current_cadence.png", img)
             cb_img = Image.fromarray(cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB))
-            cls.datacallback({"image":cb_img})
+            cls.datacallback({"image":cb_img, "operation_id":cls.gen.operation_id, "frame_idx":cls.gen.frame_idx})
             cls.images.append(cb_img)
 
 
@@ -974,7 +1015,7 @@ def make_cadence_frames(cls: Any) -> None:
                 if tween_frame_idx > 0:
                     if cls.gen.hybrid_motion in ['Affine', 'Perspective']:
                         if cls.gen.hybrid_motion_use_prev_img:
-                            matrix = get_matrix_for_hybrid_motion_prev(tween_frame_idx - 1, (cls.gen.W, cls.gen.H),
+                            matrix = get_matrix_for_hybrid_motion_prev(tween_frame_idx - 1, (cls.gen.width, cls.gen.height),
                                                                        cls.gen.inputfiles, cls.gen.prev_img,
                                                                        cls.gen.hybrid_motion)
                             if advance_prev:
@@ -984,7 +1025,7 @@ def make_cadence_frames(cls: Any) -> None:
                                 cls.gen.turbo_next_image = image_transform_ransac(cls.gen.turbo_next_image, matrix,
                                                                                   cls.gen.hybrid_motion)
                         else:
-                            matrix = get_matrix_for_hybrid_motion(tween_frame_idx - 1, (cls.gen.W, cls.gen.H),
+                            matrix = get_matrix_for_hybrid_motion(tween_frame_idx - 1, (cls.gen.width, cls.gen.height),
                                                                   cls.gen.inputfiles,
                                                                   cls.gen.hybrid_motion)
                             if advance_prev:
@@ -995,7 +1036,7 @@ def make_cadence_frames(cls: Any) -> None:
                                                                                   cls.gen.hybrid_motion)
                     if cls.gen.hybrid_motion in ['Optical Flow']:
                         if cls.gen.hybrid_motion_use_prev_img:
-                            cls.gen.flow = get_flow_for_hybrid_motion_prev(tween_frame_idx - 1, (cls.gen.W, cls.gen.H),
+                            cls.gen.flow = get_flow_for_hybrid_motion_prev(tween_frame_idx - 1, (cls.gen.width, cls.gen.height),
                                                                            cls.gen.inputfiles,
                                                                            cls.gen.hybrid_frame_path, cls.gen.prev_flow,
                                                                            cls.gen.prev_img,
@@ -1015,7 +1056,7 @@ def make_cadence_frames(cls: Any) -> None:
                                                                                             'flow_factor'])
                             cls.gen.prev_flow = cls.gen.flow
                         else:
-                            cls.gen.flow = get_flow_for_hybrid_motion(tween_frame_idx - 1, (cls.gen.W, cls.gen.H),
+                            cls.gen.flow = get_flow_for_hybrid_motion(tween_frame_idx - 1, (cls.gen.width, cls.gen.height),
                                                                       cls.gen.inputfiles,
                                                                       cls.gen.hybrid_frame_path, cls.gen.prev_flow,
                                                                       cls.gen.hybrid_flow_method, cls.raft_model,
@@ -1036,12 +1077,12 @@ def make_cadence_frames(cls: Any) -> None:
 
                 # do optical flow cadence after animation warping
                 if cadence_flow is not None:
-                    cadence_flow = abs_flow_to_rel_flow(cadence_flow, cls.gen.W, cls.gen.H)
+                    cadence_flow = abs_flow_to_rel_flow(cadence_flow, cls.gen.width, cls.gen.height)
                     cadence_flow, _, _ = anim_frame_warp(cadence_flow, cls.gen, cls.gen, cls.gen.keys, tween_frame_idx,
                                                          cls.depth_model,
                                                          depth=depth, device=cls.gen.device,
                                                          half_precision=cls.gen.half_precision)
-                    cadence_flow_inc = rel_flow_to_abs_flow(cadence_flow, cls.gen.W, cls.gen.H) * tween
+                    cadence_flow_inc = rel_flow_to_abs_flow(cadence_flow, cls.gen.width, cls.gen.height) * tween
                     if advance_prev:
                         cls.gen.turbo_prev_image = image_transform_optical_flow(cls.gen.turbo_prev_image, cadence_flow_inc,
                                                                                 cls.gen.cadence_flow_factor)
@@ -1078,7 +1119,7 @@ def make_cadence_frames(cls: Any) -> None:
 
 
                 callback_img = cv2.cvtColor(cls.gen.img.astype(np.uint8), cv2.COLOR_BGR2RGB)
-                done = cls.datacallback({"image": Image.fromarray(callback_img)})
+                done = cls.datacallback({"image": Image.fromarray(callback_img), "operation_id":cls.gen.operation_id, "frame_idx":cls.gen.frame_idx})
                 # done = cls.datacallback({"image": Image.fromarray(cv2.cvtColor(cls.gen.img, cv2.COLOR_BGR2RGB))})
                 cls.images.append(callback_img)
 
@@ -1147,7 +1188,15 @@ def save_video_cls(cls):
     dir_path = os.path.join(root_path, 'output/video')
     os.makedirs(dir_path, exist_ok=True)
     output_filename_base = os.path.join(dir_path, cls.gen.timestring)
-    save_as_h264(cls.images, output_filename_base + "_FILM.mp4", fps=30)
+
+    if hasattr(cls.gen, "fps"):
+        fps = cls.gen.fps
+    else:
+        fps = 24
+    try:
+        save_as_h264(cls.images, output_filename_base + "_FILM.mp4", fps=fps)
+    except:
+        print("save as h264 failed")
     cls.gen.video_path = output_filename_base + "_FILM.mp4"
 
 
@@ -1166,7 +1215,7 @@ def calculate_frames_to_add(total_frames: int, interp_x: float) -> int:
     return int(round(frames_to_add))
 
 
-class DeformAnimKeys():
+class DeforumAnimKeys():
     def __init__(self, anim_args, seed=-1, *args, **kwargs):
 
 
@@ -1298,9 +1347,10 @@ class FrameInterpolator:
                 if value_is_number:  # if it's only a number, leave the rest for the default interpolation
                     key_frame_series[i] = self.sanitize_value(value)
             if not value_is_number and value is not None:
+                global t
                 t = i
                 # workaround for values formatted like 0:("I am test") //used for sampler schedules
-                key_frame_series[i] = numexpr.evaluate(str(value)) if not is_single_string else self.sanitize_value(value)
+                key_frame_series[i] = numexpr.evaluate(str(value), casting='unsafe') if not is_single_string else self.sanitize_value(value)
             elif is_single_string:  # take previous string value and replicate it
                 key_frame_series[i] = key_frame_series[i - 1]
         key_frame_series = key_frame_series.astype(float) if not is_single_string else key_frame_series  # as string
@@ -1322,14 +1372,14 @@ class FrameInterpolator:
         # it extracts the value in form of some stuff
         # which has previously been enclosed with brackets and
         # with a comma or end of line existing after the closing one
-
+        global max_f, s
         frames = dict()
         if string is None:
             string = ""
         for match_object in string.split(","):
             frameParam = match_object.split(":")
-            # max_f = self.max_frames - 1
-            # s = self.seed
+            max_f = self.max_frames - 1
+            s = self.seed
             frame = int(self.sanitize_value(frameParam[0])) if check_is_number(
                 self.sanitize_value(frameParam[0].strip())) else int(numexpr.evaluate(
                 frameParam[0].strip().replace("'", "", 1).replace('"', "", 1)[::-1].replace("'", "", 1).replace('"', "",

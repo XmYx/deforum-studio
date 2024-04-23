@@ -9,7 +9,7 @@ import time
 
 import cv2
 import requests
-from basicsr.utils.download_util import load_file_from_url
+from deforum.utils.download_util import load_file_from_url
 from pkg_resources import resource_filename
 
 from deforum.utils.file_dl_util import checksum
@@ -159,7 +159,7 @@ def is_vid_path_valid(video_path):
     return True
 
 
-# quick-retreive frame count, FPS and H/W dimensions of a video (local or URL-based)
+# quick-retreive frame count, FPS and height/W dimensions of a video (local or URL-based)
 def get_quick_vid_info(vid_path):
     vidcap = cv2.VideoCapture(vid_path)
     video_fps = vidcap.get(cv2.CAP_PROP_FPS)

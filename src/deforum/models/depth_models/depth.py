@@ -1,4 +1,7 @@
+import copy
 import math, os, subprocess
+
+import PIL
 import cv2
 import hashlib
 import numpy as np
@@ -78,9 +81,10 @@ class DepthModel:
             raise Exception(f"Unknown depth_algorithm: {self.depth_algorithm}")
 
     def predict(self, prev_img_cv2, midas_weight, half_precision) -> torch.Tensor:
-
-        img_pil = Image.fromarray(cv2.cvtColor(prev_img_cv2.astype(np.uint8), cv2.COLOR_RGB2BGR))
-
+        if not isinstance(prev_img_cv2, PIL.Image.Image):
+            img_pil = Image.fromarray(cv2.cvtColor(prev_img_cv2.astype(np.uint8), cv2.COLOR_RGB2BGR))
+        else:
+            img_pil = copy.deepcopy(prev_img_cv2)
         if self.depth_algorithm.lower().startswith('zoe'):
             depth_tensor = self.zoe_depth.predict(img_pil).to(self.device)
             if self.depth_algorithm.lower() == 'zoe+adabins (old)' and midas_weight < 1.0:
@@ -92,8 +96,8 @@ class DepthModel:
         elif self.depth_algorithm.lower() == 'adabins':
             use_adabins, adabins_depth = AdaBinsModel._instance.predict(img_pil, prev_img_cv2)
             depth_tensor = torch.tensor(adabins_depth)
-            if use_adabins is False:
-                raise Exception("Error getting depth from AdaBins")  # TODO: fallback to something else maybe?
+            #if use_adabins is False:
+            #   raise Exception("Error getting depth from AdaBins")  # TODO: fallback to something else maybe?
         elif self.depth_algorithm.lower().startswith('midas'):
             depth_tensor = self.midas_depth.predict(prev_img_cv2, half_precision)
             if self.depth_algorithm.lower() == 'midas+adabins (old)' and midas_weight < 1.0:

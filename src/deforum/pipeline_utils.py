@@ -4,6 +4,7 @@ import os
 import random
 import secrets
 import time
+import uuid
 
 from .pipelines.deforum_animation.animation_params import (DeforumArgs, DeforumAnimArgs,
                                                            ParseqArgs, LoopArgs, RootArgs,
@@ -100,7 +101,56 @@ class DeforumDataObject:
         for key, value in kwargs.items():
             print(key, value)
             setattr(self, key, value)
+    def to_json_compatible_dict(self):
+        """
+        Convert all instance attributes to a JSON-compatible dictionary.
 
+        Returns:
+            dict: Dictionary containing all instance attributes that are JSON-compatible.
+        """
+        def is_jsonable(x):
+            try:
+                json.dumps(x)
+                return True
+            except (TypeError, OverflowError):
+                return False
+
+        def convert(obj):
+            if isinstance(obj, list):
+                return [convert(item) for item in obj]
+            elif isinstance(obj, dict):
+                return {k: convert(v) for k, v in obj.items()}
+            elif hasattr(obj, 'to_dict'):
+                return convert(obj.to_dict())
+            elif is_jsonable(obj):
+                return obj
+            else:
+                # If it's not JSON serializable, skip it
+                return None
+
+        json_compatible_dict = {}
+        for key, value in self.__dict__.items():
+            try:
+                # Convert the value if possible, otherwise it will be None
+                converted_value = convert(value)
+                if converted_value is not None:
+                    json_compatible_dict[key] = converted_value
+            except TypeError as e:
+                # If there's a TypeError, it means conversion isn't possible; skip this attribute
+                print(f"Skipping attribute '{key}': {e}")
+
+        return json_compatible_dict
+
+    def save_as_json(self, file_path):
+        """
+        Save the JSON-compatible dictionary to a text file.
+
+        Args:
+            file_path (str): The path to the file where the JSON should be saved.
+        """
+        json_compatible_dict = self.to_json_compatible_dict()
+        with open(file_path, 'w') as file:
+            json.dump(json_compatible_dict, file, indent=4)
 
 class DeforumGenerationObject(DeforumDataObject):
     """
@@ -178,6 +228,13 @@ class DeforumGenerationObject(DeforumDataObject):
         self.opencv_image = None
         self.use_areas = False
         self.areas = areas
+        self.operation_id = uuid.uuid4().hex
+        self.depth = None
+        self.skip_hybrid_paths = False
+        self.inputfiles = None
+        self.amount = 0
+        self.noise = 0.002
+        self.skip_video_creation = False
 
         # Set all provided keyword arguments as attributes
         for key, value in kwargs.items():

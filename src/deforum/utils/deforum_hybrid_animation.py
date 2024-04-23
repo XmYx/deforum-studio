@@ -110,7 +110,7 @@ def hybrid_composite(args, anim_args, frame_idx, prev_img, depth_model, hybrid_c
         video_image = load_image_with_mask(args.init_image, args.init_image_box)
     else:
         video_image = Image.open(video_frame)
-    video_image = video_image.resize((args.W, args.H), PIL.Image.LANCZOS)
+    video_image = video_image.resize((args.width, args.height), PIL.Image.LANCZOS)
     hybrid_mask = None
 
     # composite mask types
@@ -188,6 +188,18 @@ def get_matrix_for_hybrid_motion_prev(frame_idx, dimensions, inputfiles, prev_im
         img = cv2.cvtColor(get_resized_image_from_filename(str(inputfiles[frame_idx + 1]), dimensions),
                            cv2.COLOR_BGR2GRAY)
         M = get_transformation_matrix_from_images(prev_img_gray, img, hybrid_motion)
+        return M
+def get_matrix_for_hybrid_motion_prev_imgs(frame_idx, dimensions, goal_img, prev_img, hybrid_motion):
+    print(f"Calculating {hybrid_motion} RANSAC matrix for frames {frame_idx} to {frame_idx + 1}")
+    # first handle invalid images by returning default matrix
+    height, width = prev_img.shape[:2]
+    #x = prev_img.astype(np.float32)
+    if height == 0 or width == 0:
+        return get_hybrid_motion_default_matrix(hybrid_motion)
+    else:
+        prev_img_gray = cv2.cvtColor(prev_img, cv2.COLOR_BGR2GRAY)
+        img = cv2.cvtColor(goal_img, cv2.COLOR_BGR2GRAY)
+        M = get_transformation_matrix_from_images(prev_img_gray.astype(np.uint8), img.astype(np.uint8), hybrid_motion)
         return M
 
 

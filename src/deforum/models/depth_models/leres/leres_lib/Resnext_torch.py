@@ -243,5 +243,5 @@ if __name__ == '__main__':
 
     rgb = torch.rand((2, 3, 256, 256)).cuda()
     out = model(rgb)
-    print(len(out))
+    # print(len(out))
 

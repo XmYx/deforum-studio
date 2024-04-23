@@ -53,10 +53,10 @@ class MidasDepth:
         img_midas_input = self.midas_transform({"image": img_midas})["image"]
         sample = torch.from_numpy(img_midas_input).float().to(self.device).unsqueeze(0)
 
-        if self.device == "cuda" or self.device == "mps":
+        if self.device != "cpu":
             sample = sample.to(memory_format=torch.channels_last)
-            if half_precision:
-                sample = sample.half()
+        if half_precision:
+            sample = sample.half()
 
         with torch.no_grad():
             midas_depth = self.midas_model.forward(sample)

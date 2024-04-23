@@ -780,7 +780,7 @@ def DeforumAnimArgs():
 
 def DeforumArgs():
     return {
-        "W": {
+        "width": {
             "label": "Width",
             "type": "slider",
             "minimum": 8,
@@ -788,7 +788,7 @@ def DeforumArgs():
             "step": 8,
             "value": 768,
         },
-        "H": {
+        "height": {
             "label": "Height",
             "type": "slider",
             "minimum": 64,
