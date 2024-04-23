@@ -42,6 +42,8 @@ from .animation_helpers import (
     generate_interpolated_frames
 )
 
+from .parseq_adapter import ParseqAdapter
+
 from .animation_params import auto_to_comfy
 from ..deforum_pipeline import DeforumBase
 from ...models import DepthModel, RAFT
@@ -182,10 +184,14 @@ class DeforumAnimationPipeline(DeforumBase):
                 _, _, self.gen.inputfiles = hybrid_generation(self.gen, self.gen, self.gen)
                 self.gen.hybrid_frame_path = os.path.join(self.gen.outdir, 'hybridframes')
 
+
+        # use parseq if manifest is provided
+        self.parseq_adapter = ParseqAdapter(self.gen, self.gen, self.gen, self.gen, self.gen)
+
         if int(self.gen.seed) == -1:
             self.gen.seed = secrets.randbelow(18446744073709551615)
-        self.gen.keys = DeforumAnimKeys(self.gen, self.gen.seed)
-        self.gen.loopSchedulesAndData = LooperAnimKeys(self.gen, self.gen, self.gen.seed)
+        self.gen.keys = DeforumAnimKeys(self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.anim_keys
+        self.gen.loopSchedulesAndData = LooperAnimKeys(self.gen, self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.looper_keys
         prompt_series = pd.Series([np.nan for a in range(self.gen.max_frames)])
 
         if self.gen.prompts is not None:

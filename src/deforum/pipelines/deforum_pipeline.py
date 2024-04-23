@@ -1,6 +1,7 @@
 import importlib
 import os
 
+
 from ..utils.model_download import (
     get_filename_from_url,
     download_file,
@@ -120,7 +121,12 @@ class DeforumBase:
             )
             model_path = os.path.join(cache_dir, filename)
         except:
-            model_path = None
+            filepath = os.path.join(cache_dir, filename)
+            if os.path.exists(filepath):
+                print("Warning: error downloading model from CivitAI, using cached model.")
+                model_path = filepath
+            else:
+                model_path = None
 
         # assert model_path is not None
         assert model_path is not None, (

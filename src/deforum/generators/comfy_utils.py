@@ -16,6 +16,7 @@ comfy_submodules = [
 
 comfy_submodule_folders = [url.split("/")[-1] for url in comfy_submodules]
 
+comfy_path = os.environ.get("COMFY_PATH")
 comfy_submodule_folder = os.path.join(comfy_path, "custom_nodes")
 
 
@@ -51,7 +52,10 @@ def ensure_comfy(custom_path=None):
 
     if custom_path is not None:
         comfy_path = custom_path
-        comfy_submodule_folder = os.path.join(comfy_path, "custom_nodes")
+    else:
+        comfy_path = os.environ.get("COMFY_PATH")
+        
+    comfy_submodule_folder = os.path.join(comfy_path, "custom_nodes")
 
     if not os.path.exists(comfy_path):
         # Clone the comfy repository if it doesn't exist

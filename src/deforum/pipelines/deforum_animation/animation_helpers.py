@@ -505,8 +505,8 @@ def get_generation_params(cls: Any) -> None:
     # grab prompt for current frame
     cls.gen.prompt = cls.gen.prompt_series[cls.gen.frame_idx]
 
-    # if cls.gen.seed_behavior == 'schedule' or parseq_adapter.manages_seed():
-    #     cls.gen.seed = int(keys.seed_schedule_series[frame_idx])
+    if cls.gen.seed_behavior == 'schedule' or cls.parseq_adapter.manages_seed():
+        cls.gen.seed = int(keys.seed_schedule_series[frame_idx])
 
     if cls.gen.enable_checkpoint_scheduling:
         cls.gen.checkpoint = cls.gen.keys.checkpoint_schedule_series[cls.gen.frame_idx]
@@ -518,10 +518,13 @@ def get_generation_params(cls: Any) -> None:
         cls.gen.subseed = int(cls.gen.keys.subseed_schedule_series[cls.gen.frame_idx])
         cls.gen.subseed_strength = float(cls.gen.keys.subseed_strength_schedule_series[cls.gen.frame_idx])
 
-    # if parseq_adapter.manages_seed():
-    #     cls.gen.enable_subseed_scheduling = True
-    #     cls.gen.subseed = int(keys.subseed_schedule_series[frame_idx])
-    #     cls.gen.subseed_strength = keys.subseed_strength_schedule_series[frame_idx]
+    if cls.parseq_adapter.manages_seed():
+        cls.gen.enable_subseed_scheduling = True
+        cls.gen.subseed = int(keys.subseed_schedule_series[frame_idx])
+        cls.gen.subseed_strength = keys.subseed_strength_schedule_series[frame_idx]
+
+    if cls.parseq_adapter.manages_prompts():
+        cls.gen.prompt = cls.parseq_adapter.anim_keys.prompts[frame_idx]
 
     # set value back into the prompt - prepare and report prompt and seed
     cls.gen.prompt = prepare_prompt(cls.gen.prompt, cls.gen.max_frames, cls.gen.seed, cls.gen.frame_idx)
