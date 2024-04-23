@@ -836,8 +836,8 @@ def DeforumArgs():
         "sampler": {
             "label": "Sampler",
             "type": "dropdown",
-            "choices": "euler_a",
-            "value": "euler_a",
+            "choices": "euler_ancestral",
+            "value": "euler_ancestral",
         },
         "steps": {
             "label": "step",

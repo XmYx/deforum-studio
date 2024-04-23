@@ -409,7 +409,6 @@ class DeforumAnimationPipeline(DeforumBase):
 
         next_prompt, blend_value = get_next_prompt_and_blend(self.gen.frame_idx, self.gen.prompt_series)
 
-
         if hasattr(self.gen, "sampler_name"):
             from comfy.samplers import SAMPLER_NAMES
 
@@ -435,7 +434,6 @@ class DeforumAnimationPipeline(DeforumBase):
         # if self.gen.use_init and self.gen.init_image:
         #     img = self.gen.init_image
 
-
         self.gen.strength = 1.0 if img is None else self.gen.strength
 
         gen_args = {
@@ -459,7 +457,7 @@ class DeforumAnimationPipeline(DeforumBase):
             gen_args["reset_noise"] = True
 
         if hasattr(self.gen, "style"):
-            if self.gen.style is not "(No Style)" and self.gen.style in STYLE_NAMES:
+            if self.gen.style != "(No Style)" and self.gen.style in STYLE_NAMES:
                 gen_args["prompt"], gen_args["negative_prompt"] = apply_style(self.gen.style, gen_args["prompt"],
                                                                               gen_args["negative_prompt"])
 
@@ -691,7 +689,7 @@ class DeforumAnimationPipeline(DeforumBase):
             if self.gen.frame_idx == 0:
                 gen_args["reset_noise"] = True
             if hasattr(self.gen, "style"):
-                if self.gen.style is not "(No Style)" and self.gen.style in STYLE_NAMES:
+                if self.gen.style != "(No Style)" and self.gen.style in STYLE_NAMES:
                     gen_args["prompt"], gen_args["negative_prompt"] = apply_style(self.gen.style, gen_args["prompt"], gen_args["negative_prompt"])
 
 
