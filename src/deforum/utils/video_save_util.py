@@ -5,6 +5,8 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
+from deforum.utils.logging_config import logger
+
 
 def save_as_gif(frames, filename):
     # Convert frames to gif
@@ -40,7 +42,7 @@ def save_as_h264(frames, filename, audio_path=None, fps=12):
         _, stderr = video_writer.communicate()
 
         if video_writer.returncode != 0:
-            print(f"FFmpeg encountered an error: {stderr.decode('utf-8')}")
+            logger.info(f"FFmpeg encountered an error: {stderr.decode('utf-8')}")
             return
 
         # if audio path is provided, merge the audio and the video
@@ -50,6 +52,6 @@ def save_as_h264(frames, filename, audio_path=None, fps=12):
 
             result = subprocess.run(cmd, stderr=subprocess.PIPE)
             if result.returncode != 0:
-                print(f"Audio file merge failed from path {audio_path}\n{result.stderr.decode('utf-8')}")
+                logger.info(f"Audio file merge failed from path {audio_path}\n{result.stderr.decode('utf-8')}")
     else:
-        print("The buffer is empty, cannot save.")
+        logger.info("The buffer is empty, cannot save.")

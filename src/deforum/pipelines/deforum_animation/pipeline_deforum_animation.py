@@ -42,6 +42,8 @@ from .animation_helpers import (
     generate_interpolated_frames
 )
 
+from .parseq_adapter import ParseqAdapter
+
 from .animation_params import auto_to_comfy
 from ..deforum_pipeline import DeforumBase
 from ...models import DepthModel, RAFT
@@ -53,6 +55,8 @@ from ...utils.image_utils import load_image_with_mask, prepare_mask, check_mask_
 from ...utils.sdxl_styles import STYLE_NAMES, apply_style
 from ...utils.string_utils import split_weighted_subprompts, check_is_number
 from ...utils.video_frame_utils import get_frame_name
+
+from deforum.utils.logging_config import logger
 
 
 class DeforumAnimationPipeline(DeforumBase):
@@ -182,10 +186,14 @@ class DeforumAnimationPipeline(DeforumBase):
                 _, _, self.gen.inputfiles = hybrid_generation(self.gen, self.gen, self.gen)
                 self.gen.hybrid_frame_path = os.path.join(self.gen.outdir, 'hybridframes')
 
+
+        # use parseq if manifest is provided
+        self.parseq_adapter = ParseqAdapter(self.gen, self.gen, self.gen, self.gen, self.gen)
+
         if int(self.gen.seed) == -1:
             self.gen.seed = secrets.randbelow(18446744073709551615)
-        self.gen.keys = DeforumAnimKeys(self.gen, self.gen.seed)
-        self.gen.loopSchedulesAndData = LooperAnimKeys(self.gen, self.gen, self.gen.seed)
+        self.gen.keys = DeforumAnimKeys(self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.anim_keys
+        self.gen.loopSchedulesAndData = LooperAnimKeys(self.gen, self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.looper_keys
         prompt_series = pd.Series([np.nan for a in range(self.gen.max_frames)])
 
         if self.gen.prompts is not None:
@@ -223,8 +231,9 @@ class DeforumAnimationPipeline(DeforumBase):
                                      midas_weight=self.gen.midas_weight)
             if 'adabins' in self.gen.depth_algorithm.lower():
                 self.gen.use_adabins = True
-                print("Setting AdaBins usage")
-            print(f"[ Loaded Depth model ]")
+                
+                logger.info("Setting AdaBins usage")
+            logger.info(f"[ Loaded Depth model ]")
             # depth-based hybrid composite mask requires saved depth maps
             if self.gen.hybrid_composite != 'None' and self.gen.hybrid_comp_mask_type == 'Depth':
                 self.gen.save_depth_maps = True
@@ -237,7 +246,7 @@ class DeforumAnimationPipeline(DeforumBase):
                     (self.gen.hybrid_motion == "Optical Flow" and self.gen.hybrid_flow_method == "RAFT") or \
                     (self.gen.optical_flow_redo_generation == "RAFT")
         if load_raft:
-            print("[ Loading RAFT model ]")
+            logger.info("[ Loading RAFT model ]")
             self.raft_model = RAFT()
 
         if self.gen.use_areas:
@@ -514,7 +523,7 @@ class DeforumAnimationPipeline(DeforumBase):
                 self.gen.sampler_name = auto_to_comfy[self.gen.sampler_name]["sampler"]
                 self.gen.scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
 
-        print("GENERATE'S SAMPLER NAME", self.gen.sampler_name, self.gen.scheduler)
+        logger.info(f"GENERATE'S SAMPLER NAME: {self.gen.sampler_name}, {self.gen.scheduler}")
 
         if self.gen.use_looper and self.gen.animation_mode in ['2D', '3D']:
             self.gen.strength = self.gen.imageStrength
@@ -550,7 +559,7 @@ class DeforumAnimationPipeline(DeforumBase):
                     blendFactor = self.gen.blendFactorMax - self.gen.blendFactorSlope * math.cos(
                         (self.gen.frame_idx % tweeningFrames) / (tweeningFrames / 2))
             else:
-                print("LOOPER ERROR, AVOIDING DIVISION BY 0")
+                logger.warn("LOOPER ERROR, AVOIDING DIVISION BY 0")
             init_image2, _ = load_image_with_mask(list(jsonImages.values())[frameToChoose],
                                       shape=(self.gen.width, self.gen.height),
                                       use_alpha_as_mask=self.gen.use_alpha_as_mask)

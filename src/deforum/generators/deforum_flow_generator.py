@@ -5,9 +5,10 @@ import cv2
 import numpy as np
 
 from .deforum_flow_consistency import make_consistency
-from ..utils.image_utils import (get_resized_image_from_filename,
+from deforum.utils.image_utils import (get_resized_image_from_filename,
                                  custom_gaussian_blur,
                                  center_crop_image)
+from deforum.utils.logging_config import logger
 
 
 def get_flow_for_hybrid_motion(frame_idx,
@@ -20,8 +21,7 @@ def get_flow_for_hybrid_motion(frame_idx,
                                consistency_check=True,
                                consistency_blur=0,
                                do_flow_visualization=False):
-    print(
-        f"Calculating {method} optical flow {'w/consistency mask' if consistency_check else ''} for frames {frame_idx} to {frame_idx + 1}")
+    logger.info(f"Calculating {method} optical flow {'w/consistency mask' if consistency_check else ''} for frames {frame_idx} to {frame_idx + 1}")
     i1 = get_resized_image_from_filename(str(inputfiles[frame_idx]), dimensions)
     i2 = get_resized_image_from_filename(str(inputfiles[frame_idx + 1]), dimensions)
     if consistency_check:
@@ -45,8 +45,7 @@ def get_flow_for_hybrid_motion_prev(frame_idx,
                                     consistency_check=True,
                                     consistency_blur=0,
                                     do_flow_visualization=False):
-    print(
-        f"Calculating {method} optical flow {'w/consistency mask' if consistency_check else ''} for frames {frame_idx} to {frame_idx + 1}")
+    logger.info(f"Calculating {method} optical flow {'w/consistency mask' if consistency_check else ''} for frames {frame_idx} to {frame_idx + 1}")
     reliable_flow = None
     # first handle invalid images by returning default flow
     height, width = prev_img.shape[:2]
@@ -143,7 +142,7 @@ def get_flow_from_images(i1, i2, method, raft_model, prev_flow=None):
     elif method == "PCAFlow":  # Unused - requires running opencv-contrib-python (full opencv) INSTEAD of opencv-python
         return get_flow_from_images_PCAFlow(i1, i2, prev_flow)
     elif method == "Farneback":  # Farneback Normal:
-        return get_flow_from_images_Farneback(i1, i2, prev_flow)
+        return get_flow_from_images_Farneback(i1, i2, "normal", prev_flow)
     # if we reached this point, something went wrong. raise an error:
     raise RuntimeError(f"Invald flow method name: '{method}'")
 
@@ -244,7 +243,7 @@ def save_flow_visualization(frame_idx, dimensions, flow, inputfiles, hybrid_fram
     flow_img = draw_flow_lines_in_grid_in_color(flow_img, flow)
     flow_img = cv2.cvtColor(flow_img, cv2.COLOR_BGR2RGB)
     cv2.imwrite(flow_img_file, flow_img)
-    print(f"Saved optical flow visualization: {flow_img_file}")
+    logger.info(f"Saved optical flow visualization: {flow_img_file}")
 
 
 def save_flow_mask_visualization(frame_idx, reliable_flow, hybrid_frame_path, color=True):
@@ -266,7 +265,7 @@ def save_flow_mask_visualization(frame_idx, reliable_flow, hybrid_frame_path, co
         # Replicate the grayscale channel three times to form a BGR image
         mask_image = np.stack((grayscale_image, grayscale_image, grayscale_image), axis=2)
     cv2.imwrite(flow_mask_img_file, mask_image)
-    print(f"Saved mask flow visualization: {flow_mask_img_file}")
+    logger.info(f"Saved mask flow visualization: {flow_mask_img_file}")
 
 
 def reliable_flow_to_image(reliable_flow):

@@ -8,6 +8,9 @@ import torch
 import torchsde
 
 from deforum.utils.constants import comfy_path, root_path
+from deforum.utils.logging_config import logger
+from deforum.utils.string_utils import str_to_bool
+
 
 comfy_submodules = [
     "https://github.com/XmYx/ComfyUI-AnimateDiff-Evolved",
@@ -16,6 +19,7 @@ comfy_submodules = [
 
 comfy_submodule_folders = [url.split("/")[-1] for url in comfy_submodules]
 
+comfy_path = os.environ.get("COMFY_PATH")
 comfy_submodule_folder = os.path.join(comfy_path, "custom_nodes")
 
 
@@ -33,14 +37,14 @@ def clone_repo(repo_url):
     try:
         subprocess.run(["git", "clone", repo_url])
     except Exception as e:
-        print(f"An error occurred while cloning: {e}")
+        logger.error(f"An error occurred while cloning: {e}")
 
 
 def clone_repo_to(repo_url, dest_path):
     try:
         subprocess.run(["git", "clone", repo_url, dest_path])
     except Exception as e:
-        print(f"An error occurred while cloning: {e}")
+        logger.error(f"An error occurred while cloning: {e}")
 
 
 def add_to_sys_path(path):
@@ -51,12 +55,17 @@ def ensure_comfy(custom_path=None):
 
     if custom_path is not None:
         comfy_path = custom_path
-        comfy_submodule_folder = os.path.join(comfy_path, "custom_nodes")
+    else:
+        comfy_path = os.environ.get("COMFY_PATH")
+
+    comfy_update = str_to_bool(os.environ.get("COMFY_UPDATE", "False"))
+        
+    comfy_submodule_folder = os.path.join(comfy_path, "custom_nodes")
 
     if not os.path.exists(comfy_path):
         # Clone the comfy repository if it doesn't exist
         clone_repo_to("https://github.com/comfyanonymous/ComfyUI", comfy_path)
-    else:
+    elif comfy_update:
         # If comfy directory exists, update it.
         with change_dir(comfy_path):
             subprocess.run(["git", "pull"])

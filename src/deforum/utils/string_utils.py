@@ -6,8 +6,8 @@ import numexpr
 import numpy as np
 import pandas as pd
 
-from ..utils.constants import get_os
-
+from .constants import get_os
+from deforum.utils.logging_config import logger
 
 def substitute_placeholders(template, arg_list, base_folder_path):
     # Find and update timestring values if resume_from_timestring is True
@@ -45,7 +45,7 @@ def parse_weight(match, frame=0, max_frames=0) -> float:
     else:
         t = frame
         if len(w_raw) < 3:
-            print('the value inside `-characters cannot represent a math function')
+            logger.info('the value inside `-characters cannot represent a math function')
             return 1
         return float(numexpr.evaluate(w_raw[1:-1]))
 
@@ -100,7 +100,7 @@ def interpolate_prompts(animation_prompts, max_frames):
         # Ensure there's no weird ordering issues or duplication in the animation prompts
         # (unlikely because we sort above, and the json parser will strip dupes)
         if current_frame >= next_frame:
-            print(
+            logger.warn(
                 f"WARNING: Sequential prompt keyframes {i}:{current_frame} and {i + 1}:{next_frame} are not monotonously increasing; skipping interpolation.")
             continue
 
@@ -146,7 +146,7 @@ def interpolate_prompts(animation_prompts, max_frames):
     for i, prompt in parsed_animation_prompts.items():
         prompt_series[int(i)] = prompt
         if ' AND ' in prompt:
-            print(
+            logger.warn(
                 f"WARNING: keyframe {i}'s prompt is using composable diffusion (aka the 'AND' keyword). This will cause unexpected behaviour with interpolation.")
 
     # Return the filled series, in case max_frames is greater than the last keyframe or any ranges were skipped.
@@ -168,11 +168,10 @@ def prepare_prompt(prompt_series, max_frames, seed, frame_idx):
     prompt_to_print = prompt_to_print.strip()
     after_neg = "".join(after_neg).strip()
 
-    # print(f"\033[32mSeed: \033[0m{seed}")
-    # print(f"\033[35mPrompt: \033[0m{prompt_to_print}")
-    # if after_neg and after_neg.strip():
-    #     print(f"\033[91mNeg Prompt: \033[0m{after_neg}")
-    #     prompt_to_print += f"--neg {after_neg}"
+    logger.info(f"\033[35mPrompt: \033[0m{prompt_to_print}")
+    if after_neg and after_neg.strip():
+        logger.info(f"\033[91mNeg Prompt: \033[0m{after_neg}")
+        prompt_to_print += f"--neg {after_neg}"
 
     # set value back into the prompt
     return prompt_to_print
@@ -203,3 +202,15 @@ def test_long_path_support(base_folder_path):
         return True
     except OSError:
         return False
+
+
+def tickOrCross(value):
+    return "✅" if value else "❌"
+
+def str_to_bool(value):
+    if value.lower() in ('true', '1', 't', 'y', 'yes'):
+        return True
+    elif value.lower() in ('false', '0', 'f', 'n', 'no'):
+        return False
+    else:
+        raise ValueError(f"Invalid boolean value: {value}")

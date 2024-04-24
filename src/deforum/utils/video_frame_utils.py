@@ -15,6 +15,7 @@ from pkg_resources import resource_filename
 from deforum.utils.file_dl_util import checksum
 from deforum.utils.gradio_utils import clean_gradio_path_strings
 from deforum.utils.rich_console import console
+from deforum.utils.logging_config import logger
 
 
 # from modules.shared import state, opts
@@ -38,7 +39,7 @@ def convert_image(input_path, output_path):
     elif out_ext == ".bmp":
         cv2.imwrite(output_path, img)
     else:
-        print(f"Unsupported output format: {out_ext}")
+        logger.warn(f"Unsupported output format: {out_ext}")
 
 
 def get_ffmpeg_params():  # get ffmpeg params from webui's settings -> deforum tab. actual opts are set in deforum.py
@@ -102,7 +103,7 @@ def vid2frames(video_path, video_in_frame_path, n=1, overwrite=True, extract_fro
             os.makedirs(video_in_frame_path, exist_ok=True)  # just deleted the folder so we need to make it again
             input_content = os.listdir(video_in_frame_path)
 
-        print(f"Trying to extract frames from video with input FPS of {video_fps}. Please wait patiently.")
+        logger.info(f"Trying to extract frames from video with input FPS of {video_fps}. Please wait patiently.")
         if len(input_content) == 0:
             vidcap.set(cv2.CAP_PROP_POS_FRAMES, extract_from_frame)  # Set the starting frame
             success, image = vidcap.read()
@@ -126,9 +127,9 @@ def vid2frames(video_path, video_in_frame_path, n=1, overwrite=True, extract_fro
                         t += 1
                     count += 1
                     success, image = vidcap.read()
-            print(f"Extracted {count} frames from video in {time.time() - start_time:.2f} seconds!")
+            logger.info(f"Extracted {count} frames from video in {time.time() - start_time:.2f} seconds!")
         else:
-            print("Frames already unpacked")
+            logger.info("Frames already unpacked")
         vidcap.release()
         return video_fps
 
@@ -178,9 +179,7 @@ def ffmpeg_stitch_video(ffmpeg_location=None, fps=None, outmp4_path=None, stitch
                         imgs_path=None, add_soundtrack=None, audio_path=None, crf=17, preset='veryslow', srt_path=None):
     start_time = time.time()
 
-    print(f"Got a request to stitch frames to video using FFmpeg.\nFrames:\n{imgs_path}\nTo Video:\n{outmp4_path}")
-    msg_to_print = f"Stitching *video*..."
-    console.print(msg_to_print, style="blink yellow", end="")
+    logger.info(f"Got a request to stitch frames to video using FFmpeg.\nFrames:\n{imgs_path}\nTo Video:\n{outmp4_path}")
     if stitch_to_frame == -1:
         stitch_to_frame = 999999999
     try:
@@ -192,13 +191,9 @@ def ffmpeg_stitch_video(ffmpeg_location=None, fps=None, outmp4_path=None, stitch
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         stdout, stderr = process.communicate()
     except FileNotFoundError:
-        print("\r" + " " * len(msg_to_print), end="", flush=True)
-        print(f"\r{msg_to_print}", flush=True)
         raise FileNotFoundError(
             "FFmpeg not found. Please make sure you have a working ffmpeg path under 'ffmpeg_location' parameter.")
     except Exception as e:
-        print("\r" + " " * len(msg_to_print), end="", flush=True)
-        print(f"\r{msg_to_print}", flush=True)
         raise Exception(f'Error stitching frames to video. Actual runtime error:{e}')
 
     add_soundtrack_status = None
@@ -256,18 +251,13 @@ def ffmpeg_stitch_video(ffmpeg_location=None, fps=None, outmp4_path=None, stitch
             add_srt_status = f"\rError adding subtitles to video: {e}"
             add_srt_success = False
 
-    print("\r" + " " * len(msg_to_print), end="", flush=True)
-    print(f"\r{msg_to_print}", flush=True)
-
-    status_summary = f"\rVideo stitching \033[0;32mdone\033[0m in {time.time() - start_time:.2f} seconds!"
+    logger.info(f"\rVideo stitching \033[0;32mdone\033[0m in {time.time() - start_time:.2f} seconds!")
     if add_soundtrack_status:
-        print(add_soundtrack_status, flush=True)
-        status_summary += " Audio embedded successfully." if add_soundtrack_success else " Sorry, no audio - see above for errors."
+        logger.info(add_soundtrack_status)
+        logger.info(" Audio embedded successfully." if add_soundtrack_success else " Sorry, no audio - see above for errors.")
     if add_srt_status:
-        print(add_srt_status, flush=True)
-        status_summary += " Subtitles embedded successfully." if add_srt_success else " Sorry, no subtitles - see above for errors."
-
-    print(status_summary, flush=True)
+        logger.info(add_srt_status)
+        logger.info(" Subtitles embedded successfully." if add_srt_success else " Sorry, no subtitles - see above for errors.")
 
 
 def get_frame_name(path):
@@ -321,7 +311,7 @@ def direct_stitch_vid_from_frames(image_path, fps, add_soundtrack, audio_path):
         except (AttributeError, ValueError):
             pass
     if min_id is None or not all(os.path.isfile(image_path % (min_id + i)) for i in range(2)):
-        print("Couldn't find images that match the provided path/ pattern. At least 2 matched images are required.")
+        logger.warn("Couldn't find images that match the provided path/ pattern. At least 2 matched images are required.")
         return
     out_mp4_path = get_manual_frame_to_vid_output_path(image_path)
     ffmpeg_stitch_video(ffmpeg_location=f_location, fps=fps, outmp4_path=out_mp4_path, stitch_from_frame=min_id,
@@ -411,16 +401,16 @@ def handle_imgs_deletion(vid_path=None, imgs_folder_path=None, batch_id=None):
         total_imgs_to_delete = count_matching_frames(imgs_folder_path, batch_id)
         if total_imgs_to_delete is None or total_imgs_to_delete == 0:
             return
-        print("Deleting raw images, as requested:")
+        logger.info("Deleting raw images, as requested:")
         _, fcount, _ = get_quick_vid_info(vid_path)
         if fcount == total_imgs_to_delete:
             total_imgs_deleted = delete_matching_frames(imgs_folder_path, batch_id)
-            print(f"Deleted {total_imgs_deleted} out of {total_imgs_to_delete} imgs!")
+            logger.info(f"Deleted {total_imgs_deleted} out of {total_imgs_to_delete} imgs!")
         else:
-            print(
+            logger.info(
                 "Did not delete imgs as there was a mismatch between # of frames in folder, and # of frames in actual video. Please check and delete manually. ")
     except Exception as e:
-        print(f"Error deleting raw images. Please delete them manually if you want. Actual error:\n{e}")
+        logger.info(f"Error deleting raw images. Please delete them manually if you want. Actual error:\n{e}")
 
 
 def delete_matching_frames(from_folder, img_batch_id):

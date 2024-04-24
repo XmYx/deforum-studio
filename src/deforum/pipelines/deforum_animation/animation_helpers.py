@@ -41,6 +41,8 @@ from ...utils.video_frame_utils import (get_frame_name,
                                         get_next_frame)
 from ...utils.video_save_util import save_as_h264
 
+from deforum.utils.logging_config import logger
+
 
 def anim_frame_warp_cls(cls: Any) -> None:
     """
@@ -321,7 +323,7 @@ def optical_flow_motion(cls: Any) -> None:
         None: Modifies the class instance attributes in place.
     """
     if cls.gen.frame_idx < 1:
-        print("Skipping optical flow motion for first frame.")
+        logger.info("Skipping optical flow motion for first frame.")
         return
 
     if cls.gen.prev_img is not None and cls.gen.inputfiles is not None:
@@ -505,8 +507,8 @@ def get_generation_params(cls: Any) -> None:
     # grab prompt for current frame
     cls.gen.prompt = cls.gen.prompt_series[cls.gen.frame_idx]
 
-    # if cls.gen.seed_behavior == 'schedule' or parseq_adapter.manages_seed():
-    #     cls.gen.seed = int(keys.seed_schedule_series[frame_idx])
+    if cls.gen.seed_behavior == 'schedule' or cls.parseq_adapter.manages_seed():
+        cls.gen.seed = int(keys.seed_schedule_series[frame_idx])
 
     if cls.gen.enable_checkpoint_scheduling:
         cls.gen.checkpoint = cls.gen.keys.checkpoint_schedule_series[cls.gen.frame_idx]
@@ -518,10 +520,13 @@ def get_generation_params(cls: Any) -> None:
         cls.gen.subseed = int(cls.gen.keys.subseed_schedule_series[cls.gen.frame_idx])
         cls.gen.subseed_strength = float(cls.gen.keys.subseed_strength_schedule_series[cls.gen.frame_idx])
 
-    # if parseq_adapter.manages_seed():
-    #     cls.gen.enable_subseed_scheduling = True
-    #     cls.gen.subseed = int(keys.subseed_schedule_series[frame_idx])
-    #     cls.gen.subseed_strength = keys.subseed_strength_schedule_series[frame_idx]
+    if cls.parseq_adapter.manages_seed():
+        cls.gen.enable_subseed_scheduling = True
+        cls.gen.subseed = int(keys.subseed_schedule_series[frame_idx])
+        cls.gen.subseed_strength = keys.subseed_strength_schedule_series[frame_idx]
+
+    if cls.parseq_adapter.manages_prompts():
+        cls.gen.prompt = cls.parseq_adapter.anim_keys.prompts[frame_idx]
 
     # set value back into the prompt - prepare and report prompt and seed
     cls.gen.prompt = prepare_prompt(cls.gen.prompt, cls.gen.max_frames, cls.gen.seed, cls.gen.frame_idx)
@@ -824,7 +829,7 @@ def generate_interpolated_frames(cls):
             #                          f"F#: {tween_frame_idx}; Cadence: {tween < 1.0}; Seed: {cls.gen.seed}; {params_string}")
             #     params_string = None
 
-            print(
+            logger.info(
                 f"Creating in-between {'' if cadence_flow is None else cls.gen.optical_flow_cadence + ' optical flow '}cadence frame: {tween_frame_idx}; tween:{tween:0.2f};")
 
             if cls.depth_model is not None:
@@ -1196,7 +1201,7 @@ def save_video_cls(cls):
     try:
         save_as_h264(cls.images, output_filename_base + "_FILM.mp4", fps=fps)
     except:
-        print("save as h264 failed")
+        logger.error("save as h264 failed")
     cls.gen.video_path = output_filename_base + "_FILM.mp4"
 
 

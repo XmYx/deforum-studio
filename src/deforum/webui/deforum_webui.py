@@ -8,6 +8,8 @@ from omegaconf import OmegaConf
 
 from deforum import shared_storage as gs
 
+from deforum.utils.logging_config import logger
+
 st.set_page_config(layout="wide")
 
 curr_folder = os.path.dirname(os.path.abspath(__file__))
@@ -34,7 +36,7 @@ def load_config_and_initialize():
 config = load_config_and_initialize()
 
 if "models" not in gs.data:
-    print("Instantiating models dictionary in singleton")
+    logger.info("Instantiating models dictionary in singleton")
     gs.data["models"] = {}
 
 
@@ -64,7 +66,7 @@ def main():
 
     def load_deforum():
         if "deforum_pipe" not in models:
-            print("LOADING DEFORUM INTO ST")
+            logger.info("LOADING DEFORUM INTO ST")
             from deforum import DeforumAnimationPipeline
             #["deforum_pipe"] = DeforumAnimationPipeline.from_civitai(model_id="125703")
             models["deforum_pipe"] = DeforumAnimationPipeline.from_file("/home/mix/Downloads/D4ll34_001CKPT.safetensors")
@@ -150,12 +152,12 @@ def toggle_tab():
 
         for tab, module in st.session_state.modules.items():
 
-            print("tab, module", tab, module)
+            logger.info(f"tab, module {tab}, {module}")
             if not isinstance(module, str):
                 modules[tab] = st.toggle(f"Enable {module.plugin_info['name']}")
 
         if st.form_submit_button('Update Tabs'):
-            print(st.session_state.modules)
+            logger.info(f"{st.session_state.modules}")
 
             # Update the active modules in session state
             # active_modules = [tab for tab, is_active in modules.items() if is_active]
@@ -168,7 +170,7 @@ def toggle_tab():
 
 
 def main__():
-    print("MODULES", os.listdir(f'{curr_folder}/deforum_webui_modules'))
+    logger.info(f"MODULES: {os.listdir(f'{curr_folder}/deforum_webui_modules')}")
     module_files = [f for f in os.listdir(f'{curr_folder}/deforum_webui_modules') if
                     f.endswith('.py') and f != '__init__.py']
 

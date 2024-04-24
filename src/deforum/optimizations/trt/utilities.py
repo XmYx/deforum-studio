@@ -20,6 +20,7 @@ import copy
 from collections import OrderedDict
 from enum import Enum, auto
 from logging import error, warning
+from deforum.utils.logging_config import logger
 
 import numpy as np
 import onnx
@@ -194,7 +195,7 @@ class Engine:
                     values = convert_int64(values)
                 refit_dict[name] = values
 
-        print(f"Refitting TensorRT engine with {onnx_refit_path} weights")
+        logger.info(f"Refitting TensorRT engine with {onnx_refit_path} weights")
         refit_nodes = gs.import_onnx(onnx.load(onnx_refit_path)).toposort().nodes
 
         # Construct mapping from weight names in refit model -> original model
@@ -242,7 +243,7 @@ class Engine:
             # Constant nodes in ONNX do not have inputs but have a constant output
             if n.op == "Constant":
                 name = map_name(n.outputs[0].name)
-                print(f"Add Constant {name}\n")
+                logger.info(f"Add Constant {name}\n")
                 try:
                     add_to_map(refit_dict, name, n.outputs[0].values)
                 except:
@@ -272,7 +273,7 @@ class Engine:
                         add_to_map(refit_dict, name, inp.values)
 
         if dump_refit_path is not None:
-            print("Finished refit. Dumping result to disk.")
+            logger.info("Finished refit. Dumping result to disk.")
             save_file(
                 refit_dict, dump_refit_path
             )  # TODO need to come up with delta system to save only changed weights
@@ -293,10 +294,10 @@ class Engine:
             if refit_dict[custom_name] is not None:
                 refitter.set_weights(layer_name, weights_role, refit_dict[custom_name])
             else:
-                print(f"[W] No refit weights for layer: {layer_name}")
+                logger.info(f"[W] No refit weights for layer: {layer_name}")
 
         if not refitter.refit_cuda_engine():
-            print("Failed to refit!")
+            logger.info("Failed to refit!")
             exit(0)
 
     def refit_from_dump(self, dump_refit_path):
@@ -322,10 +323,10 @@ class Engine:
             if refit_dict[custom_name] is not None:
                 refitter.set_weights(layer_name, weights_role, refit_dict[custom_name])
             else:
-                print(f"[W] No refit weights for layer: {layer_name}")
+                logger.info(f"[W] No refit weights for layer: {layer_name}")
 
         if not refitter.refit_cuda_engine():
-            print("Failed to refit!")
+            logger.info("Failed to refit!")
             exit(0)
 
     def build(
@@ -339,7 +340,7 @@ class Engine:
         timing_cache=None,
         update_output_names=None,
     ):
-        print(f"Building TensorRT engine for {onnx_path}: {self.engine_path}")
+        logger.info(f"Building TensorRT engine for {onnx_path}: {self.engine_path}")
         p = [Profile()]
         if input_profile:
             p = [Profile() for i in range(len(input_profile))]
@@ -356,7 +357,7 @@ class Engine:
             onnx_path, flags=[trt.OnnxParserFlag.NATIVE_INSTANCENORM]
         )
         if update_output_names:
-            print(f"Updating network outputs to {update_output_names}")
+            logger.info(f"Updating network outputs to {update_output_names}")
             network = ModifyNetworkOutputs(network, update_output_names)
 
         builder = network[0]
@@ -414,7 +415,7 @@ class Engine:
         return 0
 
     def load(self):
-        print(f"Loading TensorRT engine: {self.engine_path}")
+        logger.info(f"Loading TensorRT engine: {self.engine_path}")
         self.engine = engine_from_bytes(bytes_from_path(self.engine_path))
 
     def activate(self, reuse_device_memory=None):
