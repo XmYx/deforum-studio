@@ -1,7 +1,6 @@
 import argparse
 import os
 
-
 def start_deforum_cli():
 
     parser = argparse.ArgumentParser(description="Load settings from a txt file and run the deforum process.")

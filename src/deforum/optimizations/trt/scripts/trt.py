@@ -9,7 +9,7 @@ from modules import script_callbacks, sd_unet, devices
 from modules import shared
 from torch.cuda import nvtx
 from utilities import Engine
-
+from deforum.utils.logging_config import logger
 
 class TrtUnetOption(sd_unet.SdUnetOption):
     def __init__(self, name: str, filename: List[dict]):
@@ -116,7 +116,7 @@ class TrtUnet(sd_unet.SdUnet):
 
     def activate(self):
         self.engine.load()
-        print(self.engine)
+        logger.info(self.engine)
         self.engine_vram_req = self.engine.engine.device_memory_size
         self.engine.activate(True)
 

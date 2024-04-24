@@ -13,7 +13,7 @@ from ..utils.image_utils import (get_resized_image_from_filename,
 from ..utils.video_frame_utils import (vid2frames,
                                        get_quick_vid_info,
                                        get_frame_name)
-
+from deforum.utils.logging_config import logger
 
 def delete_all_imgs_in_folder(folder_path):
     files = list(pathlib.Path(folder_path).glob('*.jpg'))
@@ -38,8 +38,8 @@ def hybrid_generation(args, anim_args, root):
             delete_all_imgs_in_folder(hybrid_frame_path)
 
         # save the video frames from input video
-        print(f"Video to extract: {anim_args.video_init_path}")
-        print(f"Extracting video (1 every {anim_args.extract_nth_frame}) frames to {video_in_frame_path}...")
+        logger.info(f"Video to extract: {anim_args.video_init_path}")
+        logger.info(f"Extracting video (1 every {anim_args.extract_nth_frame}) frames to {video_in_frame_path}...")
         video_fps = vid2frames(video_path=anim_args.video_init_path, video_in_frame_path=video_in_frame_path,
                                n=anim_args.extract_nth_frame, overwrite=anim_args.overwrite_extracted_frames,
                                extract_from_frame=anim_args.extract_from_frame,
@@ -48,7 +48,7 @@ def hybrid_generation(args, anim_args, root):
     # extract alpha masks of humans from the extracted input video imgs
     if anim_args.hybrid_generate_human_masks != "None":
         # create a folder for the human masks imgs to live in
-        print(f"Checking /creating a folder for the human masks")
+        logger.info(f"Checking /creating a folder for the human masks")
         os.makedirs(human_masks_path, exist_ok=True)
 
         # delete frames if overwrite = true
@@ -63,7 +63,7 @@ def hybrid_generation(args, anim_args, root):
         output_fps = video_fps / anim_args.extract_nth_frame
 
         # generate the actual alpha masks from the input imgs
-        print(f"Extracting alpha humans masks from the input frames")
+        logger.info(f"Extracting alpha humans masks from the input frames")
         video2humanmasks(video_in_frame_path, human_masks_path, anim_args.hybrid_generate_human_masks, output_fps)
 
     # get sorted list of inputfiles
@@ -78,7 +78,7 @@ def hybrid_generation(args, anim_args, root):
         if anim_args.max_frames < 1:
             raise Exception(
                 f"Error: No input frames found in {video_in_frame_path}! Please check your input video path and whether you've opted to extract input frames.")
-        print(f"Using {anim_args.max_frames} input frames from {video_in_frame_path}...")
+        logger.info(f"Using {anim_args.max_frames} input frames from {video_in_frame_path}...")
 
     # use first frame as init
     if anim_args.hybrid_use_first_frame_as_init_image:
@@ -86,7 +86,7 @@ def hybrid_generation(args, anim_args, root):
             args.init_image = str(f)
             args.init_image_box = None  # init_image_box not used in this case
             args.use_init = True
-            print(f"Using init_image from video: {args.init_image}")
+            logger.info(f"Using init_image from video: {args.init_image}")
             break
 
     return args, anim_args, inputfiles
@@ -170,7 +170,7 @@ def hybrid_composite(args, anim_args, frame_idx, prev_img, depth_model, hybrid_c
 
 
 def get_matrix_for_hybrid_motion(frame_idx, dimensions, inputfiles, hybrid_motion):
-    print(f"Calculating {hybrid_motion} RANSAC matrix for frames {frame_idx} to {frame_idx + 1}")
+    logger.info(f"Calculating {hybrid_motion} RANSAC matrix for frames {frame_idx} to {frame_idx + 1}")
     img1 = cv2.cvtColor(get_resized_image_from_filename(str(inputfiles[frame_idx]), dimensions), cv2.COLOR_BGR2GRAY)
     img2 = cv2.cvtColor(get_resized_image_from_filename(str(inputfiles[frame_idx + 1]), dimensions), cv2.COLOR_BGR2GRAY)
     M = get_transformation_matrix_from_images(img1, img2, hybrid_motion)
@@ -178,7 +178,7 @@ def get_matrix_for_hybrid_motion(frame_idx, dimensions, inputfiles, hybrid_motio
 
 
 def get_matrix_for_hybrid_motion_prev(frame_idx, dimensions, inputfiles, prev_img, hybrid_motion):
-    print(f"Calculating {hybrid_motion} RANSAC matrix for frames {frame_idx} to {frame_idx + 1}")
+    logger.info(f"Calculating {hybrid_motion} RANSAC matrix for frames {frame_idx} to {frame_idx + 1}")
     # first handle invalid images by returning default matrix
     height, width = prev_img.shape[:2]
     if height == 0 or width == 0 or prev_img != np.uint8:
@@ -190,7 +190,7 @@ def get_matrix_for_hybrid_motion_prev(frame_idx, dimensions, inputfiles, prev_im
         M = get_transformation_matrix_from_images(prev_img_gray, img, hybrid_motion)
         return M
 def get_matrix_for_hybrid_motion_prev_imgs(frame_idx, dimensions, goal_img, prev_img, hybrid_motion):
-    print(f"Calculating {hybrid_motion} RANSAC matrix for frames {frame_idx} to {frame_idx + 1}")
+    logger.info(f"Calculating {hybrid_motion} RANSAC matrix for frames {frame_idx} to {frame_idx + 1}")
     # first handle invalid images by returning default matrix
     height, width = prev_img.shape[:2]
     #x = prev_img.astype(np.float32)

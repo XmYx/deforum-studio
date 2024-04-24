@@ -4,6 +4,7 @@ import subprocess
 
 import requests
 from deforum.utils.download_util import load_file_from_url
+from deforum.utils.logging_config import logger
 from tqdm import tqdm
 
 
@@ -23,11 +24,11 @@ def download_file_to(url: str = "",
 
     # Check if file already exists
     if os.path.exists(filepath):
-        print(f"File {filename} already exists in models/checkpoints/")
+        logger.info(f"File {filename} already exists in models/checkpoints/")
         return filename
 
     # Download file in chunks with progress bar
-    print(f"Downloading {filename}...")
+    logger.info(f"Downloading {filename}...")
     response = requests.get(url, stream=True, headers={'Content-Disposition': 'attachment'})
     total_size = int(response.headers.get('content-length', 0))
     block_size = 1024  # 1 Kibibyte
@@ -39,9 +40,9 @@ def download_file_to(url: str = "",
     t.close()
 
     if total_size != 0 and t.n != total_size:
-        print("ERROR: Something went wrong while downloading the file.")
+        logger.error("ERROR: Something went wrong while downloading the file.")
     else:
-        print(f"{filename} downloaded successfully!")
+        logger.info(f"{filename} downloaded successfully!")
     return os.path.join(destination_dir, filename)
 
 

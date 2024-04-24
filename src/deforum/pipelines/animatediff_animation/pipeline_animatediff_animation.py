@@ -8,10 +8,10 @@ import pandas as pd
 import torch
 
 from ..deforum_pipeline import DeforumBase
-from ...pipeline_utils import DeforumGenerationObject, extract_values
-from ...utils.constants import comfy_path
-from ...utils.video_save_util import save_as_h264
-
+from deforum.pipeline_utils import DeforumGenerationObject, extract_values
+from deforum.utils.constants import comfy_path
+from deforum.utils.video_save_util import save_as_h264
+from deforum.utils.logging_config import logger
 
 def generate_keyframe_sequence(prompts, max_frames):
     keyframe_sequence = {}
@@ -212,7 +212,7 @@ class DeforumAnimateDiffPipeline(DeforumBase):
 
             assert self.gen.max_frames % 16 == 0, "Make sure to pass an animatediff max frames value that is a multiple of 16"
             self.latents = {"samples":torch.randn([self.gen.max_frames, 4, self.gen.height // 8, self.gen.width // 8])}
-            print(self.gen.prompts)
+            logger.info(f"Prompts: {self.gen.prompts}")
             self.conds, self.n_conds, self.latents = prompt_scheduler.animate(text=json.dumps(self.gen.prompts).strip("{}"),
                                                                              num_latents=self.latents,
                                                                              print_output=True,
@@ -366,7 +366,7 @@ class DeforumAnimateDiffPipeline(DeforumBase):
         if not self.gen.store_frames_in_ram:
             save_as_h264(self.images, f"output/video/{self.gen.batch_name}.mp4")
             self.gen.video_path = f"output/video/{self.gen.batch_name}.mp4"
-            print("ANIMATEDIFF SAVED", self.gen.video_path)
+            logger.info(f"ANIMATEDIFF SAVED: {self.gen.video_path}")
         return self.gen
 
 animate_diff_defaults = {

@@ -5,6 +5,7 @@ import random
 import secrets
 import time
 import uuid
+from deforum.utils.logging_config import logger
 
 from .pipelines.deforum_animation.animation_params import (DeforumArgs, DeforumAnimArgs,
                                                            ParseqArgs, LoopArgs, RootArgs,
@@ -99,8 +100,8 @@ class DeforumDataObject:
             **kwargs: Arbitrary keyword arguments.
         """
         for key, value in kwargs.items():
-            print(key, value)
             setattr(self, key, value)
+
     def to_json_compatible_dict(self):
         """
         Convert all instance attributes to a JSON-compatible dictionary.
@@ -137,7 +138,7 @@ class DeforumDataObject:
                     json_compatible_dict[key] = converted_value
             except TypeError as e:
                 # If there's a TypeError, it means conversion isn't possible; skip this attribute
-                print(f"Skipping attribute '{key}': {e}")
+                logger.error(f"Skipping attribute '{key}': {e}")
 
         return json_compatible_dict
 
@@ -239,7 +240,7 @@ class DeforumGenerationObject(DeforumDataObject):
         # Set all provided keyword arguments as attributes
         for key, value in kwargs.items():
             if key == 'animation_prompts':
-                print("SETTING GENERATION OBJECT", key, value)
+                logger.info(f"SETTING GENERATION OBJECT: {key}, {value}")
 
             setattr(self, key, value)
 

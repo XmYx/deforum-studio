@@ -4,6 +4,8 @@ from urllib.parse import urlparse
 import requests
 from tqdm import tqdm
 
+from deforum.utils.logging_config import logger
+
 
 def get_filename_from_url(url: str) -> str:
     parsed_url = urlparse(url)
@@ -26,17 +28,17 @@ def download_file(
     # Check if the file already exists
     if os.path.exists(filepath):
         if not force_download:
-            print(
+            logger.info(
                 f"File {filename} already exists at {destination}. Use force_download=True to re-download."
             )
             return filename
         else:
-            print(
+            logger.info(
                 f"File {filename} already exists at {destination}. Re-downloading as per request."
             )
 
     # Download the file with a progress bar
-    print(f"Downloading {filename}...")
+    logger.info(f"Downloading {filename}...")
     response = requests.get(f'{download_url}{token}', stream=True, headers={'Content-Disposition': 'attachment'})
     total_size = int(response.headers.get("content-length", 0))
     block_size = 1024  # 1 Kibibyte
@@ -49,9 +51,9 @@ def download_file(
 
     # Check for possible download errors
     if total_size != 0 and t.n != total_size:
-        print("ERROR: Something went wrong while downloading the file.")
+        logger.info("ERROR: Something went wrong while downloading the file.")
     else:
-        print(f"{filename} downloaded successfully!")
+        logger.info(f"{filename} downloaded successfully!")
 
     return filename
 
