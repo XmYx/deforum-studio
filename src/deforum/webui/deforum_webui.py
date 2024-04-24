@@ -66,8 +66,8 @@ def main():
         if "deforum_pipe" not in models:
             print("LOADING DEFORUM INTO ST")
             from deforum import DeforumAnimationPipeline
-            #["deforum_pipe"] = DeforumAnimationPipeline.from_civitai(model_id="125703")
-            models["deforum_pipe"] = DeforumAnimationPipeline.from_file("/home/mix/Downloads/D4ll34_001CKPT.safetensors")
+            models["deforum_pipe"] = DeforumAnimationPipeline.from_civitai(model_id="125703")
+            # models["deforum_pipe"] = DeforumAnimationPipeline.from_file("/home/mix/Downloads/D4ll34_001CKPT.safetensors")
         else:
             st.session_state['loaded'] = True
 
