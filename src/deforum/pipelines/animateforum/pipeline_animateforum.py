@@ -42,6 +42,7 @@ from ...generators.deforum_flow_generator import get_reliable_flow_from_images
 from ...pipeline_utils import DeforumGenerationObject
 from ...utils.constants import root_path
 from ...utils.deforum_logger_util import Logger
+from deforum.utils.logging_config import logger
 
 import numpy as np
 import cv2
@@ -172,7 +173,7 @@ def animatediff_handler(cls):
         cls.gen.animatediff_steps = 25
     if not hasattr(cls, "animate_flow"):
         cls.animate_flow = None
-    print("ANIMATION HANDLER:")
+    logger.info(f"ANIMATION HANDLER")
     #DETERMINES STRENGTH OF THE ORIGINAL IMAGE vs ANIMATEDIFF INPUT
     alpha = 0.55
     beta = 1.0 - alpha
@@ -300,7 +301,8 @@ def animatediff_handler(cls):
         #cls.gen.prev_img = animatediff_prev_img
         cls.gen.animatediff_prev_img = animatediff_img
 
-        print("BLURRINESS",calculate_blurriness_metric(cls.gen.opencv_image))
+        
+        logger.info(f"BLURRINESS: {calculate_blurriness_metric(cls.gen.opencv_image)}")
         str = cls.gen.keys.strength_schedule_series[cls.gen.frame_idx]
         adj = calculate_blurriness_metric(cls.gen.prev_img)
         if adj > 0.05:

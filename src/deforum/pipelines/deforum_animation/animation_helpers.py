@@ -41,6 +41,8 @@ from ...utils.video_frame_utils import (get_frame_name,
                                         get_next_frame)
 from ...utils.video_save_util import save_as_h264
 
+from deforum.utils.logging_config import logger
+
 
 def anim_frame_warp_cls(cls: Any) -> None:
     """
@@ -321,7 +323,7 @@ def optical_flow_motion(cls: Any) -> None:
         None: Modifies the class instance attributes in place.
     """
     if cls.gen.frame_idx < 1:
-        print("Skipping optical flow motion for first frame.")
+        logger.info("Skipping optical flow motion for first frame.")
         return
 
     if cls.gen.prev_img is not None and cls.gen.inputfiles is not None:
@@ -827,7 +829,7 @@ def generate_interpolated_frames(cls):
             #                          f"F#: {tween_frame_idx}; Cadence: {tween < 1.0}; Seed: {cls.gen.seed}; {params_string}")
             #     params_string = None
 
-            print(
+            logger.info(
                 f"Creating in-between {'' if cadence_flow is None else cls.gen.optical_flow_cadence + ' optical flow '}cadence frame: {tween_frame_idx}; tween:{tween:0.2f};")
 
             if cls.depth_model is not None:
@@ -1199,7 +1201,7 @@ def save_video_cls(cls):
     try:
         save_as_h264(cls.images, output_filename_base + "_FILM.mp4", fps=fps)
     except:
-        print("save as h264 failed")
+        logger.error("save as h264 failed")
     cls.gen.video_path = output_filename_base + "_FILM.mp4"
 
 

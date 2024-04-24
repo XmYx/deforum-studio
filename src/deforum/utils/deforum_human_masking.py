@@ -5,6 +5,8 @@ from pathlib import Path
 
 import torch
 
+from deforum.utils.logging_config import logger
+
 DEBUG_MODE = True
 
 
@@ -24,7 +26,7 @@ def extract_frames(input_video_path, output_imgs_path):
         success, image = vidcap.read()
         if success:
             cv2.imwrite(os.path.join(output_imgs_path, f"frame{i}.png"), image)
-    print(f"{frame_count} frames extracted and saved to {output_imgs_path}")
+    logger.info(f"{frame_count} frames extracted and saved to {output_imgs_path}")
 
 
 def video2humanmasks(input_frames_path, output_folder_path, output_type, fps):

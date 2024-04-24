@@ -6,8 +6,8 @@ from PIL import Image
 
 from .comfy_utils import ensure_comfy
 from .rng_noise_generator import ImageRNGNoise, slerp
-from ..utils.deforum_cond_utils import blend_tensors
-
+from deforum.utils.deforum_cond_utils import blend_tensors
+from deforum.utils.logging_config import logger
 
 class ComfyDeforumGenerator:
 
@@ -56,7 +56,8 @@ class ComfyDeforumGenerator:
 
     def encode_latent(self, vae, latent, seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w, reset_noise=False):
 
-        subseed_strength = 0.6
+        ## TODO this looks wrong! Why override the supplied subseed strength?
+        #subseed_strength = 0.6
 
         with torch.inference_mode():
             latent = latent.to(torch.float32)
@@ -141,7 +142,7 @@ class ComfyDeforumGenerator:
         return model_lora, clip_lora
     @staticmethod
     def load_lcm():
-        print("Deprecated for now")
+        logger.info("Deprecated for now")
         # from deforum.lcm.lcm_pipeline import LatentConsistencyModelPipeline
         #
         # from deforum.lcm.lcm_scheduler import LCMScheduler
@@ -225,7 +226,7 @@ class ComfyDeforumGenerator:
                 cnet_image = torch.from_numpy(np.array(cnet_image).astype(np.float32) / 255.0).unsqueeze(0)
 
             if init_image is None or reset_noise:
-                print(reset_noise, strength)
+                logger.info(f"reset_noise: {reset_noise}; resetting strength to 1.0 from: {strength}")
                 strength = 1.0
                 if latent is None:
 
@@ -259,7 +260,7 @@ class ComfyDeforumGenerator:
                 from nodes import ConditioningSetArea
                 area_setter = ConditioningSetArea()
                 for area in areas:
-                    print("AREA TO USE", area)
+                    logger.info(f"AREA TO USE: {area}")
                     prompt = area.get("prompt", None)
                     if prompt:
 
@@ -287,7 +288,9 @@ class ComfyDeforumGenerator:
             #steps = int((strength) * steps) if (strength != 1.0 or not reset_noise) else steps
             last_step = steps# if last_step is None else last_step
 
-            print(seed, strength, sampler_name, scheduler, scale)
+            logger.info(f"seed/subseed/subseed_str={seed}/{subseed}/{subseed_strength}; strength={strength}; scale={scale}; sampler_name={sampler_name}; scheduler={scheduler};")
+
+            denoise = 1-strength
 
             sample = common_ksampler_with_custom_noise(model=self.model,
                                                        seed=seed,
@@ -298,11 +301,11 @@ class ComfyDeforumGenerator:
                                                        positive=cond,
                                                        negative=self.n_cond,
                                                        latent=latent,
-                                                       denoise=strength,
+                                                       denoise=denoise,
                                                        disable_noise=False,
                                                        start_step=0,
                                                        last_step=last_step,
-                                                       force_full_denoise=True,
+                                                       force_full_denoise=True, # TODO - what does this do?
                                                        noise=self.rng)
             # print(seed, steps, scale, strength, scheduler, sampler_name, init_image)
             #
@@ -342,7 +345,7 @@ class ComfyDeforumGenerator:
                 else:
                     return image
             else:
-                print("decoding multi images")
+                logger.info("decoding multi images")
                 images = []
                 x_samples = self.vae.decode_tiled(sample[0]["samples"])
                 for sample in x_samples:

@@ -6,7 +6,7 @@ from torch.cuda import nvtx
 
 from deforum.optimizations.trt.utilities import Engine
 from deforum.utils.constants import root_path
-
+from deforum.utils.logging_config import logger
 
 class TrtUnet(nn.Module):
     def __init__(
@@ -118,4 +118,4 @@ class TrtUnet(nn.Module):
 
 # comfy.ldm.modules.diffusionmodules.openaimodel.UNetModel = TrtUnet
 
-print("Comfy Unet HiJacked")
+logger.info("Comfy Unet HiJacked")

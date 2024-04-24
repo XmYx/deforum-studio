@@ -15,6 +15,9 @@ from comfy.samplers import SAMPLER_NAMES, SCHEDULER_NAMES
 from deforum.pipelines.deforum_animation.animation_params import hybrid_params_dict
 from deforum.utils.sdxl_styles import STYLE_NAMES
 
+from deforum.utils.logging_config import logger
+
+
 curr_folder = os.path.dirname(os.path.abspath(__file__))
 
 plugin_info = {"name": "Deforum"}
@@ -188,13 +191,13 @@ def get_widgets_into_columns(source_dict, from_dict, anim_cols):
     return source_dict
 
 def change_handler():
-    print("WOOOP")
+    logger.info("WOOOP")
 
 def get_output_folder(output_path, batch_folder):
     out_path = os.path.join(os.getcwd(), output_path, time.strftime('%Y-%m'), str(date.today().day))
     if batch_folder != "":
         out_path = os.path.join(out_path, batch_folder)
-    print(f"Saving animation frames to {out_path}")
+    logger.info(f"Saving animation frames to {out_path}")
     os.makedirs(out_path, exist_ok=True)
     return out_path
 
@@ -210,7 +213,7 @@ def plugin_tab(model):
 
 
 def main_tab(model=None, params=None):
-    print("PLUGIN_TAB")
+    logger.info("PLUGIN_TAB")
     num_cols = 2
 
     with st.form("deforum"):
@@ -329,7 +332,7 @@ def display_area_editor():
         # Upload data from a txt file
         st.session_state.uploader = st.file_uploader("Choose a file to upload:", type="txt")
 
-        print(st.session_state.uploader)
+        logger.info(f"{st.session_state.uploader}")
 
         if st.session_state.uploader:
             file_content = st.session_state.uploader.read().decode()

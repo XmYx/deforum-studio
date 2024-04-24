@@ -5,6 +5,8 @@ from torch.hub import download_url_to_file, get_dir
 from tqdm import tqdm
 from urllib.parse import urlparse
 
+from deforum.utils.logging_config import logger
+
 def sizeof_fmt(size, suffix='B'):
     """Get human readable file size.
 
@@ -107,6 +109,6 @@ def load_file_from_url(url, model_dir=None, progress=True, file_name=None):
         filename = file_name
     cached_file = os.path.abspath(os.path.join(model_dir, filename))
     if not os.path.exists(cached_file):
-        print(f'Downloading: "{url}" to {cached_file}\n')
+        logger.info(f'Downloading: "{url}" to {cached_file}\n')
         download_url_to_file(url, cached_file, hash_prefix=None, progress=progress)
     return cached_file

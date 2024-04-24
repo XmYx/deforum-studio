@@ -2,12 +2,13 @@ import importlib
 import os
 
 
-from ..utils.model_download import (
+from deforum.utils.model_download import (
     get_filename_from_url,
     download_file,
     download_from_civitai,
 )
 
+from deforum.utils.logging_config import logger
 
 class DeforumBase:
     """
@@ -123,7 +124,7 @@ class DeforumBase:
         except:
             filepath = os.path.join(cache_dir, filename)
             if os.path.exists(filepath):
-                print("Warning: error downloading model from CivitAI, using cached model.")
+                logger.warning("Couldn't download model from CivitAI, using cached copy.")
                 model_path = filepath
             else:
                 model_path = None

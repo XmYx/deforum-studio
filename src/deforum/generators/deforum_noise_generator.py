@@ -6,7 +6,8 @@ import torch
 from PIL import ImageOps
 from torch.nn.functional import interpolate
 
-from ..utils.deforum_framewarp_utils import sample_to_cv2
+from deforum.utils.deforum_framewarp_utils import sample_to_cv2
+from deforum.utils.logging_config import logger
 
 # from ainodes_frontend import singleton as gs
 DEBUG_MODE = True
@@ -80,7 +81,7 @@ def rand_perlin_2d_octaves(shape, res, octaves=1, persistence=0.5):
 
 
 def condition_noise_mask(noise_mask, invert_mask=False):
-    print("NOISE MASK HUNT", noise_mask)
+    logger.info(f"NOISE MASK HUNT: {noise_mask}")
 
     if invert_mask:
         noise_mask = ImageOps.invert(noise_mask)

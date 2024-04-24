@@ -19,6 +19,8 @@ from .video_frame_utils import get_frame_name
 # from modules.shared import opts
 from ..utils.gradio_utils import clean_gradio_path_strings
 
+from deforum.utils.logging_config import logger
+
 # from ainodes_frontend import singleton as gs
 DEBUG_MODE = True
 
@@ -188,10 +190,10 @@ def load_image_with_mask(path: str, shape=None, use_alpha_as_mask=False):
         # check using init image alpha as mask if mask is not blank
         extrema = mask_image.getextrema()
         if (extrema == (0, 0)) or extrema == (255, 255):
-            print(
+            logger.info(
                 "use_alpha_as_mask==True: Using the alpha channel from the init image as a mask, but the alpha "
                 "channel is blank.")
-            print("ignoring alpha as mask.")
+            logger.info("ignoring alpha as mask.")
             mask_image = None
 
     return image, mask_image
@@ -225,10 +227,10 @@ def check_mask_for_errors(mask_input, invert_mask=False):
     extrema = mask_input.getextrema()
     if invert_mask:
         if extrema == (255, 255):
-            print("after inverting mask will be blank. ignoring mask")
+            logger.info("after inverting mask will be blank. ignoring mask")
             return None
     elif extrema == (0, 0):
-        print("mask is blank. ignoring mask")
+        logger.info("mask is blank. ignoring mask")
         return None
     else:
         return mask_input

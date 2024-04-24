@@ -1,5 +1,5 @@
 import gc
-import logging
+
 import os
 from collections import defaultdict
 
@@ -10,7 +10,8 @@ from .exporter import export_onnx, export_trt
 from .model_manager import modelmanager
 from .models import make_OAIUNetXL
 from .utilities import PIPELINE_TYPE
-from ...utils.constants import root_path
+from deforum.utils.constants import root_path
+from deforum.utils.logging_config import logger
 
 # from modules import sd_models, shared
 # import gradio as gr
@@ -21,7 +22,7 @@ from ...utils.constants import root_path
 # from modules.ui_common import refresh_symbol
 # from modules.ui_components import ToolButton
 
-logging.basicConfig(level=logging.INFO)
+#logging.basicConfig(level=logging.INFO)
 
 
 def get_version_from_model(sd_model):
@@ -131,10 +132,10 @@ def export_unet_to_trt(
         width_max,
         static_shapes,
     )
-    print(profile)
+    logger.info(profile)
 
     if not os.path.exists(onnx_path):
-        print("No ONNX file found. Exporting ONNX...")
+        logger.info("No ONNX file found. Exporting ONNX...")
         # gr.Info("No ONNX file found. Exporting ONNX...  Please check the progress in the terminal.")
         export_onnx(
             onnx_path,
@@ -144,7 +145,7 @@ def export_unet_to_trt(
             model=model,
             opset=18
         )
-        print("Exported to ONNX.")
+        logger.info("Exported to ONNX.")
     model_name = "TRT_UNET"
     model_hash = "TEST"
     trt_engine_filename, trt_path = modelmanager.get_trt_path(
@@ -152,7 +153,7 @@ def export_unet_to_trt(
     )
 
     if not os.path.exists(trt_path) or force_export:
-        print("Building TensorRT engine... This can take a while, please check the progress in the terminal.")
+        logger.info("Building TensorRT engine... This can take a while, please check the progress in the terminal.")
         # gr.Info("Building TensorRT engine... This can take a while, please check the progress in the terminal.")
         gc.collect()
         torch.cuda.empty_cache()
@@ -166,7 +167,7 @@ def export_unet_to_trt(
         if ret:
             return "## Export Failed due to unknown reason. See shell for more information. \n"
 
-        print("TensorRT engines has been saved to disk.")
+        logger.info("TensorRT engines has been saved to disk.")
         modelmanager.add_entry(
             model_name,
             model_hash,
@@ -180,7 +181,7 @@ def export_unet_to_trt(
             lora=False,
         )
     else:
-        print("TensorRT engine found. Skipping build. You can enable Force Export in the Advanced Settings to force a rebuild if needed.")
+        logger.info("TensorRT engine found. Skipping build. You can enable Force Export in the Advanced Settings to force a rebuild if needed.")
 
     return "## Exported Successfully \n"
 
