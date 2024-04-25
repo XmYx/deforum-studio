@@ -7,6 +7,24 @@
       "label": "Upload Settings File",
       "accessible_name": "Settings File Upload"
     },
+    "prompts": {
+      "label": "Prompts",
+      "widget_type": "text box",
+      "default": "",
+      "accessible_name": ""
+    },
+    "animation_prompts_negative": {
+      "label": "Negative Prompts",
+      "widget_type": "text box",
+      "default": "",
+      "accessible_name": ""
+    },
+    "keyframes": {
+      "label": "Keyframes",
+      "widget_type": "text box",
+      "default": "",
+      "accessible_name": ""
+    },
     "width": {
       "widget_type": "number",
       "default": 1024,

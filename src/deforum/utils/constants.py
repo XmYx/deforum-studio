@@ -1,7 +1,7 @@
 import os
 import platform
 
-root_path = ""
+root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 utils_dir = os.path.dirname(os.path.abspath(__file__))
 
