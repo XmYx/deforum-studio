@@ -26,15 +26,18 @@ def send_to_backend(data):
         if st.session_state.settings_file.name is not None:
             file_path = os.path.join(curr_folder, st.session_state.settings_file.name)
             use_settings_file = True
-    prom = params['prompts']
-    key = params['keyframes']
+    prom = params.get('prompts', 'cat sushi')
+    key = params.get('keyframes', '0')
     if prom == "":
         prom = "Abstract art"
     if key == "":
         key = "0"
-    new_prom = list(prom.split("\n"))
-    new_key = list(key.split("\n"))
-    params["animation_prompts"] = dict(zip(new_key, new_prom))
+    if not isinstance(prom, dict):
+        new_prom = list(prom.split("\n"))
+        new_key = list(key.split("\n"))
+        params["animation_prompts"] = dict(zip(new_key, new_prom))
+    else:
+        params["animation_prompts"] = prom
     # use_settings = False
     # if "settings_file" in st.session_state:
     #     if file_uploader:
@@ -107,7 +110,10 @@ def main():
                     elif params['widget_type'] == 'text input':
                         st.text_input(params['label'], value=params['default'], key=setting)
                     elif params['widget_type'] == 'text box':
-                        st.text_area(params['label'], value=params['default'], key=setting)
+                        value = str(st.session_state.get(setting, params['default'] if 'default' in params else ''))
+                        print("ERROR AT", params['label'], value, setting)
+
+                        st.text_area(params['label'], value=str(value), key=setting)
                     elif params['widget_type'] == 'slider':
                         st.slider(params['label'], min_value=params['min'],
                                                      max_value=params['max'], value=params['default'], key=setting)

@@ -41,6 +41,14 @@
       "label": "Height",
       "accessible_name": "Image Height"
     },
+    "steps": {
+      "widget_type": "number",
+      "default": 19,
+      "min": 1,
+      "max": 256,
+      "label": "Steps",
+      "accessible_name": "Diffusion Steps"
+    },
     "show_info_on_ui": {
       "widget_type": "dropdown",
       "options": [true, false],
@@ -58,7 +66,31 @@
     },
     "sampler_name": {
       "widget_type": "dropdown",
-      "options": ["DPM++ 2M SDE Karras", "Euler", "LMS"],
+      "options": [
+                  "DPM++ 2M",
+                  "DPM++ 2M Karras",
+                  "DPM++ 2M SDE",
+                  "DPM++ 2M SDE Karras",
+                  "DPM++ 2S a",
+                  "DPM++ 2S a Karras",
+                  "DPM++ SDE",
+                  "DPM++ SDE Karras",
+                  "DPM2",
+                  "DPM2 Karras",
+                  "DPM2 a",
+                  "DPM2 a Karras",
+                  "DPM adaptive",
+                  "DPM fast",
+                  "Euler",
+                  "Euler a",
+                  "Heun",
+                  "LMS",
+                  "LMS Karras",
+                  "Deis",
+                  "UniPcMultiStep",
+                  "LCM",
+                  "TCD"
+              ],
       "default": "DPM++ 2M SDE Karras",
       "label": "Sampler",
       "accessible_name": "Sampling Algorithm"
