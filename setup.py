@@ -85,7 +85,9 @@ _deps = [
     'clip-interrogator==0.6.0',
     'streamlit==1.27.2',
     'torchsde>=0.2.5',
-    'fastapi>=0.100.0'
+    'fastapi>=0.100.0',
+    'diffusers==0.27.2',
+    'accelerate==0.29.3'
 ]
 
 # this is a lookup table with items like:
@@ -184,7 +186,9 @@ extras["dev"] = deps_list('torch',
                           'clip-interrogator',
                           'streamlit',
                           'torchsde',
-                          'fastapi')
+                          'fastapi',
+                          'diffusers',
+                          'accelerate')
 
 extras["cli"] = deps_list('torch',
                           'torchvision',

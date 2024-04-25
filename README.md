@@ -32,6 +32,23 @@ git clone https://github.com/deforum-studio/deforum
 cd deforum
 pip install -e .["dev"]
 ```
+
+## Testing
+Test install by running the test animation pipeline
+```bash
+COMFY_PATH=src/ComfyUI python tests/test_animation_pipeline.py
+```
+Test diffusers pipeline
+```bash
+python tests/test_diffusers_pipeline.py
+```
+
+## WebUI
+Launch webui with the following command
+```bash
+deforum webui
+```
+
 ## License
 Deforum is licensed under the GNU General Public License v3.0 License.
 
