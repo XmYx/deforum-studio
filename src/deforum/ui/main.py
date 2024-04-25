@@ -9,6 +9,8 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 from deforum.ui.core import DeforumCore
 from deforum.ui.timeline import TimelineWidget
+from deforum.utils.logging_config import logger
+
 
 
 class BackendThread(QThread):
@@ -20,40 +22,41 @@ class BackendThread(QThread):
 
 
     def run(self):
-        from deforum.shared_storage import models
+        try:
+            from deforum.shared_storage import models
 
-        # Load the deforum pipeline if not already loaded
-        if "deforum_pipe" not in models:
-            from deforum import DeforumAnimationPipeline
-            models["deforum_pipe"] = DeforumAnimationPipeline.from_civitai(model_id="125703",
-                                                                           generator_name='DeforumDiffusersGenerator')
+            # Load the deforum pipeline if not already loaded
+            if "deforum_pipe" not in models:
+                from deforum import DeforumAnimationPipeline
+                models["deforum_pipe"] = DeforumAnimationPipeline.from_civitai(model_id="125703",
+                                                                               generator_name='DeforumDiffusersGenerator')
+            prom = self.params.get('prompts', 'cat sushi')
+            key = self.params.get('keyframes', '0')
+            if prom == "":
+                prom = "Abstract art"
+            if key == "":
+                key = "0"
 
-        prom = self.params.get('prompts', 'cat sushi')
-        key = self.params.get('keyframes', '0')
-        if prom == "":
-            prom = "Abstract art"
-        if key == "":
-            key = "0"
+            if not isinstance(prom, dict):
+                new_prom = list(prom.split("\n"))
+                new_key = list(key.split("\n"))
+                self.params["animation_prompts"] = dict(zip(new_key, new_prom))
+            else:
+                self.params["animation_prompts"] = prom
 
-        if not isinstance(prom, dict):
-            new_prom = list(prom.split("\n"))
-            new_key = list(key.split("\n"))
-            self.params["animation_prompts"] = dict(zip(new_key, new_prom))
-        else:
-            self.params["animation_prompts"] = prom
+            # Call the deforum animation pipeline
+            def datacallback(data):
+                self.imageGenerated.emit(data)  # Emit the image data when available
 
-        # Call the deforum animation pipeline
-        def datacallback(data):
-            self.imageGenerated.emit(data)  # Emit the image data when available
+            use_settings_file = False
+            if 'settings_file' in self.params:
+                file_path = self.params.pop('settings_file')
+                if file_path:
+                    use_settings_file = True
 
-        use_settings_file = False
-        if 'settings_file' in self.params:
-            file_path = self.params.pop('settings_file')
-            if file_path:
-                use_settings_file = True
-
-        animation = models["deforum_pipe"](callback=datacallback, **self.params) if not use_settings_file else models["deforum_pipe"](callback=datacallback, settings_file=file_path)
-
+            animation = models["deforum_pipe"](callback=datacallback, **self.params) if not use_settings_file else models["deforum_pipe"](callback=datacallback, settings_file=file_path)
+        except Exception as e:
+            logger.info(repr(e))
 
 class MainWindow(DeforumCore):
     def __init__(self):
@@ -89,6 +92,8 @@ class MainWindow(DeforumCore):
                     self.createTextBox(params['label'], layout, params['default'], setting)
                 elif params['widget_type'] == 'slider':
                     self.createSlider(params['label'], layout, params['min'], params['max'], params['default'], setting)
+                elif params['widget_type'] == 'checkbox':
+                    self.createCheckBox(params['label'], layout, bool(params['default']), setting)
                 elif params['widget_type'] == 'file_input':
                     # Add file input handler if needed
                     pass
@@ -139,8 +144,8 @@ class MainWindow(DeforumCore):
         layout.addWidget(slider)
 
     def startBackendProcess(self):
-        params = {key: widget.value() for key, widget in self.params.items() if hasattr(widget, 'value')}
-        self.thread = BackendThread(params)
+        #params = {key: widget.value() for key, widget in self.params.items() if hasattr(widget, 'value')}
+        self.thread = BackendThread(self.params)
         self.thread.imageGenerated.connect(self.updateImage)
         self.thread.start()
 

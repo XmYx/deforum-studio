@@ -198,7 +198,7 @@
 
   "Image & Mask Settings": {
     "use_init": {
-      "widget_type": "dropdown",
+      "widget_type": "checkbox",
       "options": [true, false],
       "default": false,
       "label": "Use Initial Image",
@@ -211,7 +211,7 @@
       "accessible_name": "URL of the Initial Image"
     },
     "use_mask": {
-      "widget_type": "dropdown",
+      "widget_type": "checkbox",
       "options": [true, false],
       "default": false,
       "label": "Use Mask",
@@ -224,9 +224,9 @@
       "accessible_name": "URL of the Mask File"
     },
     "overlay_mask": {
-      "widget_type": "dropdown",
+      "widget_type": "checkbox",
       "options": [true, false],
-      "default": true,
+      "default": false,
       "label": "Overlay Mask",
       "accessible_name": "Overlay Mask Over the Image"
     }

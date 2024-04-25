@@ -118,6 +118,43 @@ class DeforumDiffusersGenerator:
         self.selected_scheduler = ""
         self.model_path = model_path
         self.rng = None
+
+    def optimize(self):
+        try:
+            from sfast.compilers.diffusion_pipeline_compiler import (
+                compile,
+                CompilationConfig,
+            )
+
+            self.pipe.config.force_upcast = False
+            self.pipe.watermarker = None
+            self.pipe.safety_checker = None
+            self.pipe.set_progress_bar_config(disable=True)
+
+            config = CompilationConfig.Default()
+            config.enable_jit = True
+            config.enable_jit_freeze = True
+            config.enable_cuda_graph = True
+            try:
+                import triton
+                config.enable_triton = True
+            except:
+                config.enable_triton = False
+
+            config.enable_cnn_optimization = True
+            config.preserve_parameters = False
+            config.prefer_lowp_gemm = True
+            config.enable_xformers = True
+            config.channels_last = "channels_last"
+            config.enable_fused_linear_geglu = True
+            config.trace_scheduler = False
+
+            #_ = self.__call__()
+            # self.pipe.vae = torch.compile(self.pipe.vae, mode="reduce-overhead")
+
+            self.pipe = compile(self.pipe, config)
+        except:
+            pass
     def load_pipeline(self, model_path: str = None):
         if model_path:
             if self.is_url(model_path):
@@ -134,7 +171,7 @@ class DeforumDiffusersGenerator:
                 raise ValueError("Provided model path does not exist and does not appear to be a valid URL")
         else:
             raise ValueError("No model path provided, and skip_load is False")
-
+        self.optimize()
     def is_url(self, path: str) -> bool:
         """ Check if the given path is a URL """
         return path.startswith('http://') or path.startswith('https://')
@@ -228,7 +265,18 @@ class DeforumDiffusersGenerator:
                 self.img2img_pipe.vae.to(dtype)
 
             init_latents = init_latents.to(dtype)
+        if subseed is not None:
+            if subseed == -1:
+                subseed = secrets.randbelow(999999999999999999)
+            sub_generator = torch.Generator(device=device).manual_seed(subseed)
+            sub_noise = torch.randn(init_latents.shape, generator=sub_generator, device=device, dtype=dtype)
+            #sub_noise = self.rng.next() / 255.0
 
+            # Example of normalization
+
+            init_latents = slerp(subseed_strength, sub_noise, init_latents)
+
+            logger.info("USING SLERPED LATENTS")
 
         if batch_size > init_latents.shape[0] and batch_size % init_latents.shape[0] == 0:
             # expand init_latents for batch_size
@@ -244,17 +292,7 @@ class DeforumDiffusersGenerator:
         #     noise = torch.randn(shape, generator=generator, device=device, dtype=dtype)
         #     init_latents = self.img2img_pipe.scheduler.add_noise(init_latents, noise, latent_timestep)
 
-        if subseed is not None:
-            if subseed == -1 or subseed == 1:
-                subseed = secrets.randbelow(999999999999999999)
-            sub_generator = torch.Generator(device=device).manual_seed(subseed)
-            sub_noise = torch.randn(init_latents.shape, generator=sub_generator, device=device, dtype=dtype) / 255.0
 
-            # Example of normalization
-
-            init_latents = slerp(subseed_strength, sub_noise, init_latents)
-
-            logger.info("USING SLERPED LATENTS")
 
         init_latents = self.img2img_pipe.vae.config.scaling_factor * init_latents
         return init_latents, timesteps
@@ -291,7 +329,7 @@ class DeforumDiffusersGenerator:
                  *args,
                  **kwargs):
         if subseed is not None:
-            if subseed == -1 or subseed == 1:
+            if subseed == -1:
                 subseed = secrets.randbelow(999999999999999999)
 
         # if self.rng is None or reset_noise:
@@ -335,7 +373,7 @@ class DeforumDiffusersGenerator:
             latents, timesteps = self.prepare_latents_with_subseed(image, steps, strength, seed, subseed, subseed_strength)
             image = self.img2img_pipe(
                 prompt=prompt,
-                strength=1 - strength,
+                strength=strength,
                 image=latents,
                 width=width,
                 height=height,

@@ -1,128 +1,131 @@
-from PyQt6.QtGui import QPixmap, QImage, QDrag
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QScrollArea, QStyleOptionFrame, QFrame
-from PyQt6.QtCore import Qt, QMimeData, pyqtSignal, QPoint
+from PyQt6.QtWidgets import QApplication, QMainWindow, QGraphicsView, QGraphicsScene, QGraphicsItem, QVBoxLayout, \
+    QPushButton, QWidget, QGraphicsRectItem, QGraphicsTextItem
+from PyQt6.QtCore import Qt, QRectF, QPointF
+from PyQt6.QtGui import QPen, QBrush, QColor, QPainterPath
 
+class TimelineHandle(QGraphicsItem):
+    def __init__(self, height):
+        super().__init__()
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges)
+        self.height = height
 
-class TimeLineHandle(QLabel):
-    frameChanged = pyqtSignal(QPixmap)
+    def boundingRect(self):
+        return QRectF(0, 0, 2, self.height)
 
-    def __init__(self, parent=None):
+    def paint(self, painter, option, widget=None):
+        painter.setPen(QPen(Qt.GlobalColor.red, 2))
+        painter.drawLine(QPointF(1, 0), QPointF(1, self.height))
+
+class VideoFrame(QGraphicsItem):
+    def __init__(self, width, height, parent=None):
         super().__init__(parent)
-        self.setText("|")
-        self.setFixedWidth(10)
-        self.setStyleSheet("color: red; font-size: 24px;")
-        self.setMouseTracking(True)
-        self.is_dragging = False
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges)
+        self.width = width
+        self.height = height
+        self.original_y = None  # To keep track of the original y-coordinate
 
-    def mousePressEvent(self, event):
-        if event.buttons() == Qt.MouseButton.LeftButton:
-            self.is_dragging = True
+    def boundingRect(self):
+        return QRectF(0, 0, self.width, self.height)
 
-    def mouseMoveEvent(self, event):
-        if self.is_dragging:
-            new_x = self.parent().mapFromGlobal(event.globalPos()).x()
-            closest_frame = None
-            min_distance = float('inf')
+    def paint(self, painter, option, widget=None):
+        painter.setBrush(QBrush(QColor(100, 100, 250, 120)))
+        painter.drawRect(self.boundingRect())
 
-            # Determine the nearest frame
-            for track in self.parent().tracks:
-                for frame in track.frames:
-                    frame_center = frame.pos().x() + frame.width() // 2
-                    distance = abs(frame_center - new_x)
+    def itemChange(self, change, value):
+        if change == QGraphicsItem.GraphicsItemChange.ItemPositionChange:
+            if self.original_y is None:
+                self.original_y = value.y()
+
+            new_pos = value
+            scene = self.scene()
+
+            # Restrict vertical movement unless there are multiple tracks
+            if len(scene.views()[0].parentWidget().tracks) <= 1:
+                new_pos.setY(self.original_y)
+            else:
+                # Allow snapping to the nearest track
+                nearest_track = None
+                min_distance = float('inf')
+                for track in scene.views()[0].parentWidget().tracks:
+                    distance = abs(track.y + track.boundingRect().height()/2 - value.y())
                     if distance < min_distance:
                         min_distance = distance
-                        closest_frame = frame_center
+                        nearest_track = track
 
-            # Snap to the nearest frame if found
-            if closest_frame is not None:
-                self.move(closest_frame - self.width() // 2, self.y())
-            else:
-                # Default behavior, clamp within bounds
-                self.move(max(0, min(new_x, self.parent().width() - self.width())), self.y())
+                if nearest_track:
+                    new_pos.setY(nearest_track.y)
 
-            self.emitCurrentFrame()
+            # Restrict horizontal movement to within the scene bounds
+            new_pos.setX(max(0, min(new_pos.x(), scene.width() - self.width)))
 
-    def mouseReleaseEvent(self, event):
-        self.is_dragging = False
-        self.emitCurrentFrame()
+            return new_pos
+        return super().itemChange(change, value)
 
-    def emitCurrentFrame(self):
-        # Check which frame is under the handle
-        for track in self.parent().tracks:
-            for frame in track.frames:
-                if frame.geometry().contains(self.pos() + QPoint(frame.width() // 2, 0)):
-                    self.frameChanged.emit(frame.pixmap())
-                    break
-class DraggableLabel(QLabel):
-    def __init__(self, parent=None):
+
+class VideoTrack(QGraphicsItem):
+    def __init__(self, y, parent=None):
         super().__init__(parent)
-        self.setAcceptDrops(True)
-
-    def mousePressEvent(self, event):
-        if self.pixmap() is not None:
-            drag = QDrag(self)
-            mimeData = QMimeData()
-            drag.setMimeData(mimeData)
-            drag.setPixmap(self.pixmap())
-            drag.exec(Qt.DropAction.CopyAction)
-
-    def dragEnterEvent(self, event):
-        if event.mimeData().hasImage():
-            event.acceptProposedAction()
-
-    def dropEvent(self, event):
-        if event.mimeData().hasImage():
-            self.setPixmap(QPixmap.fromImage(QImage(event.mimeData().imageData())))
-            event.acceptProposedAction()
-
-class VideoTrack(QWidget):
-    def __init__(self, name, parent=None):
-        super().__init__(parent)
-        self.name = name
-        self.layout = QHBoxLayout()
-        self.setLayout(self.layout)
-        self.label = QLabel(name)
-        self.layout.addWidget(self.label)
+        self.y = y
         self.frames = []
-        self.addFrameButton = QPushButton('+ Frame')
-        self.addFrameButton.clicked.connect(self.addFrame)
-        self.layout.addWidget(self.addFrameButton)
-        self.removeTrackButton = QPushButton('x')
-        self.removeTrackButton.clicked.connect(self.removeSelf)
-        self.layout.addWidget(self.removeTrackButton)
+        self.label = QGraphicsTextItem(f"Track {y // 55 + 1}", self)
+        self.label.setPos(0, y)
+
+        # Add a delete button as a child item
+        self.delete_button = QGraphicsRectItem(0, y, 20, 20, self)
+        self.delete_button.setBrush(QBrush(QColor(255, 0, 0)))
+        self.label.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
+
+    def boundingRect(self):
+        return QRectF(0, self.y, 1000, 50)
+
+    def paint(self, painter, option, widget=None):
+        path = QPainterPath()
+        path.addRect(self.boundingRect())
+        painter.setPen(QPen(Qt.GlobalColor.black, 1))
+        painter.setBrush(QBrush(Qt.GlobalColor.lightGray))
+        painter.drawPath(path)
 
     def addFrame(self):
-        frame = DraggableLabel('Empty Frame')
+        frame = VideoFrame(100, 50)
+        frame.setPos(len(self.frames) * 105, self.y)
+        self.scene().addItem(frame)
         self.frames.append(frame)
-        self.layout.insertWidget(self.layout.count() - 2, frame)
 
-    def removeSelf(self):
-        self.setParent(None)
-        self.deleteLater()
-
-    def addImageToFrame(self, image):
-        if not self.frames:
-            self.addFrame()  # Ensure there's at least one frame
-        self.frames[-1].setPixmap(image)
-
-class TimelineWidget(QScrollArea):
+class TimelineWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.widget = QWidget()
-        self.layout = QVBoxLayout(self.widget)
-        self.widget.setLayout(self.layout)
-        self.setWidget(self.widget)
-        self.setWidgetResizable(True)
-        self.tracks = []
-        self.handle = TimeLineHandle(self.widget)
-        self.handle.move(50, 10)  # Start position for the handle
-        self.addTrack("VIDEO 1")
+        self.layout = QVBoxLayout(self)
+        self.view = QGraphicsView(self)
+        self.scene = QGraphicsScene(self)
+        self.view.setScene(self.scene)
+        self.layout.addWidget(self.view)
 
-    def addTrack(self, name):
-        track = VideoTrack(name)
+        self.handle = TimelineHandle(200)  # Dynamic height based on tracks
+        self.scene.addItem(self.handle)
+
+        self.addTrackButton = QPushButton("Add Track", self)
+        self.addTrackButton.clicked.connect(self.addTrack)
+        self.layout.addWidget(self.addTrackButton)
+
+        self.tracks = []
+        self.addTrack("VIDEO 1")  # Initial track
+
+    def addTrack(self, name=""):
+        y = len(self.tracks) * 55
+        track = VideoTrack(y)
+        self.scene.addItem(track)
         self.tracks.append(track)
-        self.layout.addWidget(track)
+        track.addFrame()  # Adding a default frame
+        self.handle.setPos(50, 0)  # Set handle to start position
+        self.updateHandleHeight()
+
+    def updateHandleHeight(self):
+        self.handle.height = len(self.tracks) * 55
+        self.handle.update()
 
     def removeTrack(self, track):
         self.tracks.remove(track)
         track.deleteLater()
+        self.updateHandleHeight()

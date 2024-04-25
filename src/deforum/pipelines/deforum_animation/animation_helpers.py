@@ -1194,14 +1194,16 @@ def save_video_cls(cls):
     os.makedirs(dir_path, exist_ok=True)
     output_filename_base = os.path.join(dir_path, cls.gen.timestring)
 
-    if hasattr(cls.gen, "fps"):
-        fps = cls.gen.fps
-    else:
-        fps = 24
+    audio_path = None
+    if hasattr(cls.gen, 'video_init_path'):
+        audio_path = cls.gen.video_init_path
+
+    fps = getattr(cls.gen, "fps", 24)  # Using getattr to simplify fetching attributes with defaults
+
     try:
-        save_as_h264(cls.images, output_filename_base + "_FILM.mp4", fps=fps)
-    except:
-        logger.error("save as h264 failed")
+        save_as_h264(cls.images, output_filename_base + "_FILM.mp4", audio_path=audio_path, fps=fps)
+    except Exception as e:
+        logger.error(f"save as h264 failed: {str(e)}")
     cls.gen.video_path = output_filename_base + "_FILM.mp4"
 
 

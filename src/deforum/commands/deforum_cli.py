@@ -61,7 +61,7 @@ def start_deforum_cli():
             from deforum import DeforumAnimationPipeline
             modelid = str(options.get("modelid", "125703"))
 
-            deforum = DeforumAnimationPipeline.from_civitai(model_id=modelid)
+            deforum = DeforumAnimationPipeline.from_civitai(model_id=modelid, generator_name="DeforumDiffusersGenerator")
 
             for dirpath, dirnames, filenames in os.walk("presets"):
                 for file in filenames:
@@ -77,6 +77,7 @@ def start_deforum_cli():
                     options["subseed"] = 420
 
                     _ = deforum(**extra_args, **options)
+
         elif args_main.mode == "api":
             from fastapi import FastAPI, WebSocket
             import uvicorn

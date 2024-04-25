@@ -38,18 +38,6 @@ def send_to_backend(data):
         params["animation_prompts"] = dict(zip(new_key, new_prom))
     else:
         params["animation_prompts"] = prom
-    # use_settings = False
-    # if "settings_file" in st.session_state:
-    #     if file_uploader:
-    #         file_path = os.path.join(curr_folder, file_uploader.name)
-    #         use_settings = True
-    #         print("USING", file_path)
-    #     else:
-    #         print("Data sent to backend:", data)
-    #
-    # else:
-    #     print("Data sent to backend:", data)
-    #
     def datacallback(data):
         st.session_state.last_image = data.get('image')
         if 'preview' in st.session_state:
