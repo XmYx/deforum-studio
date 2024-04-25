@@ -193,3 +193,10 @@ src/ComfyUI/
 
 # settings files
 settings.txt
+
+# test frames and debug stuff
+test.png
+current_deforum_debug.png
+
+# configs
+deforum_configs/
