@@ -764,7 +764,7 @@ def post_gen_cls(cls: Any) -> None:
         else:
             filename = f"{cls.gen.timestring}_{cls.gen.frame_idx:09}.png"
             # cls.logger(f"                                   [ filename generated: {filename} ]", True)
-            cv2.imwrite("current_deforum_debug.png", cls.gen.opencv_image)
+            # cv2.imwrite("current_deforum_debug.png", cls.gen.opencv_image)
             if not cls.gen.store_frames_in_ram:
                 # p = Process(target=save_image, args=(cls.gen.image, 'PIL', filename, cls.gen, cls.gen, cls.gen))
                 # p.start()

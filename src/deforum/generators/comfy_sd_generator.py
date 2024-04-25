@@ -317,8 +317,6 @@ class ComfyDeforumGenerator:
                 # image = Image.fromarray(np.clip(255. * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[0])
                 image = image.convert("RGB")
 
-                image.save('test.png', "PNG")
-
                 if return_latent:
                     return sample[0]["samples"], image
                 else:

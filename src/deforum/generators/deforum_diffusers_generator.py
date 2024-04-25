@@ -8,8 +8,9 @@ from diffusers import AutoPipelineForText2Image, AutoPipelineForImage2Image, Sta
     TCDScheduler
 from diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl_img2img import retrieve_timesteps, \
     retrieve_latents
+from diffusers.utils.torch_utils import randn_tensor
 
-from .rng_noise_generator import ImageRNGNoise
+from .rng_noise_generator import ImageRNGNoise, slerp
 from ..utils.logging_config import logger
 
 from diffusers import (
@@ -77,39 +78,39 @@ def configure_scheduler(pipe, model_config):
         logger.info("Unsupported scheduler, not switching")
 
 # from https://discuss.pytorch.org/t/help-regarding-slerp-function-for-generative-model-sampling/32475/3
-def slerp(val, low, high):
-    """
-    Perform SLERP between two points in the latent space for tensors of shape [1, 4, h, w].
-    Args:
-    - val (float): Interpolation value between 0 and 1.
-    - low, high (torch.Tensor): Tensors representing the starting and ending points of the interpolation.
-    """
-    # Flatten the spatial dimensions to treat each channel as a separate vector
-    low_flat = low.flatten(start_dim=2)  # Shape: [1, 4, h*w]
-    high_flat = high.flatten(start_dim=2)  # Shape: [1, 4, h*w]
-
-    # Compute dot product and norms for cosine of angle
-    dot_product = torch.sum(low_flat * high_flat, dim=2)  # Sum along the spatial dimension
-    norms = torch.norm(low_flat, dim=2) * torch.norm(high_flat, dim=2)
-
-    # Compute the angle omega using arccosine safely
-    omega = torch.acos(torch.clamp(dot_product / norms, -1, 1))
-
-    # Compute the sine of omega, and handle the special case of very small omega
-    sin_omega = torch.sin(omega)
-    sin_omega = torch.where(sin_omega == 0, torch.ones_like(sin_omega), sin_omega)  # Avoid division by zero
-
-    # Compute interpolation weights
-    sin_omega_val = torch.sin((1.0 - val) * omega)
-    sin_val_omega = torch.sin(val * omega)
-
-    # Apply spherical interpolation
-    result_flat = (sin_omega_val / sin_omega).unsqueeze(2) * low_flat + (sin_val_omega / sin_omega).unsqueeze(2) * high_flat
-
-    # Reshape back to original shape [1, 4, h, w]
-    result = result_flat.view_as(low)
-
-    return result
+# def slerp(val, low, high):
+#     """
+#     Perform SLERP between two points in the latent space for tensors of shape [1, 4, h, w].
+#     Args:
+#     - val (float): Interpolation value between 0 and 1.
+#     - low, high (torch.Tensor): Tensors representing the starting and ending points of the interpolation.
+#     """
+#     # Flatten the spatial dimensions to treat each channel as a separate vector
+#     low_flat = low.flatten(start_dim=2)  # Shape: [1, 4, h*w]
+#     high_flat = high.flatten(start_dim=2)  # Shape: [1, 4, h*w]
+#
+#     # Compute dot product and norms for cosine of angle
+#     dot_product = torch.sum(low_flat * high_flat, dim=2)  # Sum along the spatial dimension
+#     norms = torch.norm(low_flat, dim=2) * torch.norm(high_flat, dim=2)
+#
+#     # Compute the angle omega using arccosine safely
+#     omega = torch.acos(torch.clamp(dot_product / norms, -1, 1))
+#
+#     # Compute the sine of omega, and handle the special case of very small omega
+#     sin_omega = torch.sin(omega)
+#     sin_omega = torch.where(sin_omega == 0, torch.ones_like(sin_omega), sin_omega)  # Avoid division by zero
+#
+#     # Compute interpolation weights
+#     sin_omega_val = torch.sin((1.0 - val) * omega)
+#     sin_val_omega = torch.sin(val * omega)
+#
+#     # Apply spherical interpolation
+#     result_flat = (sin_omega_val / sin_omega).unsqueeze(2) * low_flat + (sin_val_omega / sin_omega).unsqueeze(2) * high_flat
+#
+#     # Reshape back to original shape [1, 4, h, w]
+#     result = result_flat.view_as(low)
+#
+#     return result
 
 class DeforumDiffusersGenerator:
     def __init__(self, model_path: str = None, skip_load=False, *args, **kwargs):
@@ -218,10 +219,17 @@ class DeforumDiffusersGenerator:
         # noise = torch.zeros([1, 4, width // 8, height // 8])
         return {"samples": noise}
 
+    def prepare_latents(
+        self, image, timestep, batch_size, num_images_per_prompt, dtype, device, generator=None, add_noise=True
+    ):
+        print("RAN HIJACK")
+        return image
+
     def prepare_latents_with_subseed(
             self, image, num_inference_steps, strength, seed, subseed=None, subseed_strength=0.5
     ):
         device = self.img2img_pipe._execution_device
+        self.img2img_pipe.prepare_latents = self.prepare_latents
         def denoising_value_valid(dnv):
             return isinstance(dnv, float) and 0 < dnv < 1
         timesteps, num_inference_steps = retrieve_timesteps(self.img2img_pipe.scheduler, num_inference_steps, device, None)
@@ -265,18 +273,7 @@ class DeforumDiffusersGenerator:
                 self.img2img_pipe.vae.to(dtype)
 
             init_latents = init_latents.to(dtype)
-        if subseed is not None:
-            if subseed == -1:
-                subseed = secrets.randbelow(999999999999999999)
-            sub_generator = torch.Generator(device=device).manual_seed(subseed)
-            sub_noise = torch.randn(init_latents.shape, generator=sub_generator, device=device, dtype=dtype)
-            #sub_noise = self.rng.next() / 255.0
 
-            # Example of normalization
-
-            init_latents = slerp(subseed_strength, sub_noise, init_latents)
-
-            logger.info("USING SLERPED LATENTS")
 
         if batch_size > init_latents.shape[0] and batch_size % init_latents.shape[0] == 0:
             # expand init_latents for batch_size
@@ -295,6 +292,33 @@ class DeforumDiffusersGenerator:
 
 
         init_latents = self.img2img_pipe.vae.config.scaling_factor * init_latents
+        print(
+            f'init_latents min: {torch.min(init_latents).item()}, init_latents max: {torch.max(init_latents).item()}')
+
+        if subseed is not None:
+
+
+
+            shape = init_latents.shape
+            if subseed == -1:
+                subseed = secrets.randbelow(999999999999999999)
+            sub_generator = torch.Generator(device=device).manual_seed(subseed)
+
+            noise = randn_tensor(shape, generator=generator, device=device, dtype=dtype)
+            sub_noise = randn_tensor(init_latents.shape, generator=sub_generator, device=device, dtype=dtype)
+            noise = slerp(subseed_strength, sub_noise, noise)
+            # get latents
+            init_latents = self.img2img_pipe.scheduler.add_noise(init_latents, noise, latent_timestep)
+
+
+            # sub_noise = torch.randn(init_latents.shape, generator=sub_generator, device=device, dtype=dtype) / 255.0
+            # print(f'sub_noise min: {torch.min(sub_noise).item()}, sub_noise max: {torch.max(sub_noise).item()}')
+            # print(
+            #     f'init_latents min: {torch.min(init_latents).item()}, init_latents max: {torch.max(init_latents).item()}')
+
+
+
+            logger.info("USING SLERPED LATENTS")
         return init_latents, timesteps
 
     def __call__(self,
