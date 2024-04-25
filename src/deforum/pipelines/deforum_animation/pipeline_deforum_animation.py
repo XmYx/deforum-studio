@@ -161,9 +161,7 @@ class DeforumAnimationPipeline(DeforumBase):
             self.gen = DeforumGenerationObject.from_settings_file(settings_file)
         else:
             self.gen = DeforumGenerationObject(**kwargs)
-
         self.gen.update_from_kwargs(**kwargs)
-
         self.pre_setup()
         setup_end = time.time()
         duration = (setup_end - self.setup_start) * 1000
@@ -186,9 +184,12 @@ class DeforumAnimationPipeline(DeforumBase):
                 _, _, self.gen.inputfiles = hybrid_generation(self.gen, self.gen, self.gen)
                 self.gen.hybrid_frame_path = os.path.join(self.gen.outdir, 'hybridframes')
 
+        if not hasattr(self.gen, 'parseq_non_schedule_overrides'):
+            self.gen.parseq_non_schedule_overrides = None
 
         # use parseq if manifest is provided
-        self.parseq_adapter = ParseqAdapter(self.gen, self.gen, self.gen, self.gen, self.gen)
+        #TODO Not passing controlnet_args yet
+        self.parseq_adapter = ParseqAdapter(self.gen, self.gen, self.gen, None, self.gen)
 
         if int(self.gen.seed) == -1:
             self.gen.seed = secrets.randbelow(18446744073709551615)
@@ -443,7 +444,7 @@ class DeforumAnimationPipeline(DeforumBase):
         # if self.gen.use_init and self.gen.init_image:
         #     img = self.gen.init_image
 
-        self.gen.strength = 1.0 if img is None else self.gen.strength
+        self.gen.strength = 1.0 if img is None else 1 - self.gen.strength
 
         gen_args = {
             "prompt": prompt,
@@ -511,12 +512,15 @@ class DeforumAnimationPipeline(DeforumBase):
         image_init0 = None
 
         if hasattr(self.gen, "sampler_name"):
-            from comfy.samplers import SAMPLER_NAMES
-            if self.gen.sampler_name not in SAMPLER_NAMES:
-                sampler_name = auto_to_comfy[self.gen.sampler_name]["sampler"]
-                scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
-                self.gen.sampler_name = sampler_name
-                self.gen.scheduler = scheduler
+            try:
+                from comfy.samplers import SAMPLER_NAMES
+                if self.gen.sampler_name not in SAMPLER_NAMES:
+                    sampler_name = auto_to_comfy[self.gen.sampler_name]["sampler"]
+                    scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
+                    self.gen.sampler_name = sampler_name
+                    self.gen.scheduler = scheduler
+            except:
+                logger.info("No Comfy available when setting scheduler name")
 
         if self.gen.scheduled_sampler_name is not None and self.gen.enable_sampler_scheduling:
             if self.gen.scheduled_sampler_name in auto_to_comfy.keys():

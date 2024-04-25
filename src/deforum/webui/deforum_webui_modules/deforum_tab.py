@@ -10,8 +10,8 @@ import streamlit as st
 from deforum.generators.comfy_utils import ensure_comfy
 from deforum.pipelines.deforum_animation.ui_params import base_params
 
-ensure_comfy()
-from comfy.samplers import SAMPLER_NAMES, SCHEDULER_NAMES
+# ensure_comfy()
+# from comfy.samplers import SAMPLER_NAMES, SCHEDULER_NAMES
 from deforum.pipelines.deforum_animation.animation_params import hybrid_params_dict
 from deforum.utils.sdxl_styles import STYLE_NAMES
 
@@ -73,18 +73,18 @@ base_params = {
 }
 
 sampler_params = {
-    "sampler_name": {
-        "label": "Sampler",
-        "type": "dropdown",
-        "choices": SAMPLER_NAMES,
-        "value": SAMPLER_NAMES[0],
-    },
-    "scheduler": {
-        "label": "Sampler",
-        "type": "dropdown",
-        "choices": SCHEDULER_NAMES,
-        "value": SCHEDULER_NAMES[1],
-    },
+    # "sampler_name": {
+    #     "label": "Sampler",
+    #     "type": "dropdown",
+    #     "choices": SAMPLER_NAMES,
+    #     "value": SAMPLER_NAMES[0],
+    # },
+    # "scheduler": {
+    #     "label": "Sampler",
+    #     "type": "dropdown",
+    #     "choices": SCHEDULER_NAMES,
+    #     "value": SCHEDULER_NAMES[1],
+    # },
     "width": {
         "label": "Width",
         "type": "slider",

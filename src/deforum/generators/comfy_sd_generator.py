@@ -67,10 +67,10 @@ class ComfyDeforumGenerator:
             self.rng = ImageRNGNoise(shape=latent[0].shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
                                      seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
         #     noise = self.rng.first()
-        #     noise = slerp(subseed_strength, noise, latent)
+        # #     noise = slerp(subseed_strength, noise, latent)
         # else:
-        #     #noise = self.rng.next()
-        #     #noise = slerp(subseed_strength, noise, latent)
+        #     noise = self.rng.next()
+        #     noise = slerp(subseed_strength, noise, latent)
         #     noise = latent
         return {"samples": latent}
 
@@ -290,8 +290,8 @@ class ComfyDeforumGenerator:
 
             logger.info(f"seed/subseed/subseed_str={seed}/{subseed}/{subseed_strength}; strength={strength}; scale={scale}; sampler_name={sampler_name}; scheduler={scheduler};")
 
-            denoise = 1-strength
-
+            # denoise = 1-strength
+            steps = int(strength * steps)
             sample = common_ksampler_with_custom_noise(model=self.model,
                                                        seed=seed,
                                                        steps=steps,
@@ -301,34 +301,13 @@ class ComfyDeforumGenerator:
                                                        positive=cond,
                                                        negative=self.n_cond,
                                                        latent=latent,
-                                                       denoise=denoise,
+                                                       denoise=strength,
                                                        disable_noise=False,
                                                        start_step=0,
                                                        last_step=last_step,
                                                        force_full_denoise=True, # TODO - what does this do?
                                                        noise=self.rng)
-            # print(seed, steps, scale, strength, scheduler, sampler_name, init_image)
-            #
-            # sample = ksampler(model=self.model,
-            #                            seed=seed,
-            #                            steps=steps,
-            #                            cfg=scale,
-            #                            sampler_name=sampler_name,
-            #                            scheduler=scheduler,
-            #                            positive=cond,
-            #                            negative=self.n_cond,
-            #                            latent=latent,
-            #                            denoise=strength,
-            #                            disable_noise=False,
-            #                            start_step=0,
-            #                            last_step=last_step,
-            #                            force_full_denoise=True)
 
-            # samples = self.vae.decode(sample[0]["samples"])
-            #
-            # np_array = np.clip(255. * samples.cpu().numpy(), 0, 255).astype(np.uint8)[0]
-            # image = Image.fromarray(np_array)
-            # return image
 
 
             if sample[0]["samples"].shape[0] == 1:

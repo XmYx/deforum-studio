@@ -63,7 +63,6 @@ def start_deforum_cli():
 
             deforum = DeforumAnimationPipeline.from_civitai(model_id=modelid)
 
-            filepath = "/home/mix/Documents/GitHub/deforum-studio/deforum-studio/presets/Shapes-Kalidascope.txt"
             for dirpath, dirnames, filenames in os.walk("presets"):
                 for file in filenames:
                     file_path = os.path.join(dirpath, file)

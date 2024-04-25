@@ -7,20 +7,22 @@ from collections import namedtuple
 import torch
 import torchsde
 
+from deforum.generators.rng_noise_generator import randn_local
 from deforum.utils.constants import comfy_path, root_path
 from deforum.utils.logging_config import logger
 from deforum.utils.string_utils import str_to_bool
 
 
-comfy_submodules = [
-    "https://github.com/XmYx/ComfyUI-AnimateDiff-Evolved",
-    "https://github.com/FizzleDorf/ComfyUI_FizzNodes",
-]
 
-comfy_submodule_folders = [url.split("/")[-1] for url in comfy_submodules]
 
-comfy_path = os.environ.get("COMFY_PATH")
-comfy_submodule_folder = os.path.join(comfy_path, "custom_nodes")
+def replace_torchsde_browinan():
+    import torchsde._brownian.brownian_interval
+
+    def torchsde_randn(size, dtype, device, seed):
+        return randn_local(seed, size).to(device=device, dtype=dtype)
+
+    torchsde._brownian.brownian_interval._randn = torchsde_randn
+
 
 
 @contextlib.contextmanager
@@ -52,7 +54,15 @@ def add_to_sys_path(path):
 
 
 def ensure_comfy(custom_path=None):
+    comfy_submodules = [
+        "https://github.com/XmYx/ComfyUI-AnimateDiff-Evolved",
+        "https://github.com/FizzleDorf/ComfyUI_FizzNodes",
+    ]
 
+    comfy_submodule_folders = [url.split("/")[-1] for url in comfy_submodules]
+
+    comfy_path = os.environ.get("COMFY_PATH")
+    comfy_submodule_folder = os.path.join(comfy_path, "custom_nodes")
     if custom_path is not None:
         comfy_path = custom_path
     else:
@@ -88,9 +98,10 @@ def ensure_comfy(custom_path=None):
         LatentPreviewMethod = lp
 
     sys.modules["comfy.cli_args"] = MockCLIArgsModule()
-    import comfy.k_diffusion.sampling
+    #import comfy.k_diffusion.sampling
+    replace_torchsde_browinan()
 
-    comfy.k_diffusion.sampling.BatchedBrownianTree = DeforumBatchedBrownianTree
+    #comfy.k_diffusion.sampling.BatchedBrownianTree = DeforumBatchedBrownianTree
 
 
 # Define the namedtuple structure based on the properties identified

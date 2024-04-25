@@ -11,6 +11,7 @@ logger.info(f"Extended path with: {rel_path}; full path: {sys.path}")
 
 from .commands import (start_deforum_cli)
 from .generators import (ComfyDeforumGenerator,
+                        DeforumDiffusersGenerator,
                          FILMInterpolator,
                          ImageRNGNoise)
 
