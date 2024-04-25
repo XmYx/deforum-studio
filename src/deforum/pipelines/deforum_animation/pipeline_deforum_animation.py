@@ -46,6 +46,7 @@ from .parseq_adapter import ParseqAdapter
 
 from .animation_params import auto_to_comfy
 from ..deforum_pipeline import DeforumBase
+from ... import ComfyDeforumGenerator
 from ...models import DepthModel, RAFT
 from ...pipeline_utils import DeforumGenerationObject, pairwise_repl, isJson
 from ...utils.constants import root_path, other_model_dir
@@ -512,15 +513,16 @@ class DeforumAnimationPipeline(DeforumBase):
         image_init0 = None
 
         if hasattr(self.gen, "sampler_name"):
-            try:
-                from comfy.samplers import SAMPLER_NAMES
-                if self.gen.sampler_name not in SAMPLER_NAMES:
-                    sampler_name = auto_to_comfy[self.gen.sampler_name]["sampler"]
-                    scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
-                    self.gen.sampler_name = sampler_name
-                    self.gen.scheduler = scheduler
-            except:
-                logger.info("No Comfy available when setting scheduler name")
+            if isinstance(self.generator, ComfyDeforumGenerator):
+                try:
+                    from comfy.samplers import SAMPLER_NAMES
+                    if self.gen.sampler_name not in SAMPLER_NAMES:
+                        sampler_name = auto_to_comfy[self.gen.sampler_name]["sampler"]
+                        scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
+                        self.gen.sampler_name = sampler_name
+                        self.gen.scheduler = scheduler
+                except:
+                    logger.info("No Comfy available when setting scheduler name")
 
         if self.gen.scheduled_sampler_name is not None and self.gen.enable_sampler_scheduling:
             if self.gen.scheduled_sampler_name in auto_to_comfy.keys():

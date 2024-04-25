@@ -40,15 +40,9 @@ class DepthModel:
             cls._instance._initialize(models_path=args[0], device=args[1], half_precision=True, keep_in_vram=keep_in_vram,
                                       depth_algorithm=depth_algorithm, Width=Width, Height=Height,
                                       midas_weight=midas_weight)
-        elif getattr(cls._instance, 'should_delete', False) and keep_in_vram:
+        elif cls._instance.should_delete and keep_in_vram:
             cls._instance._initialize(models_path=args[0], device=args[1], half_precision=True, keep_in_vram=keep_in_vram, depth_algorithm=depth_algorithm, Width=Width, Height=Height, midas_weight=midas_weight)
-
-        # Ensure should_delete is always set to a default value if not already present
-        if not hasattr(cls._instance, 'should_delete'):
-            cls._instance.should_delete = not keep_in_vram
-        else:
-            cls._instance.should_delete = not keep_in_vram
-
+        cls._instance.should_delete = not keep_in_vram
         return cls._instance
 
     def _initialize(self, models_path, device, half_precision=True, keep_in_vram=False,

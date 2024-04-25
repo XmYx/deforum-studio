@@ -207,7 +207,7 @@ class DeforumGenerationObject(DeforumDataObject):
             self.seed = int(self.seed)
 
         self.scheduler = "normal"
-        self.sampler_name = "euler_ancestral"
+        self.sampler_name = "DPM++ 2M Karras"
 
         # Further attribute initializations
         self.prompts = None
