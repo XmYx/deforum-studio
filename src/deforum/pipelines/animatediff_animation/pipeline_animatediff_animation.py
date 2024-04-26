@@ -9,7 +9,7 @@ import torch
 
 from ..deforum_pipeline import DeforumBase
 from deforum.pipeline_utils import DeforumGenerationObject, extract_values
-from deforum.utils.constants import comfy_path
+from deforum.utils.constants import config
 from deforum.utils.video_save_util import save_as_h264
 from deforum.utils.logging_config import logger
 
@@ -64,7 +64,7 @@ class DeforumAnimateDiffPipeline(DeforumBase):
         super().__init__()
         self.generator = generator
         self.logger = logger
-        self.animatediff_path = os.path.join(comfy_path, "custom_nodes", "ComfyUI-AnimateDiff-Evolved")
+        self.animatediff_path = os.path.join(config.comfy_path, "custom_nodes", "ComfyUI-AnimateDiff-Evolved")
         sys.path.append(self.animatediff_path)
         from animatediff import sampling
 

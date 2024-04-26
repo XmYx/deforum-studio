@@ -10,7 +10,7 @@ from deforum.utils.logging_config import logger
 from .pipelines.deforum_animation.animation_params import (DeforumArgs, DeforumAnimArgs,
                                                            ParseqArgs, LoopArgs, RootArgs,
                                                            DeforumOutputArgs, DeforumAnimPrompts, areas)
-from .utils.constants import root_path
+from .utils.constants import config
 
 
 def next_seed(args, root):
@@ -189,9 +189,9 @@ class DeforumGenerationObject(DeforumDataObject):
         animation_prompts = DeforumAnimPrompts()
         self.animation_prompts = json.loads(animation_prompts)
         self.timestring = time.strftime('%Y%m%d%H%M%S')
-        self.batch_name = f"deforum_{self.timestring}"
+        self.batch_name = kwargs['batch_name'] or f"deforum_{self.timestring}"
         # current_arg_list = [deforum.args, deforum.anim_args, deforum.video_args, deforum.parseq_args]
-        full_base_folder_path = os.path.join(root_path, "output/deforum")
+        full_base_folder_path = config.output_dir
         self.raw_batch_name = self.batch_name
         # self.batch_name = substitute_placeholders(deforum.args.batch_name, current_arg_list,
         #                                                  full_base_folder_path)

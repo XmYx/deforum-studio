@@ -8,9 +8,8 @@ import torch
 import torchsde
 
 from deforum.generators.rng_noise_generator import randn_local
-from deforum.utils.constants import comfy_path, root_path
+from deforum.utils.constants import config, root_path
 from deforum.utils.logging_config import logger
-from deforum.utils.string_utils import str_to_bool
 
 
 
@@ -58,25 +57,14 @@ def ensure_comfy(custom_path=None):
         "https://github.com/XmYx/ComfyUI-AnimateDiff-Evolved",
         "https://github.com/FizzleDorf/ComfyUI_FizzNodes",
     ]
-
     comfy_submodule_folders = [url.split("/")[-1] for url in comfy_submodules]
+    comfy_path = custom_path or config.comfy_path
+    comfy_submodule_folder = os.path.join(comfy_path, "custom_nodes")   
 
-    comfy_path = os.environ.get("COMFY_PATH")
-    comfy_submodule_folder = os.path.join(comfy_path, "custom_nodes")
-    if custom_path is not None:
-        comfy_path = custom_path
-    else:
-
-        comfy_path = os.environ.get("COMFY_PATH")
-
-    comfy_update = str_to_bool(os.environ.get("COMFY_UPDATE", "False"))
-        
-    comfy_submodule_folder = os.path.join(comfy_path, "custom_nodes")
-
-    if not os.path.exists(comfy_path):
+    if not os.path.exists(config.comfy_path):
         # Clone the comfy repository if it doesn't exist
         clone_repo_to("https://github.com/comfyanonymous/ComfyUI", comfy_path)
-    elif comfy_update:
+    elif config.comfy_update:
         # If comfy directory exists, update it.
         with change_dir(comfy_path):
             subprocess.run(["git", "pull"])
