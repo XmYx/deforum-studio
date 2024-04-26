@@ -14,6 +14,8 @@ import pandas as pd
 import torch
 from PIL import Image, ImageOps, ImageEnhance, ImageChops
 
+from deforum.utils.blocking_file_list import BlockingFileList
+
 from ... import FILMInterpolator
 from ...generators.deforum_flow_generator import (get_flow_for_hybrid_motion_prev,
                                                   get_flow_for_hybrid_motion,
@@ -22,7 +24,7 @@ from ...generators.deforum_flow_generator import (get_flow_for_hybrid_motion_pre
 from ...generators.deforum_noise_generator import add_noise
 from ...pipeline_utils import next_seed
 from ...utils import py3d_tools as p3d
-from ...utils.constants import root_path
+from ...utils.constants import root_path, config
 from ...utils.deforum_framewarp_utils import (get_flip_perspective_matrix,
                                               flip_3d_perspective,
                                               transform_image_3d_new,
@@ -214,8 +216,15 @@ def hybrid_composite_cls(cls: Any) -> None:
         None: Modifies the class instance attributes in place.
     """
     if cls.gen.prev_img is not None:
-        video_frame = os.path.join(cls.gen.outdir, 'inputframes',
-                                   get_frame_name(cls.gen.video_init_path) + f"{cls.gen.frame_idx:09}.jpg")
+
+        video_frame_path = os.path.join(cls.gen.outdir, 'inputframes')
+
+        if config.allow_blocking_input_frame_lists:
+            inputfiles = BlockingFileList(video_frame_path, cls.gen.max_frames)
+            video_frame = inputfiles[cls.gen.frame_idx]
+        else: 
+            video_frame = os.path.join(cls.gen.outdir, 'inputframes',
+                                    get_frame_name(cls.gen.video_init_path) + f"{cls.gen.frame_idx:09}.jpg")
         video_depth_frame = os.path.join(cls.gen.outdir, 'hybridframes',
                                          get_frame_name(
                                              cls.gen.video_init_path) + f"_vid_depth{cls.gen.frame_idx:09}.jpg")

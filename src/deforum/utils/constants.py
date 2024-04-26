@@ -1,21 +1,40 @@
 import os
 import platform
+from dataclasses import dataclass
+from decouple import config
 
-root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 utils_dir = os.path.dirname(os.path.abspath(__file__))
-
 deforum_dir = os.path.dirname(utils_dir)
-
 src_dir = os.path.dirname(deforum_dir)
-
+root_path = os.path.dirname(src_dir)
 
 def get_os():
     return {"Windows": "Windows", "Linux": "Linux", "Darwin": "Mac"}.get(platform.system(), "Unknown")
 
 
-# root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-comfy_path = os.path.join(src_dir, "ComfyUI")
+# Typesafe config data loaded from .env or .ini
+@dataclass
+class AppConfig:
+    comfy_path: str
+    model_dir: str
+    other_model_dir: str
+    output_dir: str
+    comfy_update: bool
+    allow_blocking_input_frame_lists: bool
+    projectm_docker_image: str
 
-model_dir = os.path.join(root_path, "models/checkpoints")
-other_model_dir = os.path.join(root_path, "models/other")
+    @staticmethod
+    def load():
+        return AppConfig(
+            comfy_path = config('COMFY_PATH', default=os.path.join(src_dir, "ComfyUI")),
+            model_dir = config('MODEL_PATH', default=os.path.join(root_path, "models")),
+            other_model_dir = config('OTHER_MODEL_PATH', default=os.path.join(root_path, "models/other")),
+            output_dir = config('OUTPUT_PATH', default=os.path.join(root_path, "output/deforum")),
+            comfy_update = config('COMFY_UPDATE', default=False, cast=bool),
+            allow_blocking_input_frame_lists = config('ALLOW_BLOCKING_INPUT_FRAME_LISTS', default=True, cast=bool),
+            projectm_docker_image = config('PROJECTM_DOCKER_IMAGE', default="rewbs/projectm-cli:0.0.4"),
+        )
+
+# Make available for import 
+config = AppConfig.load()
