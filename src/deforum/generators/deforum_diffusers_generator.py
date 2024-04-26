@@ -222,13 +222,13 @@ class DeforumDiffusersGenerator:
     def prepare_latents(
         self, image, timestep, batch_size, num_images_per_prompt, dtype, device, generator=None, add_noise=True
     ):
-        print("RAN HIJACK")
         return image
 
     def prepare_latents_with_subseed(
             self, image, num_inference_steps, strength, seed, subseed=None, subseed_strength=0.5
     ):
         device = self.img2img_pipe._execution_device
+
         self.img2img_pipe.prepare_latents = self.prepare_latents
         def denoising_value_valid(dnv):
             return isinstance(dnv, float) and 0 < dnv < 1
@@ -295,30 +295,23 @@ class DeforumDiffusersGenerator:
         print(
             f'init_latents min: {torch.min(init_latents).item()}, init_latents max: {torch.max(init_latents).item()}')
 
-        if subseed is not None:
-
-
-
-            shape = init_latents.shape
-            if subseed == -1:
-                subseed = secrets.randbelow(999999999999999999)
-            sub_generator = torch.Generator(device=device).manual_seed(subseed)
-
-            noise = randn_tensor(shape, generator=generator, device=device, dtype=dtype)
-            sub_noise = randn_tensor(init_latents.shape, generator=sub_generator, device=device, dtype=dtype)
-            noise = slerp(subseed_strength, sub_noise, noise)
-            # get latents
-            init_latents = self.img2img_pipe.scheduler.add_noise(init_latents, noise, latent_timestep)
-
-
-            # sub_noise = torch.randn(init_latents.shape, generator=sub_generator, device=device, dtype=dtype) / 255.0
-            # print(f'sub_noise min: {torch.min(sub_noise).item()}, sub_noise max: {torch.max(sub_noise).item()}')
-            # print(
-            #     f'init_latents min: {torch.min(init_latents).item()}, init_latents max: {torch.max(init_latents).item()}')
-
-
-
-            logger.info("USING SLERPED LATENTS")
+        # if subseed is not None:
+        #
+        #
+        #
+        #     shape = init_latents.shape
+        #     if subseed == -1:
+        #         subseed = secrets.randbelow(999999999999999999)
+        #     sub_generator = torch.Generator(device=device).manual_seed(subseed)
+        #
+        #     noise = randn_tensor(shape, generator=generator, device=device, dtype=dtype)
+        #     sub_noise = randn_tensor(init_latents.shape, generator=sub_generator, device=device, dtype=dtype)
+        #     noise = slerp(subseed_strength, noise, sub_noise)
+        #     # get latents
+        #     init_latents = self.img2img_pipe.scheduler.add_noise(init_latents, noise, latent_timestep)
+        #
+        #
+        #     logger.info("USING SLERPED LATENTS")
         return init_latents, timesteps
 
     def __call__(self,
@@ -357,7 +350,7 @@ class DeforumDiffusersGenerator:
                 subseed = secrets.randbelow(999999999999999999)
 
         # if self.rng is None or reset_noise:
-        shape = [4, height // 8, width // 8]
+        shape = [1, 4, height // 8, width // 8]
         self.rng = ImageRNGNoise(shape=shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
                                  seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
 
@@ -373,10 +366,22 @@ class DeforumDiffusersGenerator:
             self.selected_scheduler = sampler_name
         torch.manual_seed(seed)
         if init_image is None or strength > 0.99:
+            device = self.img2img_pipe._execution_device
+            dtype = torch.float16
+            sub_generator = torch.Generator(device=device).manual_seed(subseed)
+            generator = torch.Generator(device=device).manual_seed(seed)
+
+            noise = randn_tensor(shape, generator=generator, device=device, dtype=dtype)
+            sub_noise = randn_tensor(noise.shape, generator=sub_generator, device=device, dtype=dtype)
+
+            print(noise.shape, sub_noise.shape)
+
+            latents = slerp(subseed_strength, noise, sub_noise)
+
             logger.info("DEFORUM DIFFUSERS TXT2IMG")
             image = self.pipe(
                 prompt=prompt,
-                latent=self.rng.first().unsqueeze(0),
+                latent=latents,
                 width=width,
                 height=height,
                 guidance_scale=scale,

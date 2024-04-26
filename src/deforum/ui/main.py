@@ -158,6 +158,7 @@ class MainWindow(DeforumCore):
             qimage = QImage(qt_img)  # Convert to QImage
             qpixmap = QPixmap.fromImage(qimage)  # Convert to QPixmap
             self.previewLabel.setPixmap(qpixmap)
+            self.timelineWidget.add_image_to_track(qpixmap)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
