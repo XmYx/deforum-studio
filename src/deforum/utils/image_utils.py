@@ -506,6 +506,7 @@ def save_image(image, image_type, filename, args, video_args, root):
         root.frames_cache.append(
             {'path': os.path.join(args.outdir, filename), 'image': image, 'image_type': image_type})
     else:
+        print(os.path.join(args.outdir, filename))
         image.save(os.path.join(args.outdir, filename))
 
 

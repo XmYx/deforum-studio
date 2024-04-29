@@ -299,7 +299,7 @@ class ComfyDeforumGenerator:
             logger.info(f"seed/subseed/subseed_str={seed}/{subseed}/{subseed_strength}; strength={strength}; scale={scale}; sampler_name={sampler_name}; scheduler={scheduler};")
 
             # denoise = 1-strength
-            steps = int(strength * steps)
+            # steps = int(strength * steps)
             sample = sample_with_subseed(self.model, latent, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond,
                                 subseed_strength, subseed, strength)
             # sample = common_ksampler_with_custom_noise(model=self.model,
