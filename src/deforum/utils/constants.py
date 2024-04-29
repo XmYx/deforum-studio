@@ -41,7 +41,7 @@ class AppConfig:
             other_model_dir = config('OTHER_MODEL_PATH', default=os.path.join(root_path, "models/other")),
             output_dir = config('OUTPUT_PATH', default=os.path.join(root_path, "output/deforum")),
             comfy_update = config('COMFY_UPDATE', default=False, cast=bool),
-            allow_blocking_input_frame_lists = config('ALLOW_BLOCKING_INPUT_FRAME_LISTS', default=True, cast=bool),
+            allow_blocking_input_frame_lists = config('ALLOW_BLOCKING_INPUT_FRAME_LISTS', default=False, cast=bool),
             projectm_docker_image = config('PROJECTM_DOCKER_IMAGE', default="rewbs/projectm-cli:0.0.4"),
         )
 

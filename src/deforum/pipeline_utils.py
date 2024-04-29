@@ -189,7 +189,7 @@ class DeforumGenerationObject(DeforumDataObject):
         animation_prompts = DeforumAnimPrompts()
         self.animation_prompts = json.loads(animation_prompts)
         self.timestring = time.strftime('%Y%m%d%H%M%S')
-        self.batch_name = kwargs['batch_name'] or f"deforum_{self.timestring}"
+        self.batch_name = kwargs.get('batch_name', f"deforum_{self.timestring}")
         # current_arg_list = [deforum.args, deforum.anim_args, deforum.video_args, deforum.parseq_args]
         full_base_folder_path = config.output_dir
         self.raw_batch_name = self.batch_name
