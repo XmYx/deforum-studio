@@ -1,6 +1,6 @@
 {
-    "W": 1024,
-    "H": 576,
+    "width": 1024,
+    "height": 576,
     "show_info_on_ui": true,
     "tiling": false,
     "restore_faces": false,
@@ -31,7 +31,7 @@
     "reroll_patience": 10.0,
     "motion_preview_mode": false,
     "prompts": {
-        "0": " "
+        "0": ""
     },
     "animation_prompts_positive": "",
     "animation_prompts_negative": "",

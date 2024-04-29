@@ -1,6 +1,6 @@
 {
-    "W": 576,
-    "H": 1024,
+    "width": 576,
+    "height": 1024,
     "show_info_on_ui": false,
     "tiling": false,
     "restore_faces": false,
@@ -110,7 +110,7 @@
     "padding_mode": "border",
     "sampling_mode": "bicubic",
     "save_depth_maps": false,
-    "video_init_path": "C:/Your/File/Path/Here/Turbulent-noise-mirror2-12fps.mp4",
+    "video_init_path": "presets/videos/Turbulent-noise-mirror2-12fps.mp4",
     "extract_nth_frame": 1,
     "extract_from_frame": 0,
     "extract_to_frame": -1,

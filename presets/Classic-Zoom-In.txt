@@ -1,6 +1,6 @@
 {
-    "W": 768,
-    "H": 768,
+    "width": 768,
+    "height": 768,
     "show_info_on_ui": false,
     "tiling": false,
     "restore_faces": false,
@@ -31,7 +31,7 @@
     "reroll_patience": 10.0,
     "motion_preview_mode": false,
     "prompts": {
-        "0": "" 
+        "0": "multiverse in an hourglass" 
     },
     "animation_prompts_positive": "",
     "animation_prompts_negative": "",

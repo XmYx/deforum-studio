@@ -1,6 +1,6 @@
 {
-    "W": 1024,
-    "H": 576,
+    "width": 1024,
+    "height": 576,
     "show_info_on_ui": false,
     "tiling": false,
     "restore_faces": false,
@@ -110,7 +110,7 @@
     "padding_mode": "border",
     "sampling_mode": "bicubic",
     "save_depth_maps": false,
-    "video_init_path": "C:/Your/File/Path/Here/Turbulent-noise-30s.mp4",
+    "video_init_path": "presets/videos/Turbulent-noise-30s.mp4",
     "extract_nth_frame": 1,
     "extract_from_frame": 0,
     "extract_to_frame": -1,
