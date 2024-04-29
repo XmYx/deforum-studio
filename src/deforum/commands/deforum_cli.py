@@ -70,9 +70,9 @@ def start_deforum_cli():
 
                     extra_args["settings_file"] = file_path
 
-                    # options["prompts"] = {
-                    #     "0": "travelling towards the core of earth, highly detailed illustration"
-                    # }
+                    options["prompts"] = {
+                        "0": "A solo delorean speeding on an ethereal highway through time jumps, like in the iconic movie back to the future."
+                    }
                     # options["seed"] = 420
                     # options["subseed"] = 420
 
