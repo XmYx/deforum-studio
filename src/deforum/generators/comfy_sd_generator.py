@@ -21,7 +21,7 @@ class ComfyDeforumGenerator:
         # from comfy import model_management, controlnet
 
         # model_management.vram_state = model_management.vram_state.HIGH_VRAM
-        self.clip_skip = -2
+        self.clip_skip = 0
         self.device = "cuda"
 
         self.prompt = ""
@@ -86,7 +86,7 @@ class ComfyDeforumGenerator:
 
     def get_conds(self, clip, prompt):
         with torch.inference_mode():
-            clip_skip = -1
+            clip_skip = 0
             if clip_skip != clip_skip or clip.layer_idx != clip_skip:
                 clip.layer_idx = clip_skip
                 clip.clip_layer(clip_skip)
@@ -184,7 +184,7 @@ class ComfyDeforumGenerator:
                  strength=1.0,
                  init_image=None,
                  subseed=-1,
-                 subseed_strength=0.6,
+                 subseed_strength=0.0,
                  cnet_image=None,
                  cond=None,
                  n_cond=None,
@@ -227,6 +227,7 @@ class ComfyDeforumGenerator:
                 strength = 1.0
                 reset_noise = True
                 init_image = None
+                subseed_strength = 0.0
             if subseed == -1:
                 subseed = secrets.randbelow(18446744073709551615)
 
@@ -300,8 +301,17 @@ class ComfyDeforumGenerator:
 
             # denoise = 1-strength
             # steps = int(strength * steps)
-            sample = sample_with_subseed(self.model, latent, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond,
-                                subseed_strength, subseed, strength)
+
+            if init_image is None:
+                from nodes import common_ksampler
+
+                sample = [
+                    {'samples':common_ksampler(self.model, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond, latent,
+                                     denoise=1.0, disable_noise=False, start_step=0, last_step=steps,
+                                     force_full_denoise=True)[0]['samples']}]
+            else:
+                sample = sample_with_subseed(self.model, latent, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond,
+                                    subseed_strength, subseed, strength)
             # sample = common_ksampler_with_custom_noise(model=self.model,
             #                                            seed=seed,
             #                                            steps=steps,
@@ -317,8 +327,6 @@ class ComfyDeforumGenerator:
             #                                            last_step=last_step,
             #                                            force_full_denoise=True, # TODO - what does this do?
             #                                            noise=self.rng)
-
-
 
             if sample[0]["samples"].shape[0] == 1:
                 decoded = self.decode_sample(self.vae, sample[0]["samples"])
@@ -474,7 +482,7 @@ def sample_with_subseed(model, latent_image, main_seed, steps, cfg, sampler_name
 
     # Calculate sigma
     #comfy.model_management.load_model_gpu(model)
-    sampler = comfy.samplers.KSampler(model, steps=steps, device=device, sampler=sampler_name, scheduler=scheduler, denoise=1.0, model_options=model.model_options)
+    sampler = comfy.samplers.KSampler(model, steps=steps, device=device, sampler=sampler_name, scheduler=scheduler, denoise=denoise, model_options=model.model_options)
     sigmas = sampler.sigmas
     sigma = sigmas[start_at_step] - sigmas[end_at_step]
     sigma /= model.model.latent_format.scale_factor
@@ -488,4 +496,4 @@ def sample_with_subseed(model, latent_image, main_seed, steps, cfg, sampler_name
     #     noise_mask = prepare_mask(latent_image["noise_mask"], latent_image['samples'].shape)
     #     work_latent["samples"] = noise_mask * work_latent["samples"] + (1-noise_mask) * latent_image["samples"]
     #     work_latent['noise_mask'] = expand_mask(latent_image["noise_mask"].clone(), 5, True)
-    return ksampler(model, main_seed, steps, cfg, sampler_name, scheduler, positive, negative, work_latent, denoise=1.0, disable_noise=disable_noise, start_step=start_at_step, last_step=end_at_step, force_full_denoise=force_full_denoise)
+    return ksampler(model, main_seed, steps, cfg, sampler_name, scheduler, positive, negative, work_latent, denoise=denoise, disable_noise=disable_noise, start_step=start_at_step, last_step=end_at_step, force_full_denoise=force_full_denoise)
