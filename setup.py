@@ -192,6 +192,7 @@ extras["dev"] = deps_list('torch',
                           'fastapi',
                           'diffusers',
                           'accelerate',
+                          'python-decouple'
                           )
 
 extras["cli"] = deps_list('torch',
