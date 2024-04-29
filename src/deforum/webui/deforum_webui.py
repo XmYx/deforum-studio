@@ -58,6 +58,8 @@ def update_ui_elements(settings_data):
     for key, value in settings_data.items():
         if key in st.session_state:
             print(f"Updating widget '{key}' with value: {value}")
+            if isinstance(value, dict):
+                value = str(value)
             st.session_state[key] = value
         else:
             print(f"No widget found for key: {key}")
