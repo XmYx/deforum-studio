@@ -46,7 +46,7 @@ python tests/test_diffusers_pipeline.py
 ## WebUI
 Launch webui with the following command
 ```bash
-deforum webui
+COMFY_PATH=src/ComfyUI deforum webui
 ```
 
 ### Instructions for WebUI
