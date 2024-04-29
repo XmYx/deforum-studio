@@ -209,6 +209,14 @@ class ComfyDeforumGenerator:
                                                     embedding_directory="models/embeddings",
                                                     output_clipvision=False,
                                                     )
+                try:
+                    from nodes import NODE_CLASS_MAPPINGS
+                    print(NODE_CLASS_MAPPINGS)
+                    sfast_node = NODE_CLASS_MAPPINGS['ApplyStableFastUnet']()
+                    self.model = sfast_node.apply_stable_fast(self.model, False)[0]
+                    logger.info("Applied Stable Fast Unet Patch")
+                except:
+                    pass
 
             if seed == -1:
                 seed = secrets.randbelow(18446744073709551615)
@@ -283,7 +291,7 @@ class ComfyDeforumGenerator:
             if cnet_image is not None:
                 cond = apply_controlnet(cond, self.controlnet, cnet_image, 1.0)
 
-            from nodes import common_ksampler as ksampler
+            # from nodes import common_ksampler as ksampler
 
             #steps = int((strength) * steps) if (strength != 1.0 or not reset_noise) else steps
             last_step = steps# if last_step is None else last_step
@@ -292,21 +300,23 @@ class ComfyDeforumGenerator:
 
             # denoise = 1-strength
             steps = int(strength * steps)
-            sample = common_ksampler_with_custom_noise(model=self.model,
-                                                       seed=seed,
-                                                       steps=steps,
-                                                       cfg=scale,
-                                                       sampler_name=sampler_name,
-                                                       scheduler=scheduler,
-                                                       positive=cond,
-                                                       negative=self.n_cond,
-                                                       latent=latent,
-                                                       denoise=strength,
-                                                       disable_noise=False,
-                                                       start_step=0,
-                                                       last_step=last_step,
-                                                       force_full_denoise=True, # TODO - what does this do?
-                                                       noise=self.rng)
+            sample = sample_with_subseed(self.model, latent, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond,
+                                subseed_strength, subseed, strength)
+            # sample = common_ksampler_with_custom_noise(model=self.model,
+            #                                            seed=seed,
+            #                                            steps=steps,
+            #                                            cfg=scale,
+            #                                            sampler_name=sampler_name,
+            #                                            scheduler=scheduler,
+            #                                            positive=cond,
+            #                                            negative=self.n_cond,
+            #                                            latent=latent,
+            #                                            denoise=strength,
+            #                                            disable_noise=False,
+            #                                            start_step=0,
+            #                                            last_step=last_step,
+            #                                            force_full_denoise=True, # TODO - what does this do?
+            #                                            noise=self.rng)
 
 
 
@@ -434,3 +444,48 @@ def apply_controlnet(conditioning, control_net, image, strength):
             n[1]['control_apply_to_uncond'] = True
             c.append(n)
     return c
+
+
+def sample_with_subseed(model, latent_image, main_seed, steps, cfg, sampler_name, scheduler, positive, negative, variation_strength, variation_seed, denoise):
+    from nodes import common_ksampler as ksampler
+    import comfy
+    if main_seed == variation_seed:
+        variation_seed += 1
+
+    end_at_step = steps #min(steps, end_at_step)
+    start_at_step = round(end_at_step - end_at_step * denoise)
+
+    force_full_denoise = True
+    disable_noise = True
+
+    device = comfy.model_management.get_torch_device()
+
+    # Generate base noise
+    batch_size, _, height, width = latent_image["samples"].shape
+    generator = torch.manual_seed(main_seed)
+    base_noise = torch.randn((1, 4, height, width), dtype=torch.float32, device="cpu", generator=generator).repeat(batch_size, 1, 1, 1).cpu()
+
+    # Generate variation noise
+    generator = torch.manual_seed(variation_seed)
+    variation_noise = torch.randn((batch_size, 4, height, width), dtype=torch.float32, device="cpu", generator=generator).cpu()
+
+    slerp_noise = slerp(variation_strength, base_noise, variation_noise)
+    slerp_noise = slerp_noise.to('cuda')
+
+    # Calculate sigma
+    #comfy.model_management.load_model_gpu(model)
+    sampler = comfy.samplers.KSampler(model, steps=steps, device=device, sampler=sampler_name, scheduler=scheduler, denoise=1.0, model_options=model.model_options)
+    sigmas = sampler.sigmas
+    sigma = sigmas[start_at_step] - sigmas[end_at_step]
+    sigma /= model.model.latent_format.scale_factor
+    sigma = sigma.detach().cpu().item()
+
+    work_latent = latent_image.copy()
+    work_latent["samples"] = latent_image["samples"].clone().to('cuda') + slerp_noise.to('cuda') * sigma
+
+    # # if there's a mask we need to expand it to avoid artifacts, 5 pixels should be enough
+    # if "noise_mask" in latent_image:
+    #     noise_mask = prepare_mask(latent_image["noise_mask"], latent_image['samples'].shape)
+    #     work_latent["samples"] = noise_mask * work_latent["samples"] + (1-noise_mask) * latent_image["samples"]
+    #     work_latent['noise_mask'] = expand_mask(latent_image["noise_mask"].clone(), 5, True)
+    return ksampler(model, main_seed, steps, cfg, sampler_name, scheduler, positive, negative, work_latent, denoise=1.0, disable_noise=disable_noise, start_step=start_at_step, last_step=end_at_step, force_full_denoise=force_full_denoise)

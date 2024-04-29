@@ -22,19 +22,23 @@ def save_as_gif(frames, filename):
 
 def save_as_h264(frames, filename, audio_path=None, fps=12):
     if len(frames) > 0:
-        if isinstance(frames[0], np.ndarray):
+        # Handle frames input either as paths or as numpy arrays
+        if isinstance(frames[0], str):
+            frames = [Image.open(frame_path) for frame_path in frames]
+        elif isinstance(frames[0], np.ndarray):
             frames = [Image.fromarray(frame) for frame in frames]
 
         width, height = frames[0].size
 
+        # Define command to create video from frames
         cmd = ['ffmpeg', '-y', '-f', 'rawvideo', '-vcodec', 'rawvideo', '-s', f'{width}x{height}',
                '-pix_fmt', 'rgb24', '-r', str(fps), '-i', '-', '-c:v', 'libx264', '-profile:v', 'baseline',
                '-level', '3.0', '-pix_fmt', 'yuv420p', '-preset', 'medium', '-crf', '23', filename]
         if audio_path:
             cmd += ['-an']  # Temporarily disable audio in the first pass
 
+        # Execute ffmpeg to create the video
         video_writer = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
-
         for frame in tqdm(frames, desc="Saving MP4 (ffmpeg)"):
             video_writer.stdin.write(np.array(frame).tobytes())
 
@@ -44,18 +48,27 @@ def save_as_h264(frames, filename, audio_path=None, fps=12):
             logger.error(f"FFmpeg encountered an error: {stderr.decode('utf-8')}")
             return
 
-        # Merge audio if an audio path is provided
+        # Extract and merge audio if an audio path is provided
         if audio_path:
+            extracted_audio_path = "extracted_audio.aac"
+            # Extract the audio from the input video file
+            extract_cmd = ['ffmpeg', '-y', '-i', audio_path, '-vn', '-acodec', 'copy', extracted_audio_path]
+            subprocess.run(extract_cmd, stderr=subprocess.PIPE)
+
             # Calculate the duration of the video
             video_duration = len(frames) / fps
             output_filename = filename.replace(".mp4", "_with_audio.mp4")
-            cmd = ['ffmpeg', '-y', '-i', filename, '-stream_loop', '-1', '-i', audio_path,
-                   '-c:v', 'copy', '-c:a', 'aac', '-strict', 'experimental',
-                   '-t', str(video_duration), output_filename]  # Use the `-t` flag to match video duration
-            result = subprocess.run(cmd, stderr=subprocess.PIPE)
+
+            # Merge the extracted audio with the video file
+            merge_cmd = ['ffmpeg', '-y', '-i', filename, '-i', extracted_audio_path,
+                         '-c:v', 'copy', '-c:a', 'aac', '-strict', 'experimental',
+                         '-t', str(video_duration), output_filename]
+            result = subprocess.run(merge_cmd, stderr=subprocess.PIPE)
+
             if result.returncode != 0:
                 logger.error(f"Audio file merge failed: {result.stderr.decode('utf-8')}")
             else:
                 os.rename(output_filename, filename)  # Replace the original file with the merged audio version
+                os.remove(extracted_audio_path)  # Cleanup the extracted audio file
     else:
         logger.info("The buffer is empty, cannot save.")

@@ -340,7 +340,7 @@ class DeforumAnimationPipeline(DeforumBase):
 
             self.gen.prev_img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
             self.gen.opencv_image = self.gen.prev_img
-
+        self.gen.image_paths = []
     def log_function_lists(self):
         if self.logging:
             setup_end = time.time()
