@@ -371,7 +371,7 @@ def color_match_cls(cls: Any) -> None:
     Returns:
         None: Modifies the class instance attributes in place.
     """
-    if cls.gen.color_match_sample is None and cls.gen.prev_img is not None:
+    if cls.gen.color_match_sample is None and cls.gen.image is not None:
         cls.gen.color_match_sample = cls.gen.prev_img.copy()
     elif cls.gen.prev_img is not None:
         cls.gen.prev_img = maintain_colors(cls.gen.prev_img, cls.gen.color_match_sample, cls.gen.color_coherence)
@@ -699,15 +699,16 @@ def post_color_match_with_cls(cls: Any) -> None:
         None: Modifies the class instance attributes in place.
     """
     # color matching on first frame is after generation, color match was collected earlier, so we do an extra generation to avoid the corruption introduced by the color match of first output
-    if cls.gen.frame_idx == 0 and (cls.gen.color_coherence == 'Image' or (
-            cls.gen.color_coherence == 'Video Input' and cls.gen.hybrid_available)):
-        image = maintain_colors(cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR), cls.gen.color_match_sample,
-                                cls.gen.color_coherence)
-        cls.gen.image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    elif cls.gen.color_match_sample is not None and cls.gen.color_coherence != 'None' and not cls.gen.legacy_colormatch:
-        image = maintain_colors(cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR), cls.gen.color_match_sample,
-                                cls.gen.color_coherence)
-        cls.gen.image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    if cls.gen.color_match_sample is not None:
+        if cls.gen.frame_idx == 0 and (cls.gen.color_coherence == 'Image' or (
+                cls.gen.color_coherence == 'Video Input' and cls.gen.hybrid_available)):
+            image = maintain_colors(cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR), cls.gen.color_match_sample,
+                                    cls.gen.color_coherence)
+            cls.gen.image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+        elif cls.gen.color_match_sample is not None and cls.gen.color_coherence != 'None' and not cls.gen.legacy_colormatch:
+            image = maintain_colors(cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR), cls.gen.color_match_sample,
+                                    cls.gen.color_coherence)
+            cls.gen.image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
     return
 
 

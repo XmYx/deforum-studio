@@ -1,6 +1,6 @@
 {
-    "W": 768,
-    "H": 768,
+    "width": 768,
+    "height": 768,
     "show_info_on_ui": false,
     "tiling": false,
     "restore_faces": false,
