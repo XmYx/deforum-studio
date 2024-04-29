@@ -49,7 +49,7 @@ from ..deforum_pipeline import DeforumBase
 from ... import ComfyDeforumGenerator
 from ...models import DepthModel, RAFT
 from ...pipeline_utils import DeforumGenerationObject, pairwise_repl, isJson
-from ...utils.constants import root_path, other_model_dir
+from ...utils.constants import root_path, config 
 from ...utils.deforum_hybrid_animation import hybrid_generation
 from ...utils.deforum_logger_util import Logger
 from ...utils.image_utils import load_image_with_mask, prepare_mask, check_mask_for_errors, load_image
@@ -226,7 +226,7 @@ class DeforumAnimationPipeline(DeforumBase):
             # device = ('cpu' if cmd_opts.lowvram or cmd_opts.medvram else self.root.device)
             # TODO Set device in root in webui
             device = "cuda"
-            self.depth_model = DepthModel(other_model_dir, device, self.gen.half_precision,
+            self.depth_model = DepthModel(config.other_model_dir, device, self.gen.half_precision,
                                      keep_in_vram=self.gen.keep_in_vram,
                                      depth_algorithm=self.gen.depth_algorithm, Width=self.gen.width,
                                      Height=self.gen.height,

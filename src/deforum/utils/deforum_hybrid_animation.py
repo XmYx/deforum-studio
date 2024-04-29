@@ -6,6 +6,8 @@ import cv2
 import numpy as np
 from PIL import Image, ImageChops, ImageOps, ImageEnhance
 
+from deforum.utils.blocking_file_list import BlockingFileList
+
 from ..utils.deforum_human_masking import video2humanmasks
 from ..utils.image_utils import (get_resized_image_from_filename,
                                  autocontrast_grayscale,
@@ -14,6 +16,7 @@ from ..utils.video_frame_utils import (vid2frames,
                                        get_quick_vid_info,
                                        get_frame_name)
 from deforum.utils.logging_config import logger
+from deforum.utils.constants import config
 
 def delete_all_imgs_in_folder(folder_path):
     files = list(pathlib.Path(folder_path).glob('*.jpg'))
@@ -70,6 +73,10 @@ def hybrid_generation(args, anim_args, root):
     inputfiles = sorted(pathlib.Path(video_in_frame_path).glob('*.jpg'))
 
     if not anim_args.hybrid_use_init_image:
+        if config.allow_blocking_input_frame_lists:
+            logger.info(f"Will wait for input frames to appear in {video_in_frame_path}")
+            inputfiles = BlockingFileList(video_in_frame_path, anim_args.max_frames)
+                    
         # determine max frames from length of input frames
         if args.hybrid_use_full_video:
             anim_args.max_frames = len(inputfiles)
