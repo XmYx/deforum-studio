@@ -942,7 +942,7 @@ def generate_interpolated_frames(cls):
             # saving cadence frames
             filename = f"{cls.gen.timestring}_{tween_frame_idx:09}.png"
             cv2.imwrite(os.path.join(cls.gen.outdir, filename), img)
-            cv2.imwrite("current_cadence.png", img)
+            # cv2.imwrite("current_cadence.png", img)
             cb_img = Image.fromarray(cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB))
             cls.datacallback({"image":cb_img, "operation_id":cls.gen.operation_id, "frame_idx":cls.gen.frame_idx})
             cls.images.append(cb_img)
