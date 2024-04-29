@@ -86,7 +86,7 @@ class ComfyDeforumGenerator:
 
     def get_conds(self, clip, prompt):
         with torch.inference_mode():
-            clip.clip_layer(0)
+            # clip.clip_layer(0)
             tokens = clip.tokenize(prompt)
             cond, pooled = clip.encode_from_tokens(tokens, return_pooled=True)
             return [[cond, {"pooled_output": pooled}]]

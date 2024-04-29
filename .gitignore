@@ -200,3 +200,6 @@ current_deforum_debug.png
 
 # configs
 deforum_configs/
+
+# webui
+src/deforum/webui/*.txt
