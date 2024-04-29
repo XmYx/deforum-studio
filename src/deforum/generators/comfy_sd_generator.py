@@ -77,21 +77,16 @@ class ComfyDeforumGenerator:
     def generate_latent(self, width, height, seed, subseed, subseed_strength, seed_resize_from_h=None,
                         seed_resize_from_w=None, reset_noise=False):
         shape = [4, height // 8, width // 8]
-        if self.rng is None or reset_noise:
-            self.rng = ImageRNGNoise(shape=shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
-                                     seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
-        noise = self.rng.next()
-        # noise = torch.zeros([1, 4, width // 8, height // 8])
+        # if self.rng is None or reset_noise:
+        #     self.rng = ImageRNGNoise(shape=shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
+        #                              seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
+        # noise = self.rng.next()
+        noise = torch.zeros([1, 4, width // 8, height // 8])
         return {"samples": noise}
 
     def get_conds(self, clip, prompt):
         with torch.inference_mode():
-            clip_skip = 0
-            if clip_skip != clip_skip or clip.layer_idx != clip_skip:
-                clip.layer_idx = clip_skip
-                clip.clip_layer(clip_skip)
-                self.clip_skip = clip_skip
-
+            clip.clip_layer(0)
             tokens = clip.tokenize(prompt)
             cond, pooled = clip.encode_from_tokens(tokens, return_pooled=True)
             return [[cond, {"pooled_output": pooled}]]
