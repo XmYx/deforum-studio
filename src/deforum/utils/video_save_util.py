@@ -31,7 +31,7 @@ def save_as_h264(frames, filename, audio_path=None, fps=12):
         width, height = frames[0].size
 
         writer = imageio.get_writer(filename, fps=fps, codec='libx264',
-                                    pixelformat='yuv420p', output_params=['-crf', '23'])
+                                    pixelformat='yuv420p', output_params=['-crf', '5'])
 
         for frame in frames:
             writer.append_data(np.array(frame))
