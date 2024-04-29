@@ -25,8 +25,11 @@ def send_to_backend(data):
 
     if 'settings_file' in params and use_settings_file:
         params.pop('settings_file')
-        if st.session_state.settings_file.name is not None:
-            file_path = os.path.join(curr_folder, st.session_state.settings_file.name)
+
+        if 'settings_file' in st.session_state:
+
+        # if st.session_state.settings_file.name is not None:
+            file_path = os.path.join(curr_folder, st.session_state.settings_file)
 
     print(use_settings_file)
 

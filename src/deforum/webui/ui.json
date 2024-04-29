@@ -194,6 +194,15 @@
       "label": "Subseed Strength Schedule",
       "accessible_name": "Subseed Strength Schedule"
     },
+
+    "enable_subseed_scheduling": {
+      "widget_type": "checkbox",
+      "default": true,
+      "label": "Use Subseed Strength Schedule",
+      "accessible_name": "Use Subseed Strength Schedule"
+    },
+
+
     "parseq_manifest": {
       "widget_type": "text input",
       "default": "",
