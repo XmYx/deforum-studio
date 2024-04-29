@@ -37,25 +37,25 @@ def send_to_backend(data):
         file_path = None
         params["settings_file"] = ""
 
-    prom = params.get('prompts', 'cat sushi')
-    key = params.get('keyframes', '0')
-    if prom == "":
-        prom = "Abstract art"
-    if key == "":
-        key = "0"
+        prom = params.get('prompts', 'cat sushi')
+        key = params.get('keyframes', '0')
+        if prom == "":
+            prom = "Abstract art"
+        if key == "":
+            key = "0"
 
-    if isinstance(prom, str):
-        try:
-            prom = ast.literal_eval(prom)
-        except ValueError as e:
-            pass
+        if isinstance(prom, str):
+            try:
+                prom = ast.literal_eval(prom)
+            except ValueError as e:
+                pass
 
-    if not isinstance(prom, dict):
-        new_prom = list(prom.split("\n"))
-        new_key = list(key.split("\n"))
-        params["animation_prompts"] = dict(zip(new_key, new_prom))
-    else:
-        params["animation_prompts"] = prom
+        if not isinstance(prom, dict):
+            new_prom = list(prom.split("\n"))
+            new_key = list(key.split("\n"))
+            params["animation_prompts"] = dict(zip(new_key, new_prom))
+        else:
+            params["animation_prompts"] = prom
     def datacallback(data):
         st.session_state.last_image = data.get('image')
         if 'preview' in st.session_state:
