@@ -664,9 +664,8 @@ class DeforumAnimationPipeline(DeforumBase):
 
             # processed = self.generate_txt2img(prompt, next_prompt, blend_value, negative_prompt, args, anim_args, root, self.gen.frame_idx,
             #                                init_image)
-
+            self.gen.steps = int(self.gen.strength * self.gen.steps) if isinstance(self.generator, ComfyDeforumGenerator) else self.gen.steps
             self.gen.strength = 1 - self.gen.strength if isinstance(self.generator, ComfyDeforumGenerator) else self.gen.strength
-
             self.gen.strength = 1.0 if init_image is None else self.gen.strength
 
             cnet_image = None
