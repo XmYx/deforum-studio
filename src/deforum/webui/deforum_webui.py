@@ -1,3 +1,4 @@
+import ast
 import os
 import streamlit as st
 import json
@@ -18,20 +19,34 @@ def send_to_backend(data):
     if "deforum_pipe" not in models:
         load_deforum()
     st.session_state.video_path = None
-    use_settings_file = False
     params = data.copy()
     params.pop('preview')
-    if 'settings_file' in params:
+    use_settings_file = params.pop('use_settings_file')
+
+    if 'settings_file' in params and use_settings_file:
         params.pop('settings_file')
         if st.session_state.settings_file.name is not None:
             file_path = os.path.join(curr_folder, st.session_state.settings_file.name)
-            use_settings_file = True
+
+    print(use_settings_file)
+
+    if not use_settings_file:
+        file_path = None
+        params["settings_file"] = ""
+
     prom = params.get('prompts', 'cat sushi')
     key = params.get('keyframes', '0')
     if prom == "":
         prom = "Abstract art"
     if key == "":
         key = "0"
+
+    if isinstance(prom, str):
+        try:
+            prom = ast.literal_eval(prom)
+        except ValueError as e:
+            pass
+
     if not isinstance(prom, dict):
         new_prom = list(prom.split("\n"))
         new_key = list(key.split("\n"))
@@ -77,6 +92,9 @@ def load_deforum():
         st.session_state['loaded'] = True
 
 def main():
+    if "file_uploader_key" not in st.session_state:
+        st.session_state["file_uploader_key"] = 0
+
     st.set_page_config(layout="wide")
 
     # Initialize the sidebar with tabs for each category
@@ -95,6 +113,8 @@ def main():
                     if params['widget_type'] == 'number':
                         st.number_input(params['label'], min_value=params['min'],
                                                            max_value=params['max'], value=params['default'], key=setting)
+                    elif params['widget_type'] == 'checkbox':
+                        st.checkbox(params['label'], params['default'], key=setting)
                     elif params['widget_type'] == 'dropdown':
                         st.selectbox(params['label'], params['options'], index=params['options'].index(params['default']), key=setting)
                     elif params['widget_type'] == 'text input':
@@ -109,10 +129,13 @@ def main():
                                                      max_value=params['max'], value=params['default'], key=setting)
                     elif params['widget_type'] == 'file_input':
                         # Handle file input with specified accepted file types
-                        file_uploader = st.file_uploader(params['label'], type=params['accepted_file_types'])
+                        file_uploader = st.file_uploader(params['label'],
+                                                         type=params['accepted_file_types'],
+                                                         key=st.session_state["file_uploader_key"])
                         if file_uploader is not None:
-                            st.session_state.settings_file = file_uploader
                             file_path = os.path.join(curr_folder, file_uploader.name)
+                            st.session_state.settings_file = file_path
+
                             with open(file_path, "wb") as f:
                                 f.write(file_uploader.getbuffer())
                             try:
@@ -122,6 +145,9 @@ def main():
                                     update_ui_elements(settings_data)
                             except json.JSONDecodeError:
                                 st.error("Uploaded file is not a valid JSON.")
+                            st.session_state["file_uploader_key"] += 1
+                            st.rerun()
+
 
 
     with col2:

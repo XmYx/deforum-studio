@@ -7,6 +7,12 @@
       "label": "Upload Settings File",
       "accessible_name": "Settings File Upload"
     },
+    "use_settings_file": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Use Settings File",
+      "accessible_name": "Use Settings File"
+    },
     "prompts": {
       "label": "Prompts",
       "widget_type": "text box",
