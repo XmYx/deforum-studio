@@ -49,6 +49,11 @@ Launch webui with the following command
 deforum webui
 ```
 
+### Instructions for WebUI
+Upload the deforum.txt file into the WebUI from the Presets folder.
+Now, you will need to make sure to check `Use Settings File`.
+This is because the settings filed gets loaded into the UI that allows you to edit the parameters but you can also use the settings file straight.
+
 ## License
 Deforum is licensed under the GNU General Public License v3.0 License.
 
