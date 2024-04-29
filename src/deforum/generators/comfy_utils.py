@@ -26,8 +26,8 @@ def replace_torchsde_browinan():
 
 @contextlib.contextmanager
 def change_dir(destination):
+    cwd = os.getcwd()
     try:
-        cwd = os.getcwd()
         os.chdir(destination)
         yield
     finally:
@@ -69,9 +69,9 @@ def ensure_comfy(custom_path=None):
         with change_dir(comfy_path):
             subprocess.run(["git", "pull"])
 
-    with change_dir(comfy_submodule_folder):
-        for module in comfy_submodules:
-            clone_repo(module)
+        with change_dir(comfy_submodule_folder):
+            for module in comfy_submodules:
+                clone_repo(module)
 
     # Add paths to sys.path
     add_to_sys_path(comfy_path)
@@ -88,6 +88,19 @@ def ensure_comfy(custom_path=None):
     sys.modules["comfy.cli_args"] = MockCLIArgsModule()
     #import comfy.k_diffusion.sampling
     replace_torchsde_browinan()
+    import asyncio
+    import execution
+    from nodes import init_custom_nodes
+    import server
+
+    # Creating a new event loop and setting it as the default loop
+    # loop = asyncio.new_event_loop()
+    # asyncio.set_event_loop(loop)
+    #
+    # # Creating an instance of PromptServer with the loop
+    # server_instance = server.PromptServer(loop)
+    # execution.PromptQueue(server_instance)
+    # init_custom_nodes()
 
     #comfy.k_diffusion.sampling.BatchedBrownianTree = DeforumBatchedBrownianTree
 
@@ -142,6 +155,8 @@ CLIArgs = namedtuple(
         "windows_standalone_build",
         "disable_metadata",
         'deterministic',
+        'multi_user',
+        'max_upload_size'
     ],
 )
 
@@ -193,6 +208,8 @@ mock_args = CLIArgs(
     windows_standalone_build=False,
     disable_metadata=False,
     deterministic=False,
+    multi_user=True,
+    max_upload_size=1024
 )
 
 

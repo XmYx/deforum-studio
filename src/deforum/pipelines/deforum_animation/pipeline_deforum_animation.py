@@ -340,7 +340,7 @@ class DeforumAnimationPipeline(DeforumBase):
 
             self.gen.prev_img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
             self.gen.opencv_image = self.gen.prev_img
-
+        self.gen.image_paths = []
     def log_function_lists(self):
         if self.logging:
             setup_end = time.time()
@@ -664,6 +664,8 @@ class DeforumAnimationPipeline(DeforumBase):
 
             # processed = self.generate_txt2img(prompt, next_prompt, blend_value, negative_prompt, args, anim_args, root, self.gen.frame_idx,
             #                                init_image)
+
+            self.gen.strength = 1 - self.gen.strength if isinstance(self.generator, ComfyDeforumGenerator) else self.gen.strength
 
             self.gen.strength = 1.0 if init_image is None else self.gen.strength
 

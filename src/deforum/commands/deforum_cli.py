@@ -61,7 +61,7 @@ def start_deforum_cli():
             from deforum import DeforumAnimationPipeline
             modelid = str(options.get("modelid", "125703"))
 
-            deforum = DeforumAnimationPipeline.from_civitai(model_id=modelid, generator_name="DeforumDiffusersGenerator")
+            deforum = DeforumAnimationPipeline.from_civitai(model_id=modelid)
 
             for dirpath, dirnames, filenames in os.walk("presets"):
                 for file in filenames:
@@ -70,11 +70,11 @@ def start_deforum_cli():
 
                     extra_args["settings_file"] = file_path
 
-                    options["prompts"] = {
-                        "0": "travelling towards the core of earth, highly detailed illustration"
-                    }
-                    options["seed"] = 420
-                    options["subseed"] = 420
+                    # options["prompts"] = {
+                    #     "0": "travelling towards the core of earth, highly detailed illustration"
+                    # }
+                    # options["seed"] = 420
+                    # options["subseed"] = 420
 
                     _ = deforum(**extra_args, **options)
 

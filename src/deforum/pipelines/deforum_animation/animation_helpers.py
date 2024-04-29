@@ -778,6 +778,7 @@ def post_gen_cls(cls: Any) -> None:
                 # p = Process(target=save_image, args=(cls.gen.image, 'PIL', filename, cls.gen, cls.gen, cls.gen))
                 # p.start()
                 save_image(cls.gen.image, 'PIL', filename, cls.gen, cls.gen, cls.gen)
+                cls.gen.image_paths.append(os.path.join(cls.gen.outdir, filename))
 
                 # cls.logger(f"                                   [ image saved ]", True)
 
@@ -1130,6 +1131,7 @@ def make_cadence_frames(cls: Any) -> None:
                 if not cls.gen.store_frames_in_ram:
                     filename = f"{cls.gen.timestring}_{tween_frame_idx:09}.png"
                     cv2.imwrite(os.path.join(cls.gen.outdir, filename), cls.gen.img)
+                    cls.gen.image_paths.append(os.path.join(cls.gen.outdir, filename))
 
 
                 callback_img = cv2.cvtColor(cls.gen.img.astype(np.uint8), cv2.COLOR_BGR2RGB)
@@ -1208,9 +1210,9 @@ def save_video_cls(cls):
         audio_path = cls.gen.video_init_path
 
     fps = getattr(cls.gen, "fps", 24)  # Using getattr to simplify fetching attributes with defaults
-
+    print(cls.gen.image_paths)
     try:
-        save_as_h264(cls.images, output_filename_base + "_FILM.mp4", audio_path=audio_path, fps=fps)
+        save_as_h264(cls.gen.image_paths, output_filename_base + "_FILM.mp4", audio_path=audio_path, fps=fps)
     except Exception as e:
         logger.error(f"save as h264 failed: {str(e)}")
     cls.gen.video_path = output_filename_base + "_FILM.mp4"
