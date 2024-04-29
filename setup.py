@@ -91,6 +91,8 @@ _deps = [
     'python-decouple>=3.8',
     'mutagen>=1.47.0',
     'diffusers>=0.27.2',
+    'python-decouple',
+    'imageio[ffmpeg]==2.34.1'
 ]
 
 # this is a lookup table with items like:
@@ -192,7 +194,8 @@ extras["dev"] = deps_list('torch',
                           'fastapi',
                           'diffusers',
                           'accelerate',
-                          'python-decouple'
+                          'python-decouple',
+                          'imageio[ffmpeg]',
                           )
 
 extras["cli"] = deps_list('torch',
