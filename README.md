@@ -42,6 +42,10 @@ Test diffusers pipeline
 ```bash
 python tests/test_diffusers_pipeline.py
 ```
+Test all the presets:
+```bash
+deforum runpresets --options randomize_files=True
+```
 
 ## WebUI
 Launch webui with the following command
