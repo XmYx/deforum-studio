@@ -7,7 +7,7 @@ def start_deforum_cli():
 
     parser = argparse.ArgumentParser(description="Load settings from a txt file and run the deforum process.")
     # Positional mode argument
-    parser.add_argument("mode", choices=['webui', 'animatediff', 'runpresets', 'api'], default=None, nargs='?',
+    parser.add_argument("mode", choices=['webui', 'animatediff', 'runpresets', 'api', 'setup'], default=None, nargs='?',
                         help="Choose the mode to run.")
 
     parser.add_argument("--file", type=str, help="Path to the txt file containing dictionaries to merge.")
@@ -134,6 +134,10 @@ def start_deforum_cli():
 
             # Start the Uvicorn server
             uvicorn.run(app, host="localhost", port=8000)
+        elif args_main.mode == "setup":
+            print("SETUP")
+            from deforum.utils.install_sfast import install_sfast
+            install_sfast()
     else:
         from deforum import DeforumAnimationPipeline
         deforum = DeforumAnimationPipeline.from_civitai()

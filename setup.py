@@ -11,39 +11,39 @@ os_name = platform.system().lower()
 
 torch_package_urls = {
     '3.10': {
-        'linux': 'torch-2.1.0%2Bcu118-cp310-cp310-linux_x86_64.whl',
-        'windows': 'torch-2.1.0%2Bcu118-cp310-cp310-win_amd64.whl'
+        'linux': 'torch-2.3.0%2Bcu121-cp310-cp310-linux_x86_64.whl',
+        'windows': 'torch-2.3.0%2Bcu121-cp310-cp310-win_amd64.whl'
     },
     '3.11': {
-        'linux': 'torch-2.1.0%2Bcu118-cp311-cp311-linux_x86_64.whl',
-        'windows': 'torch-2.1.0%2Bcu118-cp311-cp311-win_amd64.whl'
+        'linux': 'torch-2.3.0%2Bcu121-cp311-cp311-linux_x86_64.whl',
+        'windows': 'torch-2.3.0%2Bcu121-cp311-cp311-win_amd64.whl'
     },
     '3.8': {
-        'linux': 'torch-2.1.0%2Bcu118-cp38-cp38-linux_x86_64.whl',
-        'windows': 'torch-2.1.0%2Bcu118-cp38-cp38-win_amd64.whl'
+        'linux': 'torch-2.3.0%2Bcu121-cp38-cp38-linux_x86_64.whl',
+        'windows': 'torch-2.3.0%2Bcu121-cp38-cp38-win_amd64.whl'
     },
     '3.9': {
-        'linux': 'torch-2.1.0%2Bcu118-cp39-cp39-linux_x86_64.whl',
-        'windows': 'torch-2.1.0%2Bcu118-cp39-cp39-win_amd64.whl'
+        'linux': 'torch-2.3.0%2Bcu121-cp39-cp39-linux_x86_64.whl',
+        'windows': 'torch-2.3.0%2Bcu121-cp39-cp39-win_amd64.whl'
     }
 }
 
 torchvision_package_urls = {
     '3.10': {
-        'linux': 'torchvision-0.16.0%2Bcu118-cp310-cp310-linux_x86_64.whl',
-        'windows': 'torchvision-0.16.0%2Bcu118-cp310-cp310-win_amd64.whl'
+        'linux': 'torchvision-0.18.0%2Bcu121-cp310-cp310-linux_x86_64.whl',
+        'windows': 'torchvision-0.18.0%2Bcu121-cp310-cp310-win_amd64.whl'
     },
     '3.11': {
-        'linux': 'torchvision-0.16.0%2Bcu118-cp311-cp311-linux_x86_64.whl',
-        'windows': 'torchvision-0.16.0%2Bcu118-cp311-cp311-win_amd64.whl'
+        'linux': 'torchvision-0.18.0%2Bcu121-cp311-cp311-linux_x86_64.whl',
+        'windows': 'torchvision-0.18.0%2Bcu121-cp311-cp311-win_amd64.whl'
     },
     '3.8': {
-        'linux': 'torchvision-0.16.0%2Bcu118-cp38-cp38-linux_x86_64.whl',
-        'windows': 'torchvision-0.16.0%2Bcu118-cp38-cp38-win_amd64.whl'
+        'linux': 'torchvision-0.18.0%2Bcu121-cp38-cp38-linux_x86_64.whl',
+        'windows': 'torchvision-0.18.0%2Bcu121-cp38-cp38-win_amd64.whl'
     },
     '3.9': {
-        'linux': 'torchvision-0.16.0%2Bcu118-cp39-cp39-linux_x86_64.whl',
-        'windows': 'torchvision-0.16.0%2Bcu118-cp39-cp39-win_amd64.whl'
+        'linux': 'torchvision-0.18.0%2Bcu121-cp39-cp39-linux_x86_64.whl',
+        'windows': 'torchvision-0.18.0%2Bcu121-cp39-cp39-win_amd64.whl'
     }
 }
 
@@ -92,7 +92,8 @@ _deps = [
     'mutagen>=1.47.0',
     'diffusers>=0.27.2',
     'python-decouple',
-    'imageio[ffmpeg]==2.34.1'
+    'imageio[ffmpeg]==2.34.1',
+    'xformers==0.0.26'
 ]
 
 # this is a lookup table with items like:
@@ -196,6 +197,7 @@ extras["dev"] = deps_list('torch',
                           'accelerate',
                           'python-decouple',
                           'imageio[ffmpeg]',
+                          'xformers'
                           )
 
 extras["cli"] = deps_list('torch',
