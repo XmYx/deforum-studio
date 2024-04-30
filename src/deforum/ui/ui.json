@@ -64,6 +64,19 @@
       "label": "Seed",
       "accessible_name": "Random Seed for Generation"
     },
+    "seed_behavior": {
+      "widget_type": "dropdown",
+      "options": [
+                  "random",
+                  "fixed",
+                  "ladder",
+                  "iter"
+
+              ],
+      "default": "random",
+      "label": "Seed Behavior",
+      "accessible_name": "Seed Behavior"
+    },
     "subseed_schedule": {
       "widget_type": "text input",
       "default": "0: (-1)",
@@ -78,34 +91,19 @@
     },
     "sampler_name": {
       "widget_type": "dropdown",
-      "options": [
-                  "DPM++ 2M",
-                  "DPM++ 2M Karras",
-                  "DPM++ 2M SDE",
-                  "DPM++ 2M SDE Karras",
-                  "DPM++ 2S a",
-                  "DPM++ 2S a Karras",
-                  "DPM++ SDE",
-                  "DPM++ SDE Karras",
-                  "DPM2",
-                  "DPM2 Karras",
-                  "DPM2 a",
-                  "DPM2 a Karras",
-                  "DPM adaptive",
-                  "DPM fast",
-                  "Euler",
-                  "Euler a",
-                  "Heun",
-                  "LMS",
-                  "LMS Karras",
-                  "Deis",
-                  "UniPcMultiStep",
-                  "LCM",
-                  "TCD"
-              ],
+      "options": ["euler", "euler_ancestral", "heun", "heunpp2","dpm_2", "dpm_2_ancestral",
+                   "lms", "dpm_fast", "dpm_adaptive", "dpmpp_2s_ancestral", "dpmpp_sde", "dpmpp_sde_gpu",
+                   "dpmpp_2m", "dpmpp_2m_sde", "dpmpp_2m_sde_gpu", "dpmpp_3m_sde", "dpmpp_3m_sde_gpu", "ddpm", "lcm", "ddim", "uni_pc", "uni_pc_bh2"],
       "default": "DPM++ 2M SDE Karras",
       "label": "Sampler",
       "accessible_name": "Sampling Algorithm"
+    },
+    "scheduler": {
+      "widget_type": "dropdown",
+      "options": ["normal", "karras", "exponential", "sgm_uniform", "simple", "ddim_uniform"],
+      "default": "normal",
+      "label": "Scheduler",
+      "accessible_name": "Scheduler Algorithm"
     },
     "batch_name": {
       "widget_type": "text input",
@@ -193,18 +191,6 @@
       "label": "CFG Scale Schedule",
       "accessible_name": "CFG Scale Schedule"
     },
-    "subseed_schedule": {
-      "widget_type": "text input",
-      "default": "0: (0)",
-      "label": "Subseed Schedule",
-      "accessible_name": "Subseed Schedule"
-    },
-    "subseed_strength_schedule": {
-      "widget_type": "text input",
-      "default": "0: (0.0)",
-      "label": "Subseed Strength Schedule",
-      "accessible_name": "Subseed Strength Schedule"
-    },
     "parseq_manifest": {
       "widget_type": "text input",
       "default": "",
@@ -212,7 +198,6 @@
       "accessible_name": "ParSeq"
     }
   },
-
   "Image & Mask Settings": {
     "use_init": {
       "widget_type": "checkbox",

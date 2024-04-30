@@ -1,3 +1,4 @@
+import copy
 import os
 import sys
 import json
@@ -11,7 +12,8 @@ from deforum.ui.core import DeforumCore
 from deforum.ui.timeline import TimelineWidget
 from deforum.utils.logging_config import logger
 
-
+from PyQt6.QtGui import QPixmap
+from PIL import ImageQt
 
 class BackendThread(QThread):
     imageGenerated = pyqtSignal(object)  # Signal to emit the image data
@@ -55,6 +57,8 @@ class BackendThread(QThread):
                 if file_path:
                     use_settings_file = True
             self.params['enable_subseed_scheduling'] = True
+            self.params['enable_steps_scheduling'] = True
+            self.params['color_coherence'] = False
             animation = models["deforum_pipe"](callback=datacallback, **self.params) if not use_settings_file else models["deforum_pipe"](callback=datacallback, settings_file=file_path)
         except Exception as e:
             logger.info(repr(e))
@@ -168,9 +172,11 @@ class MainWindow(DeforumCore):
     def updateImage(self, data):
         # Update the image on the label
         if 'image' in data:
-            from PyQt6.QtGui import QPixmap
-            from PIL import ImageQt
-            qt_img = ImageQt.ImageQt(data['image'])  # ImageQt object
+
+
+            img = copy.deepcopy(data['image'])
+
+            qt_img = ImageQt.ImageQt(img)  # ImageQt object
             qimage = QImage(qt_img)  # Convert to QImage
             qpixmap = QPixmap.fromImage(qimage)  # Convert to QPixmap
             self.previewLabel.setPixmap(qpixmap)

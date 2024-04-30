@@ -1185,9 +1185,9 @@ auto_to_comfy = {
              "scheduler": "normal"},
     "DPM2": {"sampler": "dpm_2",
              "scheduler": "normal"},
-    "DPM2 a": {"sampler": "dpm_2_a",
+     "DPM2 a": {"sampler": "dpm_2_ancestral",
                "scheduler": "normal"},
-    "DPM++ 2S a": {"sampler": "dpmpp_2_a",
+    "DPM++ 2S a": {"sampler": "dpmpp_2s_ancestral",
                    "scheduler": "normal"},
     "DPM++ 2M": {"sampler": "dpmpp_2m",
                  "scheduler": "normal"},
@@ -1215,13 +1215,23 @@ auto_to_comfy = {
                    "scheduler": "karras"},
     "DPM2 Karras": {"sampler": "dpm_2",
                     "scheduler": "karras"},
-    "DPM2 a Karras": {"sampler": "dpm_2_a",
+    "DPM2 a Karras": {"sampler": "dpm_2_ancestral",
                       "scheduler": "karras"},
-    "DPM++ 2S a Karras": {"sampler": "dpmpp_2s_a",
+    "DPM++ 2S a Karras": {"sampler": "dpmpp_2s_ancestral",
+                          "scheduler": "karras"},
+    "UniPcMultiStep": {"sampler": "uni_pc",
+                          "scheduler": "karras"},
+    "Deis": {"sampler": "uni_pc_bh2",
                           "scheduler": "karras"},
     "Restart": {"sampler": "restart",
                 "scheduler": "karras"},
 }
+
+# KSAMPLER_NAMES = ["euler", "euler_ancestral", "heun", "heunpp2","dpm_2", "dpm_2_ancestral",
+#                   "lms", "dpm_fast", "dpm_adaptive", "dpmpp_2s_ancestral", "dpmpp_sde", "dpmpp_sde_gpu",
+#                   "dpmpp_2m", "dpmpp_2m_sde", "dpmpp_2m_sde_gpu", "dpmpp_3m_sde", "dpmpp_3m_sde_gpu", "ddpm", "lcm", "ddim", "uni_pc", "uni_pc_bh2"]
+#
+# "ddim", "uni_pc", "uni_pc_bh2"
 
 hybrid_params_dict ={"video_init_path": {
                         "label": "Hybrid Video Init",

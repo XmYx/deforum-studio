@@ -338,23 +338,26 @@ class DeforumAnimationPipeline(DeforumBase):
             self.gen.opencv_image = self.gen.prev_img
         self.gen.image_paths = []
     def live_update_from_kwargs(self, **kwargs):
-        self.gen.update_from_kwargs(**kwargs)
-        self.gen.keys = DeforumAnimKeys(self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.anim_keys
-        #self.gen.loopSchedulesAndData = LooperAnimKeys(self.gen, self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.looper_keys
-        prompt_series = pd.Series([np.nan for a in range(self.gen.max_frames)])
+        try:
+            self.gen.update_from_kwargs(**kwargs)
+            self.gen.keys = DeforumAnimKeys(self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.anim_keys
+            #self.gen.loopSchedulesAndData = LooperAnimKeys(self.gen, self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.looper_keys
+            prompt_series = pd.Series([np.nan for a in range(self.gen.max_frames)])
 
-        if self.gen.prompts is not None:
-            if isinstance(self.gen.prompts, dict):
-                self.gen.animation_prompts = self.gen.prompts
+            if self.gen.prompts is not None:
+                if isinstance(self.gen.prompts, dict):
+                    self.gen.animation_prompts = self.gen.prompts
 
-        for i, prompt in self.gen.animation_prompts.items():
-            if str(i).isdigit():
-                prompt_series[int(i)] = prompt
-            else:
-                prompt_series[int(numexpr.evaluate(i))] = prompt
-        prompt_series = prompt_series.ffill().bfill()
-        self.gen.prompt_series = prompt_series
-        print(self.gen.prompt_series)
+            for i, prompt in self.gen.animation_prompts.items():
+                if str(i).isdigit():
+                    prompt_series[int(i)] = prompt
+                else:
+                    prompt_series[int(numexpr.evaluate(i))] = prompt
+            prompt_series = prompt_series.ffill().bfill()
+            self.gen.prompt_series = prompt_series
+            print(self.gen.prompt_series)
+        except:
+            pass
     def log_function_lists(self):
         if self.logging:
             setup_end = time.time()
