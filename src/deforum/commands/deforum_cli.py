@@ -69,6 +69,7 @@ def start_deforum_cli():
             files = []
             for root, _, filenames in os.walk(preset_dir):
                 for file in filenames:
+
                     files.append(os.path.join(root, file))
 
             if options.get("randomize_files", False):

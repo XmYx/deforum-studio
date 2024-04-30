@@ -1,7 +1,10 @@
 import contextlib
+import importlib
+import logging
 import os
 import subprocess
 import sys
+import traceback
 from collections import namedtuple
 
 import torch
@@ -52,6 +55,46 @@ def add_to_sys_path(path):
     sys.path.append(path)
 
 
+def load_custom_node(module_path, ignore=set()):
+    from nodes import NODE_CLASS_MAPPINGS
+    module_name = os.path.basename(module_path)
+    if os.path.isfile(module_path):
+        sp = os.path.splitext(module_path)
+        module_name = sp[0]
+    try:
+        logging.debug("Trying to load custom node {}".format(module_path))
+        if os.path.isfile(module_path):
+            module_spec = importlib.util.spec_from_file_location(module_name, module_path)
+            module_dir = os.path.split(module_path)[0]
+        else:
+            module_spec = importlib.util.spec_from_file_location(module_name, os.path.join(module_path, "__init__.py"))
+            module_dir = module_path
+
+        module = importlib.util.module_from_spec(module_spec)
+        sys.modules[module_name] = module
+        module_spec.loader.exec_module(module)
+
+        # if hasattr(module, "WEB_DIRECTORY") and getattr(module, "WEB_DIRECTORY") is not None:
+        #     web_dir = os.path.abspath(os.path.join(module_dir, getattr(module, "WEB_DIRECTORY")))
+        #     if os.path.isdir(web_dir):
+        #         EXTENSION_WEB_DIRS[module_name] = web_dir
+
+        if hasattr(module, "NODE_CLASS_MAPPINGS") and getattr(module, "NODE_CLASS_MAPPINGS") is not None:
+            for name in module.NODE_CLASS_MAPPINGS:
+                if name not in ignore:
+                    NODE_CLASS_MAPPINGS[name] = module.NODE_CLASS_MAPPINGS[name]
+
+            return True
+        else:
+            logging.warning(f"Skip {module_path} module for custom nodes due to the lack of NODE_CLASS_MAPPINGS.")
+            return False
+    except Exception as e:
+        logging.warning(traceback.format_exc())
+        logging.warning(f"Cannot import {module_path} module for custom nodes: {e}")
+        return False
+
+
+
 def ensure_comfy(custom_path=None):
     comfy_submodules = [
         "https://github.com/XmYx/ComfyUI-AnimateDiff-Evolved",
@@ -77,7 +120,7 @@ def ensure_comfy(custom_path=None):
     add_to_sys_path(comfy_path)
     for path in comfy_submodule_folders:
         add_to_sys_path(os.path.join(comfy_submodule_folder, path))
-
+        load_custom_node(os.path.join(comfy_submodule_folder, path))
     # Create and add the mock module to sys.modules
     from comfy.cli_args import LatentPreviewMethod as lp
 
@@ -94,13 +137,13 @@ def ensure_comfy(custom_path=None):
     import server
 
     # Creating a new event loop and setting it as the default loop
-    # loop = asyncio.new_event_loop()
-    # asyncio.set_event_loop(loop)
-    #
-    # # Creating an instance of PromptServer with the loop
-    # server_instance = server.PromptServer(loop)
-    # execution.PromptQueue(server_instance)
-    # init_custom_nodes()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    # Creating an instance of PromptServer with the loop
+    server_instance = server.PromptServer(loop)
+    execution.PromptQueue(server_instance)
+    init_custom_nodes()
 
     #comfy.k_diffusion.sampling.BatchedBrownianTree = DeforumBatchedBrownianTree
 
