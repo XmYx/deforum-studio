@@ -31,7 +31,7 @@
     "reroll_patience": 10.0,
     "motion_preview_mode": false,
     "prompts": {
-        "0": "" 
+        "0": "multiverse in an hourglass" 
     },
     "animation_prompts_positive": "",
     "animation_prompts_negative": "",

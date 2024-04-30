@@ -110,7 +110,7 @@
     "padding_mode": "border",
     "sampling_mode": "bicubic",
     "save_depth_maps": false,
-    "video_init_path": "C:/Your/File/Path/Here/Circles-30s.mp4",
+    "video_init_path": "presets/videos/Circles-30s.mp4",
     "extract_nth_frame": 1,
     "extract_from_frame": 0,
     "extract_to_frame": -1,
