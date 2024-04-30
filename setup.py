@@ -53,8 +53,8 @@ if python_version in torch_package_urls:
 else:
     sys.exit(f"Unsupported Python version: {python_version}")
 
-torch_path = f"https://download.pytorch.org/whl/cu118/{torch_url}"
-torchvision_path = f"https://download.pytorch.org/whl/cu118/{torchvision_url}"
+torch_path = f"https://download.pytorch.org/whl/cu121/{torch_url}"
+torchvision_path = f"https://download.pytorch.org/whl/cu121/{torchvision_url}"
 
 # IMPORTANT:
 # 1. all dependencies should be listed here with their version requirements if any
