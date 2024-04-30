@@ -96,9 +96,11 @@ def load_custom_node(module_path, ignore=set()):
 
 
 def ensure_comfy(custom_path=None):
+    curr_folder = os.getcwd()
     comfy_submodules = [
         "https://github.com/XmYx/ComfyUI-AnimateDiff-Evolved",
         "https://github.com/FizzleDorf/ComfyUI_FizzNodes",
+        "https://github.com/gameltb/ComfyUI_stable_fast"
     ]
     comfy_submodule_folders = [url.split("/")[-1] for url in comfy_submodules]
     comfy_path = custom_path or config.comfy_path
@@ -112,10 +114,10 @@ def ensure_comfy(custom_path=None):
         with change_dir(comfy_path):
             subprocess.run(["git", "pull"])
 
-        with change_dir(comfy_submodule_folder):
-            for module in comfy_submodules:
-                clone_repo(module)
-
+    with change_dir(comfy_submodule_folder):
+        for module in comfy_submodules:
+            clone_repo(module)
+    os.chdir(curr_folder)
     # Add paths to sys.path
     add_to_sys_path(comfy_path)
     for path in comfy_submodule_folders:
