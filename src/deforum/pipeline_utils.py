@@ -262,6 +262,7 @@ class DeforumGenerationObject(DeforumDataObject):
 
         # Load data from provided file
         if settings_file_path and os.path.isfile(settings_file_path):
+            logger.info(f"settings_file_path: {settings_file_path}")
             file_ext = os.path.splitext(settings_file_path)[1]
             if file_ext == '.json':
                 with open(settings_file_path, 'r') as f:

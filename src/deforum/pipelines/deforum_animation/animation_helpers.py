@@ -1204,7 +1204,9 @@ def film_interpolate_cls(cls: Any) -> None:
 def save_video_cls(cls):
     dir_path = os.path.join(root_path, 'output/video')
     os.makedirs(dir_path, exist_ok=True)
-    output_filename_base = os.path.join(dir_path, cls.gen.timestring)
+    output_filename_base = os.path.join(dir_path, cls.gen.batch_name)
+
+    print(f"output filename: {output_filename_base}")
 
     audio_path = None
     if hasattr(cls.gen, 'video_init_path'):
@@ -1212,10 +1214,10 @@ def save_video_cls(cls):
 
     fps = getattr(cls.gen, "fps", 24)  # Using getattr to simplify fetching attributes with defaults
     try:
-        save_as_h264(cls.images, output_filename_base + "_FILM.mp4", audio_path=audio_path, fps=fps)
+        save_as_h264(cls.images, output_filename_base + ".mp4", audio_path=audio_path, fps=fps)
     except Exception as e:
         logger.error(f"save as h264 failed: {str(e)}")
-    cls.gen.video_path = output_filename_base + "_FILM.mp4"
+    cls.gen.video_path = output_filename_base + ".mp4"
 
 
 def calculate_frames_to_add(total_frames: int, interp_x: float) -> int:

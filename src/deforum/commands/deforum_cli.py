@@ -1,5 +1,7 @@
 import argparse
 import os
+import random
+from deforum.utils.logging_config import logger
 
 def start_deforum_cli():
 
@@ -63,20 +65,31 @@ def start_deforum_cli():
 
             deforum = DeforumAnimationPipeline.from_civitai(model_id=modelid)
 
-            for dirpath, dirnames, filenames in os.walk("presets"):
+            preset_dir = "presets"
+            files = []
+            for root, _, filenames in os.walk(preset_dir):
                 for file in filenames:
-                    file_path = os.path.join(dirpath, file)
-                    print(file_path)
+                    files.append(os.path.join(root, file))
+
+            if options.get("randomize_files", False):
+                random.shuffle(files)
+
+            for file_path in files:
+                try:
+                    logger.info(f"Settings file path: {file_path}")
+
+                    batch_name = file_path.split('.')[0].split("/")[-1]
+                    logger.info(f"Batch Name: {batch_name}")
 
                     extra_args["settings_file"] = file_path
 
-                    options["prompts"] = {
-                        "0": "A solo delorean speeding on an ethereal highway through time jumps, like in the iconic movie back to the future."
-                    }
-                    # options["seed"] = 420
-                    # options["subseed"] = 420
+                    options["prompts"] = {"0": "A solo delorean speeding on an ethereal highway through time jumps, like in the iconic movie back to the future."}
+                    options["seed"] = 420
+                    options["batch_name"] = batch_name
 
-                    _ = deforum(**extra_args, **options)
+                    deforum(**extra_args, **options)
+                except Exception as e:
+                    logger.error(f"Error running settings file: {file_path}")
 
         elif args_main.mode == "api":
             from fastapi import FastAPI, WebSocket
