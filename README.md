@@ -5,7 +5,8 @@ You can install Deforum using one of the following methods:
 ### Virtual Environment
 Create a virtual environement with venv or conda
 ```bash
-python -m venv venv
+pip install virtualenv
+virtualenv venv -p 3.10
 source venv/bin/activate
 ```
 with conda:
