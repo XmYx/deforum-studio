@@ -9,6 +9,7 @@ from deforum.utils.model_download import (
 )
 
 from deforum.utils.logging_config import logger
+from deforum.utils.constants import config
 
 class DeforumBase:
     """
@@ -55,7 +56,7 @@ class DeforumBase:
     def from_url(
         cls,
         url: str = "",
-        cache_dir: str = "models",
+        cache_dir: str = config.model_dir,
         force_download: bool = False,
         generator_name: str = "ComfyDeforumGenerator",
         lcm: bool = False,
@@ -102,7 +103,7 @@ class DeforumBase:
     def from_civitai(
         cls,
         model_id: str = "",
-        cache_dir: str = "models",
+        cache_dir: str = config.model_dir,
         force_download: bool = False,
         generator_name: str = "ComfyDeforumGenerator",
         lcm: bool = False,

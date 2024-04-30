@@ -65,6 +65,16 @@ Install the accelerated inference libraries with the following command
 deforum setup
 ```
 
+## PyQt GUI
+Install PyQt6
+```bash
+python -m pip install pyqt6==6.5.0
+```
+Entry point:
+```bash
+python python src/deforum/ui/main.py
+```
+
 ## License
 Deforum is licensed under the GNU General Public License v3.0 License.
 

@@ -21,11 +21,11 @@ src_dir = os.path.dirname(deforum_dir)
 def get_os():
     return {"Windows": "Windows", "Linux": "Linux", "Darwin": "Mac"}.get(platform.system(), "Unknown")
 
-
 # Typesafe config data loaded from .env or .ini
 @dataclass
 class AppConfig:
     comfy_path: str
+    settings_path: str
     model_dir: str
     other_model_dir: str
     output_dir: str
@@ -37,6 +37,7 @@ class AppConfig:
     def load():
         return AppConfig(
             comfy_path = config('COMFY_PATH', default=os.path.join(src_dir, "ComfyUI")),
+            settings_path = config('SETTINGS_PATH', default=os.path.join(root_path, "settings")),
             model_dir = config('MODEL_PATH', default=os.path.join(root_path, "models")),
             other_model_dir = config('OTHER_MODEL_PATH', default=os.path.join(root_path, "models/other")),
             output_dir = config('OUTPUT_PATH', default=os.path.join(root_path, "output/deforum")),

@@ -15,8 +15,6 @@ from deforum.utils.constants import config, root_path
 from deforum.utils.logging_config import logger
 
 
-
-
 def replace_torchsde_browinan():
     import torchsde._brownian.brownian_interval
 
@@ -24,7 +22,6 @@ def replace_torchsde_browinan():
         return randn_local(seed, size).to(device=device, dtype=dtype)
 
     torchsde._brownian.brownian_interval._randn = torchsde_randn
-
 
 
 @contextlib.contextmanager
@@ -57,6 +54,7 @@ def add_to_sys_path(path):
 
 def load_custom_node(module_path, ignore=set()):
     from nodes import NODE_CLASS_MAPPINGS
+
     module_name = os.path.basename(module_path)
     if os.path.isfile(module_path):
         sp = os.path.splitext(module_path)
@@ -64,10 +62,14 @@ def load_custom_node(module_path, ignore=set()):
     try:
         logging.debug("Trying to load custom node {}".format(module_path))
         if os.path.isfile(module_path):
-            module_spec = importlib.util.spec_from_file_location(module_name, module_path)
+            module_spec = importlib.util.spec_from_file_location(
+                module_name, module_path
+            )
             module_dir = os.path.split(module_path)[0]
         else:
-            module_spec = importlib.util.spec_from_file_location(module_name, os.path.join(module_path, "__init__.py"))
+            module_spec = importlib.util.spec_from_file_location(
+                module_name, os.path.join(module_path, "__init__.py")
+            )
             module_dir = module_path
 
         module = importlib.util.module_from_spec(module_spec)
@@ -79,14 +81,19 @@ def load_custom_node(module_path, ignore=set()):
         #     if os.path.isdir(web_dir):
         #         EXTENSION_WEB_DIRS[module_name] = web_dir
 
-        if hasattr(module, "NODE_CLASS_MAPPINGS") and getattr(module, "NODE_CLASS_MAPPINGS") is not None:
+        if (
+            hasattr(module, "NODE_CLASS_MAPPINGS")
+            and getattr(module, "NODE_CLASS_MAPPINGS") is not None
+        ):
             for name in module.NODE_CLASS_MAPPINGS:
                 if name not in ignore:
                     NODE_CLASS_MAPPINGS[name] = module.NODE_CLASS_MAPPINGS[name]
 
             return True
         else:
-            logging.warning(f"Skip {module_path} module for custom nodes due to the lack of NODE_CLASS_MAPPINGS.")
+            logging.warning(
+                f"Skip {module_path} module for custom nodes due to the lack of NODE_CLASS_MAPPINGS."
+            )
             return False
     except Exception as e:
         logging.warning(traceback.format_exc())
@@ -94,17 +101,16 @@ def load_custom_node(module_path, ignore=set()):
         return False
 
 
-
 def ensure_comfy(custom_path=None):
     curr_folder = os.getcwd()
     comfy_submodules = [
-        "https://github.com/XmYx/ComfyUI-AnimateDiff-Evolved",
-        "https://github.com/FizzleDorf/ComfyUI_FizzNodes",
-        "https://github.com/gameltb/ComfyUI_stable_fast"
+       # "https://github.com/XmYx/ComfyUI-AnimateDiff-Evolved",
+       # "https://github.com/FizzleDorf/ComfyUI_FizzNodes",
+        "https://github.com/gameltb/ComfyUI_stable_fast",
     ]
     comfy_submodule_folders = [url.split("/")[-1] for url in comfy_submodules]
     comfy_path = custom_path or config.comfy_path
-    comfy_submodule_folder = os.path.join(comfy_path, "custom_nodes")   
+    comfy_submodule_folder = os.path.join(comfy_path, "custom_nodes")
 
     if not os.path.exists(config.comfy_path):
         # Clone the comfy repository if it doesn't exist
@@ -116,13 +122,16 @@ def ensure_comfy(custom_path=None):
 
     with change_dir(comfy_submodule_folder):
         for module in comfy_submodules:
-            clone_repo(module)
+            if not os.path.exists(os.path.join(os.getcwd(),module.split("/")[-1])):
+                clone_repo(module)
+
     os.chdir(curr_folder)
     # Add paths to sys.path
     add_to_sys_path(comfy_path)
     for path in comfy_submodule_folders:
         add_to_sys_path(os.path.join(comfy_submodule_folder, path))
         load_custom_node(os.path.join(comfy_submodule_folder, path))
+
     # Create and add the mock module to sys.modules
     from comfy.cli_args import LatentPreviewMethod as lp
 
@@ -131,7 +140,7 @@ def ensure_comfy(custom_path=None):
         LatentPreviewMethod = lp
 
     sys.modules["comfy.cli_args"] = MockCLIArgsModule()
-    #import comfy.k_diffusion.sampling
+    # import comfy.k_diffusion.sampling
     replace_torchsde_browinan()
     import asyncio
     import execution
@@ -147,7 +156,7 @@ def ensure_comfy(custom_path=None):
     execution.PromptQueue(server_instance)
     init_custom_nodes()
 
-    #comfy.k_diffusion.sampling.BatchedBrownianTree = DeforumBatchedBrownianTree
+    # comfy.k_diffusion.sampling.BatchedBrownianTree = DeforumBatchedBrownianTree
 
 
 # Define the namedtuple structure based on the properties identified
@@ -199,9 +208,9 @@ CLIArgs = namedtuple(
         "quick_test_for_ci",
         "windows_standalone_build",
         "disable_metadata",
-        'deterministic',
-        'multi_user',
-        'max_upload_size'
+        "deterministic",
+        "multi_user",
+        "max_upload_size",
     ],
 )
 
@@ -254,7 +263,7 @@ mock_args = CLIArgs(
     disable_metadata=False,
     deterministic=False,
     multi_user=True,
-    max_upload_size=1024
+    max_upload_size=1024,
 )
 
 
