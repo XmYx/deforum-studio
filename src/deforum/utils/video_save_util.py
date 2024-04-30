@@ -38,6 +38,7 @@ def save_as_h264(frames, filename, audio_path=None, fps=12):
         writer.close()
 
         # Extract and merge audio if an audio path is provided
+        audio_path = False
         if audio_path:
             logger.info("Audio Extraction not implemented with imageio yet, you need to have ffmpeg available in your system")
             try:

@@ -943,7 +943,7 @@ def generate_interpolated_frames(cls):
             # saving cadence frames
             filename = f"{cls.gen.timestring}_{tween_frame_idx:09}.png"
             cv2.imwrite(os.path.join(cls.gen.outdir, filename), img)
-            cv2.imwrite("current_cadence.png", img)
+            # cv2.imwrite("current_cadence.png", img)
             cb_img = Image.fromarray(cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB))
             cls.datacallback({"image":cb_img, "operation_id":cls.gen.operation_id, "frame_idx":cls.gen.frame_idx})
             cls.images.append(cb_img)
@@ -1210,16 +1210,17 @@ def save_video_cls(cls):
 
     output_filename_base = os.path.join(dir_path, name)
 
+
     audio_path = None
     if hasattr(cls.gen, 'video_init_path'):
         audio_path = cls.gen.video_init_path
 
     fps = getattr(cls.gen, "fps", 24)  # Using getattr to simplify fetching attributes with defaults
     try:
-        save_as_h264(cls.images, output_filename_base + "_FILM.mp4", audio_path=audio_path, fps=fps)
+        save_as_h264(cls.images, output_filename_base + ".mp4", audio_path=audio_path, fps=fps)
     except Exception as e:
         logger.error(f"save as h264 failed: {str(e)}")
-    cls.gen.video_path = output_filename_base + "_FILM.mp4"
+    cls.gen.video_path = output_filename_base + ".mp4"
 
 
 def calculate_frames_to_add(total_frames: int, interp_x: float) -> int:

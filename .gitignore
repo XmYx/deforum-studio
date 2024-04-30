@@ -164,7 +164,7 @@ tags
 # DS_Store (MacOS)
 .DS_Store
 # RL pipelines may produce mp4 outputs
-*.mp4
+#*.mp4
 
 # dependencies
 /transformers
@@ -200,3 +200,6 @@ current_deforum_debug.png
 
 # configs
 deforum_configs/
+
+# webui
+src/deforum/webui/*.txt
