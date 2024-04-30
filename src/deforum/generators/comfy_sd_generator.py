@@ -206,25 +206,25 @@ class ComfyDeforumGenerator:
                                                     )
                 try:
                     from nodes import NODE_CLASS_MAPPINGS
-                    print(NODE_CLASS_MAPPINGS)
+                    # print(NODE_CLASS_MAPPINGS)
                     sfast_node = NODE_CLASS_MAPPINGS['ApplyStableFastUnet']()
-                    self.model = sfast_node.apply_stable_fast(self.model, False)[0]
+                    self.model = sfast_node.apply_stable_fast(self.model, True)[0]
                     logger.info("Applied Stable Fast Unet Patch")
                 except:
                     pass
 
             if seed == -1:
                 seed = secrets.randbelow(18446744073709551615)
-
-            # strength = 1 - strength
+            if strength < 1.0:
+                strength = 1 - strength
 
             if strength <= 0.0 or strength >= 1.0:
                 strength = 1.0
                 reset_noise = True
                 init_image = None
                 subseed_strength = 0.0
-
-            # steps = int(strength * steps)
+            if strength < 1.0 and subseed_strength == 0.0:
+                steps = round(steps - steps * strength)
 
             if subseed == -1:
                 subseed = secrets.randbelow(18446744073709551615)
@@ -297,19 +297,37 @@ class ComfyDeforumGenerator:
 
             logger.info(f"seed/subseed/subseed_str={seed}/{subseed}/{subseed_strength}; strength={strength}; scale={scale}; sampler_name={sampler_name}; scheduler={scheduler};")
 
-            # denoise = 1-strength
-            # steps = int(strength * steps)
+            from nodes import NODE_CLASS_MAPPINGS
 
-            if init_image is None or subseed_strength == 0:
+            scheduler_node = NODE_CLASS_MAPPINGS['AlignYourStepsScheduler']()
+            sampler_select_node = NODE_CLASS_MAPPINGS['KSamplerSelect']()
+            custom_sampler_node = NODE_CLASS_MAPPINGS['SamplerCustom']()
+
+            sigmas = scheduler_node.get_sigmas("SDXL", steps, strength)[0]
+            sampler = sampler_select_node.get_sampler(sampler_name)[0]
+
+            if init_image is None or subseed_strength == 0 :
                 from nodes import common_ksampler
 
-                sample = [
-                    {'samples':common_ksampler(self.model, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond, latent,
-                                     denoise=strength, disable_noise=False, start_step=0, last_step=steps,
-                                     force_full_denoise=True)[0]['samples']}]
+                # sample = [
+                #     {'samples':common_ksampler(self.model, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond, latent,
+                #                      denoise=strength, disable_noise=False, start_step=0, last_step=steps,
+                #                      force_full_denoise=True)[0]['samples']}]
+                _, sample = custom_sampler_node.sample(self.model, True, seed, scale, cond, self.n_cond, sampler,
+                                                       sigmas, latent)
+                sample = [{"samples": sample['samples']}]
+
+
             else:
                 sample = sample_with_subseed(self.model, latent, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond,
-                                    subseed_strength, subseed, strength)
+                                    subseed_strength, subseed, strength, rng=ImageRNGNoise, sigmas=sigmas)
+
+
+
+
+
+
+
             # sample = common_ksampler_with_custom_noise(model=self.model,
             #                                            seed=seed,
             #                                            steps=steps,
@@ -450,16 +468,39 @@ def apply_controlnet(conditioning, control_net, image, strength):
             n[1]['control_apply_to_uncond'] = True
             c.append(n)
     return c
+def loglinear_interp(t_steps, num_steps):
+    """
+    Performs log-linear interpolation of a given array of decreasing numbers.
+    """
+    xs = np.linspace(0, 1, len(t_steps))
+    ys = np.log(t_steps[::-1])
+
+    new_xs = np.linspace(0, 1, num_steps)
+    new_ys = np.interp(new_xs, xs, ys)
+
+    interped_ys = np.exp(new_ys)[::-1].copy()
+    return interped_ys
+
+NOISE_LEVELS = {"SD1": [14.6146412293, 6.4745760956,  3.8636745985,  2.6946151520, 1.8841921177,  1.3943805092,  0.9642583904,  0.6523686016, 0.3977456272,  0.1515232662,  0.0291671582],
+                "SDXL":[14.6146412293, 6.3184485287,  3.7681790315,  2.1811480769, 1.3405244945,  0.8620721141,  0.5550693289,  0.3798540708, 0.2332364134,  0.1114188177,  0.0291671582],
+                "SVD": [700.00, 54.5, 15.886, 7.977, 4.248, 1.789, 0.981, 0.403, 0.173, 0.034, 0.002]}
 
 
-def sample_with_subseed(model, latent_image, main_seed, steps, cfg, sampler_name, scheduler, positive, negative, variation_strength, variation_seed, denoise):
+def get_sigmas(model_type, steps):
+    sigmas = NOISE_LEVELS[model_type][:]
+    if (steps + 1) != len(sigmas):
+        sigmas = loglinear_interp(sigmas, steps + 1)
+
+    sigmas[-1] = 0
+    return torch.FloatTensor(sigmas)
+
+def sample_with_subseed(model, latent_image, main_seed, steps, cfg, sampler_name, scheduler, positive, negative, variation_strength, variation_seed, denoise, rng=None, sigmas=None):
     from nodes import common_ksampler as ksampler
     import comfy
     if main_seed == variation_seed:
         variation_seed += 1
 
-    end_at_step = steps #min(steps, end_at_step)
-    start_at_step = round(end_at_step - end_at_step * denoise)
+
 
     force_full_denoise = True
     disable_noise = True
@@ -468,24 +509,37 @@ def sample_with_subseed(model, latent_image, main_seed, steps, cfg, sampler_name
 
     # Generate base noise
     batch_size, _, height, width = latent_image["samples"].shape
-    generator = torch.manual_seed(main_seed)
-    base_noise = torch.randn((1, 4, height, width), dtype=torch.float32, device="cpu", generator=generator).repeat(batch_size, 1, 1, 1).cpu()
+    if rng is None:
+        generator = torch.manual_seed(main_seed)
+        base_noise = torch.randn((1, 4, height, width), dtype=torch.float32, device="cpu", generator=generator).repeat(batch_size, 1, 1, 1).cpu()
 
-    # Generate variation noise
-    generator = torch.manual_seed(variation_seed)
-    variation_noise = torch.randn((batch_size, 4, height, width), dtype=torch.float32, device="cpu", generator=generator).cpu()
+        # Generate variation noise
+        generator = torch.manual_seed(variation_seed)
+        variation_noise = torch.randn((batch_size, 4, height, width), dtype=torch.float32, device="cpu", generator=generator).cpu()
+        slerp_noise = slerp(variation_strength, base_noise, variation_noise)
+        slerp_noise = slerp_noise.to('cuda')
+    else:
+        shape = [4, height, width ]
+        rng_noise = rng(shape=shape, seeds=[main_seed], subseeds=[variation_seed], subseed_strength=variation_strength,
+                                 seed_resize_from_h=1024, seed_resize_from_w=1024)
+        slerp_noise = rng_noise.first()
 
-    slerp_noise = slerp(variation_strength, base_noise, variation_noise)
-    slerp_noise = slerp_noise.to('cuda')
 
     # Calculate sigma
     #comfy.model_management.load_model_gpu(model)
     sampler = comfy.samplers.KSampler(model, steps=steps, device=device, sampler=sampler_name, scheduler=scheduler, denoise=denoise, model_options=model.model_options)
-    sigmas = sampler.sigmas
-    sigma = sigmas[start_at_step] - sigmas[end_at_step]
+    if sigmas is None:
+        sigmas = sampler.sigmas
+        end_at_step = steps  # min(steps, end_at_step)
+        start_at_step = round(end_at_step - end_at_step * denoise)
+        #sigmas = get_sigmas("SDXL", steps)
+        sigma = sigmas[start_at_step] - sigmas[end_at_step]
+    else:
+        sigma = sigmas[0]
+        start_at_step = 0
+        end_at_step = len(sigmas)
     sigma /= model.model.latent_format.scale_factor
     sigma = sigma.detach().cpu().item()
-
     work_latent = latent_image.copy()
     work_latent["samples"] = latent_image["samples"].clone().to('cuda') + slerp_noise.to('cuda') * sigma
 

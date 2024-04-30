@@ -65,18 +65,23 @@ def start_deforum_cli():
 
             for dirpath, dirnames, filenames in os.walk("presets"):
                 for file in filenames:
-                    file_path = os.path.join(dirpath, file)
-                    print(file_path)
+                    try:
+                        file_path = os.path.join(dirpath, file)
+                        print(file_path)
 
-                    extra_args["settings_file"] = file_path
+                        extra_args["settings_file"] = file_path
 
-                    # options["prompts"] = {
-                    #     "0": "travelling towards the core of earth, highly detailed illustration"
-                    # }
-                    # options["seed"] = 420
-                    # options["subseed"] = 420
+                        options["prompts"] = {
+                            "0": "travelling towards the core of earth, highly detailed illustration"
+                        }
+                        options["seed"] = 420
+                        options["subseed"] = 420
+                        options["batch_name"] = file.replace('.txt', '')
 
-                    _ = deforum(**extra_args, **options)
+                        _ = deforum(**extra_args, **options)
+                    except:
+                        print("FAIL:", file)
+                        pass
 
         elif args_main.mode == "api":
             from fastapi import FastAPI, WebSocket

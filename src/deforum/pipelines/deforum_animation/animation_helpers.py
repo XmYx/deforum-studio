@@ -1205,7 +1205,10 @@ def film_interpolate_cls(cls: Any) -> None:
 def save_video_cls(cls):
     dir_path = os.path.join(root_path, 'output/video')
     os.makedirs(dir_path, exist_ok=True)
-    output_filename_base = os.path.join(dir_path, cls.gen.timestring)
+
+    name = f'{cls.gen.batch_name}_{cls.gen.timestring}'
+
+    output_filename_base = os.path.join(dir_path, name)
 
     audio_path = None
     if hasattr(cls.gen, 'video_init_path'):
