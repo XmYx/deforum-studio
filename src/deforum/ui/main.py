@@ -2,7 +2,7 @@ import os
 import sys
 import json
 
-from PyQt6.QtGui import QImage
+from PyQt6.QtGui import QImage, QAction
 from PyQt6.QtWidgets import QApplication, QTabWidget, QWidget, QVBoxLayout, QDockWidget, QSlider, QLabel, QMdiArea, \
     QPushButton
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
@@ -19,6 +19,7 @@ class BackendThread(QThread):
     def __init__(self, params):
         super().__init__()
         self.params = params
+        print(params)
 
 
     def run(self):
@@ -28,8 +29,8 @@ class BackendThread(QThread):
             # Load the deforum pipeline if not already loaded
             if "deforum_pipe" not in models:
                 from deforum import DeforumAnimationPipeline
-                models["deforum_pipe"] = DeforumAnimationPipeline.from_civitai(model_id="125703",
-                                                                               generator_name='DeforumDiffusersGenerator')
+                models["deforum_pipe"] = DeforumAnimationPipeline.from_civitai(model_id="125703")
+                                                                            #generator_name='DeforumDiffusersGenerator')
             prom = self.params.get('prompts', 'cat sushi')
             key = self.params.get('keyframes', '0')
             if prom == "":
@@ -53,7 +54,7 @@ class BackendThread(QThread):
                 file_path = self.params.pop('settings_file')
                 if file_path:
                     use_settings_file = True
-
+            self.params['enable_subseed_scheduling'] = True
             animation = models["deforum_pipe"](callback=datacallback, **self.params) if not use_settings_file else models["deforum_pipe"](callback=datacallback, settings_file=file_path)
         except Exception as e:
             logger.info(repr(e))
@@ -65,6 +66,15 @@ class MainWindow(DeforumCore):
         self.setupDynamicUI()
         self.currentTrack = None  # Store the currently selected track
     def setupDynamicUI(self):
+        self.toolbar = self.addToolBar('Main Toolbar')
+        self.renderButton = QAction('Render', self)
+        self.stopRenderButton = QAction('Stop Render', self)
+
+        self.toolbar.addAction(self.renderButton)
+        self.toolbar.addAction(self.stopRenderButton)
+
+        self.renderButton.triggered.connect(self.startBackendProcess)
+        self.stopRenderButton.triggered.connect(self.stopBackendProcess)
         # Initialize the tabbed control layout docked on the left
         self.controlsDock = self.addDock("Controls", Qt.DockWidgetArea.LeftDockWidgetArea)
         tabWidget = QTabWidget()
@@ -99,7 +109,7 @@ class MainWindow(DeforumCore):
                     pass
 
             tabWidget.addTab(tab, category)
-        self.createPushButton('Render', layout, self.startBackendProcess)
+        # self.createPushButton('Render', layout, self.startBackendProcess)
 
         # Create preview area
         self.setupPreviewArea()
@@ -145,10 +155,16 @@ class MainWindow(DeforumCore):
 
     def startBackendProcess(self):
         #params = {key: widget.value() for key, widget in self.params.items() if hasattr(widget, 'value')}
+        # if not self.thread:
         self.thread = BackendThread(self.params)
         self.thread.imageGenerated.connect(self.updateImage)
         self.thread.start()
-
+    def stopBackendProcess(self):
+        try:
+            from deforum.shared_storage import models
+            models["deforum_pipe"].gen.max_frames = len(models["deforum_pipe"].images)
+        except:
+            pass
     def updateImage(self, data):
         # Update the image on the label
         if 'image' in data:
@@ -159,6 +175,30 @@ class MainWindow(DeforumCore):
             qpixmap = QPixmap.fromImage(qimage)  # Convert to QPixmap
             self.previewLabel.setPixmap(qpixmap)
             self.timelineWidget.add_image_to_track(qpixmap)
+    def updateParam(self, key, value):
+        super().updateParam(key, value)
+        from deforum.shared_storage import models
+
+        # Load the deforum pipeline if not already loaded
+        if "deforum_pipe" in models:
+
+            prom = self.params.get('prompts', 'cat sushi')
+            key = self.params.get('keyframes', '0')
+            if prom == "":
+                prom = "Abstract art"
+            if key == "":
+                key = "0"
+
+            if not isinstance(prom, dict):
+                new_prom = list(prom.split("\n"))
+                new_key = list(key.split("\n"))
+                self.params["animation_prompts"] = dict(zip(new_key, new_prom))
+            else:
+                self.params["animation_prompts"] = prom
+
+            models["deforum_pipe"].live_update_from_kwargs(**self.params)
+            print("UPDATED DEFORUM PARAMS")
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

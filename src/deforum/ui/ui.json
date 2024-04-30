@@ -64,13 +64,11 @@
       "label": "Seed",
       "accessible_name": "Random Seed for Generation"
     },
-    "subseed": {
-      "widget_type": "number",
-      "default": -1,
-      "min": -1,
-      "max": 1000000,
-      "label": "Subseed",
-      "accessible_name": "Random Seed for Generation"
+    "subseed_schedule": {
+      "widget_type": "text input",
+      "default": "0: (-1)",
+      "label": "Subseed Schedule",
+      "accessible_name": "Subseed Schedule"
     },
     "subseed_strength_schedule": {
       "widget_type": "text input",
@@ -170,8 +168,13 @@
     }
 
   },
-
   "Diffusion Schedules": {
+    "steps_schedule": {
+      "widget_type": "text input",
+      "default": "0: (20)",
+      "label": "Steps Schedule",
+      "accessible_name": "Steps Schedule"
+    },
     "strength_schedule": {
       "widget_type": "text input",
       "default": "0: (0.65)",

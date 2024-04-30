@@ -133,9 +133,6 @@ class DeforumAnimationPipeline(DeforumBase):
         self.pbar.close()
 
         self.run_post_fn_list()
-
-
-
         if self.logging:
             self.logger.dump()
             total_duration = (time.time() - self.start_total_time) * 1000
@@ -146,6 +143,7 @@ class DeforumAnimationPipeline(DeforumBase):
         return self.gen
 
     def combined_pre_checks(self, settings_file: str = None, callback=None, *args, **kwargs):
+        self.reset()
         self.setup_start = time.time()
         if callback is not None:
             self.datacallback = callback
@@ -266,8 +264,6 @@ class DeforumAnimationPipeline(DeforumBase):
         Certain functions are added to the list based on the conditions provided by the attributes of the `gen` object.
         Additionally, post-processing functions can be added to the `post_fns` list.
         """
-        self.reset()
-
         hybrid_available = self.gen.hybrid_composite != 'None' or self.gen.hybrid_motion in ['Optical Flow', 'Affine', 'Perspective']
 
         self.shoot_fns.append(get_generation_params)
@@ -341,6 +337,24 @@ class DeforumAnimationPipeline(DeforumBase):
             self.gen.prev_img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
             self.gen.opencv_image = self.gen.prev_img
         self.gen.image_paths = []
+    def live_update_from_kwargs(self, **kwargs):
+        self.gen.update_from_kwargs(**kwargs)
+        self.gen.keys = DeforumAnimKeys(self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.anim_keys
+        #self.gen.loopSchedulesAndData = LooperAnimKeys(self.gen, self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.looper_keys
+        prompt_series = pd.Series([np.nan for a in range(self.gen.max_frames)])
+
+        if self.gen.prompts is not None:
+            if isinstance(self.gen.prompts, dict):
+                self.gen.animation_prompts = self.gen.prompts
+
+        for i, prompt in self.gen.animation_prompts.items():
+            if str(i).isdigit():
+                prompt_series[int(i)] = prompt
+            else:
+                prompt_series[int(numexpr.evaluate(i))] = prompt
+        prompt_series = prompt_series.ffill().bfill()
+        self.gen.prompt_series = prompt_series
+        print(self.gen.prompt_series)
     def log_function_lists(self):
         if self.logging:
             setup_end = time.time()
@@ -406,6 +420,9 @@ class DeforumAnimationPipeline(DeforumBase):
         self.shoot_fns.clear()
         self.post_fns.clear()
         self.images.clear()
+        if hasattr(self, 'gen'):
+            del self.gen
+            self.gen = None
         torch.cuda.ipc_collect()
         torch.cuda.empty_cache()
         gc.collect()

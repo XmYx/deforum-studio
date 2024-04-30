@@ -159,6 +159,9 @@ class VideoTrack(QGraphicsItem):
             self.scene().addItem(self.label)
             self.scene().addItem(self.delete_button)
 
+        self.currentVideoObject = None
+        self.videoObjects = []
+
     def setHorizontalScale(self, scale):
         """Scale only the video track area."""
         self.prepareGeometryChange()
