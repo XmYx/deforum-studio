@@ -7,7 +7,7 @@ import numba
 import numpy as np
 
 from PyQt6.QtGui import QImage, QAction
-from PyQt6.QtMultimedia import QMediaPlayer
+from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 from PyQt6.QtWidgets import QApplication, QTabWidget, QWidget, QVBoxLayout, QDockWidget, QSlider, QLabel, QMdiArea, \
     QPushButton, QComboBox, QFileDialog, QSpinBox, QLineEdit, QCheckBox, QTextEdit, QHBoxLayout
@@ -96,6 +96,7 @@ class MainWindow(DeforumCore):
         self.presets_folder = os.path.join(os.path.expanduser('~'), 'deforum', 'presets')
         self.loadPresetsDropdown()
         self.presetsDropdown.activated.connect(self.loadPresetsDropdown)
+        self.setupVideoPlayer()
         self.tileMdiSubWindows()
         self.timelineDock.hide()
 
@@ -226,45 +227,86 @@ class MainWindow(DeforumCore):
         self.previewSubWindow.setWidget(self.previewLabel)
         self.previewSubWindow.show()
 
-        # Subwindow for the video player
+        # # Subwindow for the video player
+        # self.videoSubWindow = self.mdiArea.addSubWindow(QWidget())
+        # self.videoSubWindow.setWindowTitle("Video Player")
+        #
+        # # Video output widget
+        # self.videoWidget = QVideoWidget()
+        #
+        # # Video controls
+        # self.playButton = QPushButton("Play")
+        # self.pauseButton = QPushButton("Pause")
+        # self.stopButton = QPushButton("Stop")
+        #
+        # # Connect buttons to player actions
+        # self.playButton.clicked.connect(self.player.play)
+        # self.pauseButton.clicked.connect(self.player.pause)
+        # self.stopButton.clicked.connect(self.player.stop)
+        #
+        # # Slider for video timeline
+
+        #
+        # # Layout for the video player controls
+        # controlsLayout = QHBoxLayout()
+        # controlsLayout.addWidget(self.playButton)
+        # controlsLayout.addWidget(self.pauseButton)
+        # controlsLayout.addWidget(self.stopButton)
+        #
+        # # Main layout for the video subwindow
+        # mainLayout = QVBoxLayout()
+        # mainLayout.addWidget(self.videoWidget)
+        # mainLayout.addWidget(self.videoSlider)
+        # mainLayout.addLayout(controlsLayout)
+        #
+        # self.videoSubWindow.widget().setLayout(mainLayout)
+        # self.player.setVideoOutput(self.videoWidget)
+        # self.videoSubWindow.show()
+    def setupVideoPlayer(self):
         self.videoSubWindow = self.mdiArea.addSubWindow(QWidget())
         self.videoSubWindow.setWindowTitle("Video Player")
-
-        # Video output widget
+        # Setting up the video player within its subwindow
         self.videoWidget = QVideoWidget()
+        self.audioOutput = QAudioOutput()  # Create an audio output
+        self.player.setAudioOutput(self.audioOutput)  # Set audio output for the player
+        self.player.setVideoOutput(self.videoWidget)  # Set video output
 
-        # Video controls
+        # Adding playback controls
         self.playButton = QPushButton("Play")
         self.pauseButton = QPushButton("Pause")
         self.stopButton = QPushButton("Stop")
+        self.volumeSlider = QSlider(Qt.Orientation.Horizontal)
+        self.volumeSlider.setMinimum(0)
+        self.volumeSlider.setMaximum(100)
+        self.volumeSlider.setValue(50)  # Default volume level at 50%
+        self.volumeSlider.setTickInterval(10)  # Optional: makes it easier to slide in intervals
+        self.audioOutput.setVolume(0.5)  # Set the initial volume to 50%
 
-        # Connect buttons to player actions
+        # Connect control buttons and slider
         self.playButton.clicked.connect(self.player.play)
         self.pauseButton.clicked.connect(self.player.pause)
         self.stopButton.clicked.connect(self.player.stop)
-
-        # Slider for video timeline
+        self.volumeSlider.valueChanged.connect(lambda value: self.audioOutput.setVolume(value / 100))
         self.videoSlider = QSlider(Qt.Orientation.Horizontal)
         self.videoSlider.sliderMoved.connect(self.setPosition)
         self.player.positionChanged.connect(self.updatePosition)
         self.player.durationChanged.connect(self.updateDuration)
-
         # Layout for the video player controls
         controlsLayout = QHBoxLayout()
         controlsLayout.addWidget(self.playButton)
         controlsLayout.addWidget(self.pauseButton)
         controlsLayout.addWidget(self.stopButton)
+        controlsLayout.addWidget(QLabel("Volume:"))
+        controlsLayout.addWidget(self.volumeSlider)
 
         # Main layout for the video subwindow
         mainLayout = QVBoxLayout()
         mainLayout.addWidget(self.videoWidget)
         mainLayout.addWidget(self.videoSlider)
+
         mainLayout.addLayout(controlsLayout)
 
         self.videoSubWindow.widget().setLayout(mainLayout)
-        self.player.setVideoOutput(self.videoWidget)
-        self.videoSubWindow.show()
-
     def tileMdiSubWindows(self):
         """Resize and evenly distribute all subwindows in the MDI area."""
         # Optionally, set a uniform size for all subwindows
