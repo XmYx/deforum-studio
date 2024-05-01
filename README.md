@@ -72,7 +72,7 @@ python -m pip install pyqt6==6.5.0
 ```
 Entry point:
 ```bash
-python python src/deforum/ui/main.py
+python src/deforum/ui/main.py
 ```
 
 ## License
