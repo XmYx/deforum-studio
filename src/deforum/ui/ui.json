@@ -1,5 +1,9 @@
 {
   "General Settings": {
+    "optimize": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Optimize with StableFast"},
     "settings_file": {
       "widget_type": "file_input",
       "accepted_file_types": [".txt"],

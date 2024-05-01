@@ -15,7 +15,7 @@ class ComfyDeforumGenerator:
     def __init__(self, model_path: str = None, lcm=False, trt=False):
 
         ensure_comfy()
-
+        self.optimize = True
         # from deforum.datafunctions.ensure_comfy import ensure_comfy
         # ensure_comfy()
         # from deforum.datafunctions import comfy_functions
@@ -233,17 +233,20 @@ class ComfyDeforumGenerator:
                 settings_dict["RNG"] = "gpu"
                 settings_dict["pad_cond_uncond"] = True
                 settings_dict["Use CFGDenoiser"] = True
+                settings_dict["disable_nan_check"] = True
+                settings_dict["upcast_sampling"] = False
+                settings_dict["batch_cond_uncond"] = True
                 self.model = settings_node.run(self.model, **settings_dict)[0]
                 self.clip = settings_node.run(self.clip, **settings_dict)[0]
-
-                try:
-                    from nodes import NODE_CLASS_MAPPINGS
-                    # print(NODE_CLASS_MAPPINGS)
-                    sfast_node = NODE_CLASS_MAPPINGS['ApplyStableFastUnet']()
-                    self.model = sfast_node.apply_stable_fast(self.model, True)[0]
-                    logger.info("Applied Stable Fast Unet Patch")
-                except:
-                    logger.warning("Stable Fast Patch Error")
+                if self.optimize:
+                    try:
+                        from nodes import NODE_CLASS_MAPPINGS
+                        # print(NODE_CLASS_MAPPINGS)
+                        sfast_node = NODE_CLASS_MAPPINGS['ApplyStableFastUnet']()
+                        self.model = sfast_node.apply_stable_fast(self.model, True)[0]
+                        logger.info("Applied Stable Fast Unet Patch")
+                    except:
+                        logger.warning("Stable Fast Patch Error")
 
             if seed == -1:
                 seed = secrets.randbelow(18446744073709551615)

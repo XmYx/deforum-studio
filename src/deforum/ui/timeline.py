@@ -57,7 +57,12 @@ class TimelineHandle(QGraphicsItem):
 
     def updateFrameReadout(self, frame_number):
         self.scene().views()[0].parentWidget().frameReadout.setText(f"Frame: {int(frame_number)}")
-
+    def updatePosition(self, scale):
+        # Adjust the step size based on scale
+        self.step_size = 105 * scale
+        current_frame = self.offset_x / 105
+        self.offset_x = current_frame * self.step_size
+        self.setPos(self.offset_x, 0)
 
 class ResizingHandle(QGraphicsRectItem):
     def __init__(self, parent=None):
@@ -84,19 +89,25 @@ class ResizingHandle(QGraphicsRectItem):
 class Frame(QGraphicsRectItem):
     def __init__(self, pixmap, frame_number, parent=None):
         super().__init__(0, 0, 100, 50, parent)
-        self.pixmap_item = QGraphicsPixmapItem(pixmap.scaled(100, 50), self)  # Add a pixmap item to this item
-        self.setBrush(QBrush(Qt.GlobalColor.transparent))  # Remove the background color
-
+        self.original_pixmap = pixmap
+        self.pixmap_item = QGraphicsPixmapItem(pixmap.scaled(100, 50), self)
         self.frame_number = frame_number
         self.parent = parent
+        self.scale_factor = 1  # Default scale factor
+        self.updatePosition()
+
+    def setScaleFactor(self, scale):
+        self.scale_factor = scale
+        new_width = round(100 * scale)
+        new_height = round(50 * scale)
+        self.pixmap_item.setPixmap(self.original_pixmap.scaled(new_width, new_height))
+        self.setRect(0, 0, new_width, new_height)
         self.updatePosition()
 
     def updatePosition(self):
-        track = self.parent  # Get the parent track
-        if track:
-            # Calculate the position based on the frame number and track width
-            x = track.label_total_width + (self.frame_number * 105)
-            self.setPos(x, track.y)
+        if self.parent:
+            x = self.parent.label_total_width + (self.frame_number * 105 * self.scale_factor)
+            self.setPos(x, self.parent.y)
 
 
 
@@ -168,10 +179,18 @@ class VideoTrack(QGraphicsItem):
         self.width = self.original_width * scale
         self.update()
 
+
+    def setHorizontalScale(self, scale):
+        self.prepareGeometryChange()
+        self.width = self.original_width * scale
+        self.frame_width = 105 * scale  # Width of each frame including spacing
+        for video_object in self.videoObjects:
+            for frame in video_object.frames:
+                frame.setScaleFactor(scale)
+        self.update()
         # Keep label and button at their positions
         self.label.setPos(10, self.y + 15)
         self.delete_button.setRect(self.label_total_width, self.y, self.delete_button.rect().width(), 50)
-
     # Other methods...
 
     def paint(self, painter, option, widget=None):
@@ -191,12 +210,11 @@ class VideoTrack(QGraphicsItem):
         if not self.currentVideoObject:
             self.currentVideoObject = VideoObject(self)
             self.videoObjects.append(self.currentVideoObject)
-            if len(self.videoObjects) > 1:  # If new video object and not the first one
-                self.setPos(self.boundingRect().left(), 0)  # Reset track's position
-        self.currentVideoObject.add_frame(pixmap)
-        self.width = max(self.width,
-                         self.currentVideoObject.totalFrames * 105)  # Extend the track if new frame would exceed its current length
-        self.update()  # Update track's representation
+        new_frame = Frame(pixmap, self.currentVideoObject.totalFrames, self)
+        new_frame.setScaleFactor(self.frame_width / 105)  # Apply current scale
+        self.currentVideoObject.frames.append(new_frame)
+        self.currentVideoObject.totalFrames += 1
+        self.update()
 
     def boundingRect(self):
         return QRectF(self.label_total_width, self.y, self.width, 50)
@@ -241,13 +259,47 @@ class VideoTrack(QGraphicsItem):
         else:
             super().mouseReleaseEvent(event)
 
+class CustomGraphicsScene(QGraphicsScene):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.grid_scale = 1.0  # Default scale for the grid
+
+    def drawBackground(self, painter, rect):
+        painter.fillRect(rect, QBrush(QColor(0, 0, 0)))  # Black background
+
+        # Calculate grid spacing based on grid_scale
+        grid_interval = 105 * self.grid_scale
+        major_line_interval = 25  # Every 25 frames is a major line
+
+        # Draw grid lines
+        start_x = rect.left() - (rect.left() % grid_interval)
+        end_x = rect.right()
+        for x in range(int(start_x), int(end_x), int(grid_interval)):
+            if ((x - start_x) / grid_interval) % major_line_interval == 0:
+                painter.setPen(QPen(QColor(80, 80, 80), 2))  # Thicker line for major intervals
+            else:
+                painter.setPen(QPen(QColor(50, 50, 50), 1))  # Regular line
+            painter.drawLine(x, int(rect.top()), x, int(rect.bottom()))
+
+        # Draw frame numbers (skip drawing if scale is too small)
+        if self.grid_scale > 0.2:  # Adjust this threshold as needed
+            painter.setPen(QColor(200, 200, 200))
+            frame_number_interval = int(5 / self.grid_scale)
+            for x in range(int(start_x), int(end_x), int(grid_interval * frame_number_interval)):
+                frame_number = int((x - start_x) / grid_interval)
+                painter.drawText(x + 2, int(rect.top()) + 20, str(frame_number))
+
+    def setGridScale(self, scale):
+        self.grid_scale = scale
+        self.update()  # Trigger a redraw
+
 
 class TimelineWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.layout = QVBoxLayout(self)
         self.view = QGraphicsView(self)
-        self.scene = QGraphicsScene(self)
+        self.scene = CustomGraphicsScene(self)
         self.view.setScene(self.scene)
         self.layout.addWidget(self.view)
 
@@ -264,7 +316,7 @@ class TimelineWidget(QWidget):
         self.zoomSlider.valueChanged.connect(self.zoomTimeline)
         self.layout.addWidget(self.zoomSlider)
 
-        self.handle = TimelineHandle(self.view.height(), offset_x=100)
+        self.handle = TimelineHandle(self.view.height(), offset_x=0)
         self.scene.addItem(self.handle)
 
         self.addTrackButton = QPushButton("Add Track", self)
@@ -313,10 +365,11 @@ class TimelineWidget(QWidget):
         self.handle.update()
 
     def zoomTimeline(self, value):
-        scale_factor = value / 10.0  # Adjust the scale factor as needed
+        scale_factor = value / 10.0
+        self.scene.setGridScale(value / 50.0)
         for track in self.tracks:
-            track.setHorizontalScale(scale_factor)  # Apply scale only to tracks horizontally
-
+            track.setHorizontalScale(scale_factor)
+        self.handle.updatePosition(scale_factor)
 
 
 
