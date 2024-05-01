@@ -137,7 +137,8 @@ class DeforumCore(QMainWindow):
         checkBox.setAccessibleName(key)
 
         checkBox.setChecked(bool(default))
-        checkBox.stateChanged.connect(lambda state, k=key: self.updateParam(k, state == checkBox.isChecked()))
+        # checkBox.stateChanged.connect(lambda state, k=key: self.updateParam(k, state == checkBox.isChecked()))
+        checkBox.stateChanged.connect(self.onStateChanged)
         layout.addWidget(checkBox)
         self.params[key] = default  # Initialize the parameter dictionary
         return checkBox
@@ -161,6 +162,26 @@ class DeforumCore(QMainWindow):
         layout.addWidget(button)
         return button
 
+    # Method to handle value changes from SpinBox and DoubleSpinBox
+    def onSpinBoxValueChanged(self, value):
+        widget = self.sender()
+        if widget:
+            key = widget.accessibleName()
+            self.updateParam(key, value)
+
+    # Method to handle text changes from TextBox
+    def onTextChanged(self):
+        widget = self.sender()
+        if widget:
+            key = widget.accessibleName()
+            self.updateParam(key, widget.toPlainText())
+
+    # Method to handle state changes from CheckBox
+    def onStateChanged(self, state):
+        widget = self.sender()
+        if widget:
+            key = widget.accessibleName()
+            self.updateParam(key, widget.isChecked())
     def updateParam(self, key, value):
         self.params[key] = value
     def populatePresetsDropdown(self):
