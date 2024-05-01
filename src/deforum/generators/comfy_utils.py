@@ -122,9 +122,9 @@ def ensure_comfy(custom_path=None):
     os.chdir(curr_folder)
     # Add paths to sys.path
     add_to_sys_path(comfy_path)
-    for path in comfy_submodule_folders:
-        add_to_sys_path(os.path.join(comfy_submodule_folder, path))
-        load_custom_node(os.path.join(comfy_submodule_folder, path))
+    # for path in comfy_submodule_folders:
+    #     add_to_sys_path(os.path.join(comfy_submodule_folder, path))
+    #     load_custom_node(os.path.join(comfy_submodule_folder, path))
     # Create and add the mock module to sys.modules
     from comfy.cli_args import LatentPreviewMethod as lp
 
