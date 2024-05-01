@@ -90,6 +90,8 @@ class DeforumCore(QMainWindow):
     def createSpinBox(self, label, layout, minimum, maximum, step, value, key):
         hbox = QHBoxLayout()
         spinBox = QSpinBox()
+        spinBox.setAccessibleName(key)
+
         spinBox.setMinimum(minimum)
         spinBox.setMaximum(maximum)
         spinBox.setSingleStep(step)
@@ -104,6 +106,8 @@ class DeforumCore(QMainWindow):
     def createDoubleSpinBox(self, label, layout, minimum, maximum, step, value, key):
         hbox = QHBoxLayout()
         spinBox = QDoubleSpinBox()
+        spinBox.setAccessibleName(key)
+
         spinBox.setMinimum(minimum)
         spinBox.setMaximum(maximum)
         spinBox.setSingleStep(step)
@@ -119,6 +123,7 @@ class DeforumCore(QMainWindow):
         hbox = QHBoxLayout()
         textBox = QTextEdit()
         textBox.setText(value)
+        textBox.setAccessibleName(key)
         # Connect the lambda directly without expecting arguments from the signal
         textBox.textChanged.connect(lambda: self.updateParam(key, textBox.toPlainText()))
         self.params[key] = value
@@ -129,8 +134,10 @@ class DeforumCore(QMainWindow):
 
     def createCheckBox(self, label, layout, default, key):
         checkBox = QCheckBox(label)
+        checkBox.setAccessibleName(key)
+
         checkBox.setChecked(bool(default))
-        checkBox.stateChanged.connect(lambda state, k=key: self.updateParam(k, state == QtCore.Qt.Checked))
+        checkBox.stateChanged.connect(lambda state, k=key: self.updateParam(k, state == QtCore.Qt.CheckState.Checked))
         layout.addWidget(checkBox)
         self.params[key] = default  # Initialize the parameter dictionary
         return checkBox
@@ -138,6 +145,8 @@ class DeforumCore(QMainWindow):
     def createComboBox(self, label, layout, items, key):
         hbox = QHBoxLayout()
         comboBox = QComboBox()
+        comboBox.setAccessibleName(key)
+
         comboBox.addItems(items)
         comboBox.currentTextChanged.connect(lambda val, k=key: self.updateParam(k, val))
         hbox.addWidget(QLabel(label))

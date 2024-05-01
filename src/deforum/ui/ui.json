@@ -117,8 +117,26 @@
       "widget_type": "dropdown",
       "options": ["2D", "3D", "None"],
       "default": "3D",
-      "label": "Animation Mode",
-      "accessible_name": "Type of Animation"
+      "label": "Animation Mode"
+    },
+    "use_depth_warping": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Use Depth Warping"
+    },
+    "depth_algorithm": {
+      "widget_type": "dropdown",
+      "options": ["Midas+AdaBins (old)", "Zoe+AdaBins (old)", "Midas-3-Hybrid", "AdaBins", "Zoe", "Leres"],
+      "default": "Midas-3-Hybrid",
+      "label": "Depth Algorithm"
+    },
+    "midas_weight": {
+      "widget_type": "float",
+      "default": 0.8,
+      "min": 0.0,
+      "max": 100,
+      "label": "Midas Weight",
+      "accessible_name": "Maximum Number of Animation Frames"
     },
     "max_frames": {
       "widget_type": "number",
@@ -198,7 +216,76 @@
       "accessible_name": "ParSeq"
     }
   },
+  
+  "Cadence": {
+    "diffusion_cadence": {
+      "widget_type": "number",
+      "default": 1,
+      "min": 1,
+      "max": 1000,
+      "label": "Cadence"
+    },
+    "optical_flow_cadence": {
+      "widget_type": "dropdown",
+      "options": ["None", "RAFT", "DIS Medium", "DIS Fine", "Farneback"],
+      "default": "None",
+      "label": "Cadence Type"
+    },
+    "cadence_flow_factor_schedule": {
+      "widget_type": "text input",
+      "default": "0: (1)",
+      "label": "Cadence Flow Factor",
+      "accessible_name": "Cadence Flow Factor"
+    }
+  },
+  "Hybrid": {
+    "video_init_path": {
+      "widget_type": "text input",
+      "default": "",
+      "label": "Init Video Path"
+    },
+    "hybrid_flow_factor_schedule": {
+      "widget_type": "text input",
+      "default": "0:(1)",
+      "label": "Hybrid Flow Factor"
+    },
+    "hybrid_generate_inputframes": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Hybrid Generate Inputframes"
+    },
+    "hybrid_motion": {
+      "widget_type": "dropdown",
+      "options": ["None", "Optical Flow", "Perspective", "Affine"],
+      "default": "None",
+      "label": "Hybrid motion"
+    },
+    "hybrid_flow_method": {
+      "widget_type": "dropdown",
+      "options": ["RAFT", "DIS Medium", "DIS Fine", "Farneback"],
+      "default": "RAFT",
+      "label": "Hybrid motion"
+    },    
+    "hybrid_flow_consistency": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Flow consistency mask"
+    }
+  },
   "Image & Mask Settings": {
+    
+    "color_coherence": {
+      "widget_type": "dropdown",
+      "options": ["None", "HSV", "LAB", "RGB", "Video Input", "Image"],
+      "default": "None",
+      "label": "Color Coherence"
+    },
+    "noise_type": {
+      "widget_type": "dropdown",
+      "options": ["uniform", "perlin"],
+      "default": "perlin",
+      "label": "Noise Type"
+    },
     "use_init": {
       "widget_type": "checkbox",
       "options": [true, false],

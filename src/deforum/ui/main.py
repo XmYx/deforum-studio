@@ -152,6 +152,9 @@ class MainWindow(DeforumCore):
             for setting, params in settings.items():
                 if params['widget_type'] == 'number':
                     self.createSpinBox(params['label'], layout, params['min'], params['max'], 1, params['default'], setting)
+                elif params['widget_type'] == 'float':
+                    self.createDoubleSpinBox(params['label'], layout, params['min'], params['max'], 0.01, params['default'], setting)
+
                 elif params['widget_type'] == 'dropdown':
                     self.createComboBox(params['label'], layout, [str(param) for param in params['options']], setting)
                 elif params['widget_type'] == 'text input':
