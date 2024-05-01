@@ -1,81 +1,72 @@
 # Deforum
 State-of-the-art Animation Diffusion in PyTorch and TRT.
+
+## System Requirements
+- Linux-like operating system
+- NVIDIA GPU with CUDA drivers
+
 ## Installation
-You can install Deforum using one of the following methods:
-### Virtual Environment
-Create a virtual environement with venv or conda
-```bash
-pip install virtualenv
-virtualenv venv -p 3.10
-source venv/bin/activate
-```
-with conda:
-```bash
-conda create -n deforum python=3.10
-conda actiave deforum
-```
-### PyPI
-Install from PyPI using `pip`:
-```bash
-pip install deforum
-```
-### From Source
-Install from github with the following commands:
-```bash
-git clone https://github.com/deforum-studio/deforum
-cd deforum
-pip install -e .["cli"]
-```
+Currently, the repository is in development, and the recommended installation method is "for developers."
+
 ### For Developers
-Install with `["dev"]` for developer dependencies:
-```bash
-git clone https://github.com/deforum-studio/deforum
-cd deforum
-pip install -e .["dev"]
-```
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/deforum-studio/deforum
+   cd deforum
+   ```
+2. Create a virtual environment for `python==3.10`:
+   - Using venv:
+     ```bash
+     virtualenv venv -p 3.10
+     source venv/bin/activate
+     ```
+   - Using conda:
+     ```bash
+     conda create -n deforum python=3.10
+     conda activate deforum
+     ```
+3. Install the library with developer dependencies:
+   ```bash
+   pip install -e .["dev"]
+   ```
 
 ## Testing
-Test install by running the test animation pipeline
+To ensure that the library is properly installed, run a test generation:
 ```bash
-COMFY_PATH=src/ComfyUI python tests/test_animation_pipeline.py
+python tests/test_animation_pipeline.py
 ```
-Test diffusers pipeline
-```bash
-python tests/test_diffusers_pipeline.py
-```
-Test all the presets:
-```bash
-deforum runpresets --options randomize_files=True
-```
+The generated outputs will be saved to `$HOME/deforum/outputs`, which is the default output path.
 
-## WebUI
-Launch webui with the following command
-```bash
-COMFY_PATH=src/ComfyUI deforum webui
-```
+## CLI Commands
+Deforum has the following CLI modes:
+- `ui`: PyQt6 UI for configuring and running animations
+- `webui`: Streamlit web UI for configuring and running animations
+- `animatediff`: Command-line tool for running animations
+- `runpresets --options randomize_files`: Run through all motion presets in `presets/` for testing purposes.
+- `api`: FastAPI server
+- `setup`: Install Stable-Fast optimizations
 
-### Instructions for WebUI
-Upload the deforum.txt file into the WebUI from the Presets folder.
-Now, you will need to make sure to check `Use Settings File`.
-This is because the settings filed gets loaded into the UI that allows you to edit the parameters but you can also use the settings file straight.
+## Documentation
+Documentation for Deforum is currently a work in progress and will be included as part of this library in the future.
 
-## Stable-Fast
-Install the accelerated inference libraries with the following command
-```bash
-deforum setup
-```
+## Known Issues and Limitations
+Please be aware that the codebase is changing rapidly, and it is currently difficult to assess if all features are working properly. However, to our knowledge, the code is functioning as intended.
 
-## PyQt GUI
-Install PyQt6
-```bash
-python -m pip install pyqt6==6.5.0
-```
-Entry point:
-```bash
-python src/deforum/ui/main.py
-```
+## Contributing
+Developers who wish to contribute to Deforum should create a branch from the `main` branch and label it with the format `username/branch-name`. All pull requests should be made into the `develop` branch.
+
+## Acknowledgments and References
+There are numerous references and acknowledgments that need to be made for the libraries and resources used in Deforum. This section is currently a work in progress and will be updated in the future.
 
 ## License
-Deforum is licensed under the GNU General Public License v3.0 License.
+Deforum is licensed under the GNU General Public License v3.0 License. For more information, please refer to the [license](https://github.com/deforum-studio/deforum/blob/main/LICENSE).
 
-For more information please refer to [license](https://github.com/deforum-studio/deforum/blob/main/LICENSE).
+## TODO Checklist
+- [ ] Complete comprehensive documentation
+- [ ] Add more test cases and examples
+- [ ] Improve error handling and logging
+- [ ] Optimize performance and resource usage
+- [ ] Enhance user experience and usability
+- [ ] Implement additional features and functionalities
+- [ ] Refactor and clean up codebase
+- [ ] Update acknowledgments and references
