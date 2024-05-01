@@ -5,6 +5,7 @@ import json
 
 import numba
 import numpy as np
+
 from PyQt6.QtGui import QImage, QAction
 from PyQt6.QtMultimedia import QMediaPlayer
 from PyQt6.QtMultimediaWidgets import QVideoWidget
@@ -96,6 +97,7 @@ class MainWindow(DeforumCore):
         self.loadPresetsDropdown()
         self.presetsDropdown.activated.connect(self.loadPresetsDropdown)
         self.tileMdiSubWindows()
+        self.timelineDock.hide()
 
     def loadPresetsDropdown(self):
         current_text = self.presetsDropdown.currentText()  # Remember current text
