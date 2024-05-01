@@ -236,6 +236,7 @@ class DeforumGenerationObject(DeforumDataObject):
         self.amount = 0
         self.noise = 0.002
         self.skip_video_creation = False
+        self.color_match_at = 'pre'
 
         # Set all provided keyword arguments as attributes
         for key, value in kwargs.items():

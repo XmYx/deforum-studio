@@ -5,7 +5,7 @@ import json
 
 from PyQt6.QtGui import QImage, QAction
 from PyQt6.QtWidgets import QApplication, QTabWidget, QWidget, QVBoxLayout, QDockWidget, QSlider, QLabel, QMdiArea, \
-    QPushButton
+    QPushButton, QComboBox, QFileDialog, QSpinBox, QLineEdit, QCheckBox, QTextEdit
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
 from deforum.ui.core import DeforumCore
@@ -69,6 +69,48 @@ class MainWindow(DeforumCore):
         self.setWindowTitle("Deforum Animator")
         self.setupDynamicUI()
         self.currentTrack = None  # Store the currently selected track
+        self.presets_folder = os.path.join(os.path.expanduser('~'), 'deforum', 'presets')
+        self.loadPresetsDropdown()
+        self.presetsDropdown.activated.connect(self.loadPresetsDropdown)
+
+    def loadPresetsDropdown(self):
+        current_text = self.presetsDropdown.currentText()  # Remember current text
+        if not os.path.exists(self.presets_folder):
+            os.makedirs(self.presets_folder)
+
+        preset_files = [f for f in os.listdir(self.presets_folder) if f.endswith('.txt')]
+        self.presetsDropdown.clear()
+        self.presetsDropdown.addItems(preset_files)
+
+        # Re-select the current text if it exists in the new list
+        if current_text in preset_files:
+            index = self.presetsDropdown.findText(current_text)
+            self.presetsDropdown.setCurrentIndex(index)
+
+    def loadPreset(self):
+        selected_preset = self.presetsDropdown.currentText()
+        preset_path = os.path.join(self.presets_folder, selected_preset)
+        try:
+            with open(preset_path, 'r') as file:
+                config = json.load(file)
+                for key, value in config.items():
+                    if key in self.params:
+                        self.params[key] = value
+            self.updateUIFromParams()
+
+        except:
+            pass
+
+    def savePreset(self):
+        preset_name, _ = QFileDialog.getSaveFileName(self, 'Save Preset', self.presets_folder, 'Text Files (*.txt)')
+        if preset_name:
+            preset_name = os.path.splitext(os.path.basename(preset_name))[0] + '.txt'
+            preset_path = os.path.join(self.presets_folder, preset_name)
+
+            with open(preset_path, 'w') as file:
+                json.dump(self.params, file, indent=4)
+
+            self.loadPresetsDropdown()
     def setupDynamicUI(self):
         self.toolbar = self.addToolBar('Main Toolbar')
         self.renderButton = QAction('Render', self)
@@ -76,7 +118,19 @@ class MainWindow(DeforumCore):
 
         self.toolbar.addAction(self.renderButton)
         self.toolbar.addAction(self.stopRenderButton)
+        # Add presets dropdown to the toolbar
+        self.presetsDropdown = QComboBox()
+        self.presetsDropdown.currentIndexChanged.connect(self.loadPreset)
+        self.toolbar.addWidget(self.presetsDropdown)
 
+        # Add actions to load and save presets
+        self.loadPresetAction = QAction('Load Preset', self)
+        self.loadPresetAction.triggered.connect(self.loadPreset)
+        self.toolbar.addAction(self.loadPresetAction)
+
+        self.savePresetAction = QAction('Save Preset', self)
+        self.savePresetAction.triggered.connect(self.savePreset)
+        self.toolbar.addAction(self.savePresetAction)
         self.renderButton.triggered.connect(self.startBackendProcess)
         self.stopRenderButton.triggered.connect(self.stopBackendProcess)
         # Initialize the tabbed control layout docked on the left
@@ -204,7 +258,26 @@ class MainWindow(DeforumCore):
 
             models["deforum_pipe"].live_update_from_kwargs(**self.params)
             print("UPDATED DEFORUM PARAMS")
-
+    def updateUIFromParams(self):
+        for widget in self.findChildren(QWidget):
+            if hasattr(widget, 'accessibleName'):
+                key = widget.accessibleName()
+                if key in self.params:
+                    value = self.params[key]
+                    if isinstance(widget, QSpinBox):
+                        widget.setValue(value)
+                    elif isinstance(widget, QComboBox):
+                        index = widget.findText(str(value))
+                        if index != -1:
+                            widget.setCurrentIndex(index)
+                    elif isinstance(widget, QLineEdit):
+                        widget.setText(str(value))
+                    elif isinstance(widget, QTextEdit):
+                        widget.setText(str(value))
+                    elif isinstance(widget, QSlider):
+                        widget.setValue(value)
+                    elif isinstance(widget, QCheckBox):
+                        widget.setChecked(value)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

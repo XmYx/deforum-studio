@@ -439,6 +439,7 @@ def add_noise_cls(cls: Any) -> None:
         # use transformed previous frame as init for current
         cls.gen.use_init = True
         cls.gen.init_sample = Image.fromarray(cv2.cvtColor(noised_image, cv2.COLOR_BGR2RGB))
+        cls.gen.prev_img = noised_image
         cls.gen.strength = max(0.0, min(1.0, cls.gen.strength))
     return
 
@@ -699,7 +700,7 @@ def post_color_match_with_cls(cls: Any) -> None:
         None: Modifies the class instance attributes in place.
     """
     # color matching on first frame is after generation, color match was collected earlier, so we do an extra generation to avoid the corruption introduced by the color match of first output
-    if cls.gen.color_match_sample is not None:
+    if cls.gen.color_match_sample is not None and 'post' in cls.gen.color_match_at:
         if cls.gen.frame_idx == 0 and (cls.gen.color_coherence == 'Image' or (
                 cls.gen.color_coherence == 'Video Input' and cls.gen.hybrid_available)):
             image = maintain_colors(cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR), cls.gen.color_match_sample,
