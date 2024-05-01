@@ -330,8 +330,8 @@ class ComfyDeforumGenerator:
             #     sample = sample_with_subseed(self.model, latent, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond,
             #                         subseed_strength, subseed, strength, rng=None, sigmas=sigmas)
             sampler_node = NODE_CLASS_MAPPINGS['KSampler //Inspire']()
-            steps = round(strength * steps)
             strength = 1 - strength if strength != 1.0 else strength
+            steps = round(strength * steps)
 
             sample = sampler_node.sample(self.model, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond, latent, strength, noise_mode='GPU(=A1111)', batch_seed_mode="comfy", variation_seed=subseed, variation_strength=subseed_strength)[0]
             sample = [{"samples": sample['samples']}]
