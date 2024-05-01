@@ -194,7 +194,7 @@ def start_deforum_cli():
                         "python3",
                         "-m" "pip",
                         "install",
-                        "pyqt6==6.5.0",
+                        "PyQt6-Qt6==6.5.0",
                     ]
                 )
                 subprocess.run([sys.executable, main_script_path])
