@@ -6,9 +6,11 @@ import json
 import numba
 import numpy as np
 from PyQt6.QtGui import QImage, QAction
+from PyQt6.QtMultimedia import QMediaPlayer
+from PyQt6.QtMultimediaWidgets import QVideoWidget
 from PyQt6.QtWidgets import QApplication, QTabWidget, QWidget, QVBoxLayout, QDockWidget, QSlider, QLabel, QMdiArea, \
-    QPushButton, QComboBox, QFileDialog, QSpinBox, QLineEdit, QCheckBox, QTextEdit
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, pyqtSlot
+    QPushButton, QComboBox, QFileDialog, QSpinBox, QLineEdit, QCheckBox, QTextEdit, QHBoxLayout
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, pyqtSlot, QUrl
 
 from deforum.ui.core import DeforumCore
 from deforum.ui.timeline import TimelineWidget
@@ -19,6 +21,7 @@ from PIL import ImageQt
 
 class BackendThread(QThread):
     imageGenerated = pyqtSignal(object)  # Signal to emit the image data
+    finished = pyqtSignal(str)  # Signal to emit the image data
 
     def __init__(self, params):
         super().__init__()
@@ -63,6 +66,8 @@ class BackendThread(QThread):
             self.params['color_coherence'] = False
             self.params['hybrid_use_first_frame_as_init_image'] = False
             animation = models["deforum_pipe"](callback=datacallback, **self.params) if not use_settings_file else models["deforum_pipe"](callback=datacallback, settings_file=file_path)
+            if hasattr(animation, 'video_path'):
+                self.finished.emit(animation.video_path)
         except Exception as e:
             logger.info(repr(e))
 def npArrayToQPixmap(arr):
@@ -82,12 +87,14 @@ def npArrayToQPixmap(arr):
 class MainWindow(DeforumCore):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Deforum Animator")
+        self.player = QMediaPlayer()  # Create a media player object
+        self.setWindowTitle("Deforum Engine")
         self.setupDynamicUI()
         self.currentTrack = None  # Store the currently selected track
         self.presets_folder = os.path.join(os.path.expanduser('~'), 'deforum', 'presets')
         self.loadPresetsDropdown()
         self.presetsDropdown.activated.connect(self.loadPresetsDropdown)
+        self.tileMdiSubWindows()
 
     def loadPresetsDropdown(self):
         current_text = self.presetsDropdown.currentText()  # Remember current text
@@ -143,7 +150,9 @@ class MainWindow(DeforumCore):
         self.loadPresetAction = QAction('Load Preset', self)
         self.loadPresetAction.triggered.connect(self.loadPreset)
         self.toolbar.addAction(self.loadPresetAction)
-
+        self.tileSubWindowsAction = QAction('Tile Subwindows', self)
+        self.tileSubWindowsAction.triggered.connect(self.tileMdiSubWindows)
+        self.toolbar.addAction(self.tileSubWindowsAction)
         self.savePresetAction = QAction('Save Preset', self)
         self.savePresetAction.triggered.connect(self.savePreset)
         self.toolbar.addAction(self.savePresetAction)
@@ -214,6 +223,80 @@ class MainWindow(DeforumCore):
         self.previewSubWindow.setWidget(self.previewLabel)
         self.previewSubWindow.show()
 
+        # Subwindow for the video player
+        self.videoSubWindow = self.mdiArea.addSubWindow(QWidget())
+        self.videoSubWindow.setWindowTitle("Video Player")
+
+        # Video output widget
+        self.videoWidget = QVideoWidget()
+
+        # Video controls
+        self.playButton = QPushButton("Play")
+        self.pauseButton = QPushButton("Pause")
+        self.stopButton = QPushButton("Stop")
+
+        # Connect buttons to player actions
+        self.playButton.clicked.connect(self.player.play)
+        self.pauseButton.clicked.connect(self.player.pause)
+        self.stopButton.clicked.connect(self.player.stop)
+
+        # Slider for video timeline
+        self.videoSlider = QSlider(Qt.Orientation.Horizontal)
+        self.videoSlider.sliderMoved.connect(self.setPosition)
+        self.player.positionChanged.connect(self.updatePosition)
+        self.player.durationChanged.connect(self.updateDuration)
+
+        # Layout for the video player controls
+        controlsLayout = QHBoxLayout()
+        controlsLayout.addWidget(self.playButton)
+        controlsLayout.addWidget(self.pauseButton)
+        controlsLayout.addWidget(self.stopButton)
+
+        # Main layout for the video subwindow
+        mainLayout = QVBoxLayout()
+        mainLayout.addWidget(self.videoWidget)
+        mainLayout.addWidget(self.videoSlider)
+        mainLayout.addLayout(controlsLayout)
+
+        self.videoSubWindow.widget().setLayout(mainLayout)
+        self.player.setVideoOutput(self.videoWidget)
+        self.videoSubWindow.show()
+
+    def tileMdiSubWindows(self):
+        """Resize and evenly distribute all subwindows in the MDI area."""
+        # Optionally, set a uniform size for all subwindows
+        subwindows = self.mdiArea.subWindowList()
+        if not subwindows:
+            return
+
+        # Calculate the optimal size for subwindows based on the number of windows
+        areaSize = self.mdiArea.size()
+        numWindows = len(subwindows)
+        width = int(areaSize.width() / numWindows ** 0.5)
+        height = int(areaSize.height() / numWindows ** 0.5)
+
+        # Resize each subwindow (this step is optional)
+        for window in subwindows:
+            window.resize(width, height)
+
+        # Tile the subwindows
+        self.mdiArea.tileSubWindows()
+    def setPosition(self, position):
+        self.player.setPosition(position)
+
+    def updatePosition(self, position):
+        self.videoSlider.setValue(position)
+
+    def updateDuration(self, duration):
+        self.videoSlider.setMaximum(duration)
+
+    @pyqtSlot(str)
+    def playVideo(self, path):
+        # Play video in the QMediaPlayer
+        self.player.setSource(QUrl.fromLocalFile(path))
+        self.player.play()
+        self.videoSubWindow.show()  # Ensure the video subwindow is visible
+
     def addDock(self, title, area):
         dock = QDockWidget(title, self)
         self.addDockWidget(area, dock)
@@ -235,6 +318,7 @@ class MainWindow(DeforumCore):
         # if not self.thread:
         self.thread = BackendThread(self.params)
         self.thread.imageGenerated.connect(self.updateImage)
+        self.thread.finished.connect(self.playVideo)
         self.thread.start()
     def stopBackendProcess(self):
         try:

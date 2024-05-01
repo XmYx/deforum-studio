@@ -6,6 +6,27 @@ import sys
 
 from deforum.utils.logging_config import logger
 
+def install_pyqt6():
+    try:
+        import PyQt6
+    except:
+        subprocess.run(
+            [
+                "python3",
+                "-m" "pip",
+                "install",
+                "PyQt6-Qt6==6.5.0",
+            ]
+        )
+        subprocess.run(
+            [
+                "python3",
+                "-m" "pip",
+                "install",
+                "pyqt6==6.5.0",
+            ]
+        )
+
 def start_deforum_cli():
 
     parser = argparse.ArgumentParser(description="Load settings from a txt file and run the deforum process.")
@@ -142,17 +163,8 @@ def start_deforum_cli():
             from deforum.utils.install_sfast import install_sfast
             install_sfast()
         elif args_main.mode == "ui":
-            try:
-                import PyQt6
-            except:
-                subprocess.run(
-                    [
-                        "python3",
-                        "-m" "pip",
-                        "install",
-                        "pyqt6==6.5.0",
-                    ]
-                )
+            install_pyqt6()
+
             # Get the absolute path of the current file
             current_file_path = os.path.abspath(__file__)
 
@@ -163,9 +175,29 @@ def start_deforum_cli():
             deforum_directory = os.path.dirname(parent_directory)
             # Construct the path to main.py
             main_script_path = os.path.join(deforum_directory, "ui", "main.py")
-
+            try:
             # Execute main.py
-            subprocess.run([sys.executable, main_script_path])
+                subprocess.run([sys.executable, main_script_path])
+            except:
+
+                subprocess.run(
+                    [
+                        "python3",
+                        "-m" "pip",
+                        "uninstall",
+                        "PyQt6-Qt6",
+                        "-y"
+                    ]
+                )
+                subprocess.run(
+                    [
+                        "python3",
+                        "-m" "pip",
+                        "install",
+                        "pyqt6==6.5.0",
+                    ]
+                )
+                subprocess.run([sys.executable, main_script_path])
 
     else:
         from deforum import DeforumAnimationPipeline
