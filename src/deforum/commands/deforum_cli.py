@@ -1,8 +1,9 @@
 import argparse
 import os
 import random
-from deforum.utils.logging_config import logger
+import time
 from deforum.utils.constants import config
+from deforum.utils.logging_config import logger
 
 def start_deforum_cli():
 
@@ -50,9 +51,11 @@ def start_deforum_cli():
             options[key] = value
 
     if args_main.mode:
+        
         if args_main.mode == "webui":
             import streamlit.web.cli as stcli
             stcli.main(["run", f"{config.src_path}/webui/deforum_webui.py", "--server.headless", "true"])
+
         elif args_main.mode == "animatediff":
             from deforum.pipelines.animatediff_animation.pipeline_animatediff_animation import DeforumAnimateDiffPipeline
             modelid = str(options.get("modelid", "132632"))
@@ -103,6 +106,7 @@ def start_deforum_cli():
 
             async def image_callback(websocket, image):
                 await websocket.send_text(image)
+                
             @app.websocket("/ws")
             async def websocket_endpoint(websocket: WebSocket):
                 await websocket.accept()
@@ -110,7 +114,7 @@ def start_deforum_cli():
 
                 # Assuming data contains the necessary information for deforum to run
                 async def callback(data):
-                    print("deforum callback")
+                    logger.info("deforum callback")
                     image = data.get('image')
                     if image is not None:
                         await websocket.send_text("image")
@@ -135,10 +139,20 @@ def start_deforum_cli():
             # Start the Uvicorn server
             uvicorn.run(app, host="localhost", port=8000)
         elif args_main.mode == "setup":
-            print("SETUP")
+            logger.info("Installing stable-fast and its dependencies...")
             from deforum.utils.install_sfast import install_sfast
             install_sfast()
     else:
         from deforum import DeforumAnimationPipeline
-        deforum = DeforumAnimationPipeline.from_civitai()
-        _ = deforum(**extra_args, **options)
+        modelid = str(options.get("modelid", "125703"))
+        deforum = DeforumAnimationPipeline.from_civitai(modelid)
+        options["batch_name"] = options.get("batch_name", f"deforum-{time.strftime('%Y%m%d%H%M%S')}")
+        
+        expected_output_dir = os.path.join(config.output_dir, options["batch_name"])
+        logger.info(f"Output directory: {expected_output_dir}")
+
+        gen = deforum(**extra_args, **options)
+
+        logger.info(f"Output video: {gen.video_path} ")
+
+
