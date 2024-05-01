@@ -85,11 +85,18 @@ class ComfyDeforumGenerator:
         return {"samples": noise}
 
     def get_conds(self, clip, prompt):
-        with torch.inference_mode():
-            # clip.clip_layer(0)
-            tokens = clip.tokenize(prompt)
-            cond, pooled = clip.encode_from_tokens(tokens, return_pooled=True)
-            return [[cond, {"pooled_output": pooled}]]
+        from nodes import NODE_CLASS_MAPPINGS
+        clip_node = NODE_CLASS_MAPPINGS['smZ CLIPTextEncode']()
+        conds = clip_node.encode(clip, prompt, parser="A1111", mean_normalization=True,
+               multi_conditioning=False, use_old_emphasis_implementation=False,
+               with_SDXL=True, ascore=6.0, width=1024, height=1024, crop_w=0,
+               crop_h=0, target_width=1024, target_height=1024, text_g=prompt, text_l=prompt, smZ_steps=1)[0]
+        return conds
+        # with torch.inference_mode():
+        #     # clip.clip_layer(0)
+        #     tokens = clip.tokenize(prompt)
+        #     cond, pooled = clip.encode_from_tokens(tokens, return_pooled=True)
+        #     return [[cond, {"pooled_output": pooled}]]
 
     def load_model(self, model_path: str, trt: bool = False):
         try:
@@ -215,16 +222,17 @@ class ComfyDeforumGenerator:
 
             if seed == -1:
                 seed = secrets.randbelow(18446744073709551615)
-            if strength < 1.0:
-                strength = 1 - strength
+            # if strength < 1.0:
+            #     strength = 1 - strength
 
             if strength <= 0.0 or strength >= 1.0:
                 strength = 1.0
                 reset_noise = True
                 init_image = None
                 subseed_strength = 0.0
-            if strength < 1.0 and subseed_strength == 0.0:
-                steps = round(steps - steps * strength)
+
+            # if strength < 1.0 and subseed_strength == 0.0:
+            #     steps = int(steps * (1 - strength))
 
             if subseed == -1:
                 subseed = secrets.randbelow(18446744073709551615)
@@ -306,28 +314,27 @@ class ComfyDeforumGenerator:
             sigmas = scheduler_node.get_sigmas("SDXL", steps, strength)[0]
             sampler = sampler_select_node.get_sampler(sampler_name)[0]
 
-            if init_image is None or subseed_strength == 0 :
-                from nodes import common_ksampler
+            # if init_image is None or subseed_strength == 0 :
+            #     from nodes import common_ksampler
+            #
+            #     # sample = [
+            #     #     {'samples':common_ksampler(self.model, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond, latent,
+            #     #                      denoise=strength, disable_noise=False, start_step=0, last_step=steps,
+            #     #                      force_full_denoise=True)[0]['samples']}]
+            #     _, sample = custom_sampler_node.sample(self.model, True, seed, scale, cond, self.n_cond, sampler,
+            #                                            sigmas, latent)
+            #     sample = [{"samples": sample['samples']}]
+            #
+            #
+            # else:
+            #     sample = sample_with_subseed(self.model, latent, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond,
+            #                         subseed_strength, subseed, strength, rng=None, sigmas=sigmas)
+            sampler_node = NODE_CLASS_MAPPINGS['KSampler //Inspire']()
+            steps = round(strength * steps)
+            strength = 1 - strength if strength != 1.0 else strength
 
-                # sample = [
-                #     {'samples':common_ksampler(self.model, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond, latent,
-                #                      denoise=strength, disable_noise=False, start_step=0, last_step=steps,
-                #                      force_full_denoise=True)[0]['samples']}]
-                _, sample = custom_sampler_node.sample(self.model, True, seed, scale, cond, self.n_cond, sampler,
-                                                       sigmas, latent)
-                sample = [{"samples": sample['samples']}]
-
-
-            else:
-                sample = sample_with_subseed(self.model, latent, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond,
-                                    subseed_strength, subseed, strength, rng=ImageRNGNoise, sigmas=sigmas)
-
-
-
-
-
-
-
+            sample = sampler_node.sample(self.model, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond, latent, strength, noise_mode='GPU(=A1111)', batch_seed_mode="comfy", variation_seed=subseed, variation_strength=subseed_strength)[0]
+            sample = [{"samples": sample['samples']}]
             # sample = common_ksampler_with_custom_noise(model=self.model,
             #                                            seed=seed,
             #                                            steps=steps,
