@@ -137,7 +137,7 @@ class DeforumCore(QMainWindow):
         checkBox.setAccessibleName(key)
 
         checkBox.setChecked(bool(default))
-        checkBox.stateChanged.connect(lambda state, k=key: self.updateParam(k, state == QtCore.Qt.CheckState.Checked))
+        checkBox.stateChanged.connect(lambda state, k=key: self.updateParam(k, state == checkBox.isChecked()))
         layout.addWidget(checkBox)
         self.params[key] = default  # Initialize the parameter dictionary
         return checkBox
