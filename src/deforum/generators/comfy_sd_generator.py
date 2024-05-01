@@ -357,7 +357,8 @@ class ComfyDeforumGenerator:
             sampler_node = NODE_CLASS_MAPPINGS['KSampler //Inspire']()
             strength = 1 - strength if strength != 1.0 else strength
             steps = round(strength * steps)
-
+            if subseed_strength > 0:
+                subseed_strength = subseed_strength / 10
             sample = sampler_node.sample(self.model, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond, latent, strength, noise_mode='GPU(=A1111)', batch_seed_mode="comfy", variation_seed=subseed, variation_strength=subseed_strength)[0]
             sample = [{"samples": sample['samples']}]
             # sample = common_ksampler_with_custom_noise(model=self.model,
