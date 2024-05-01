@@ -24,7 +24,7 @@ from ...generators.deforum_flow_generator import (get_flow_for_hybrid_motion_pre
 from ...generators.deforum_noise_generator import add_noise
 from ...pipeline_utils import next_seed
 from ...utils import py3d_tools as p3d
-from ...utils.constants import root_path, config
+from ...utils.constants import config
 from ...utils.deforum_framewarp_utils import (get_flip_perspective_matrix,
                                               flip_3d_perspective,
                                               transform_image_3d_new,
@@ -1203,7 +1203,7 @@ def film_interpolate_cls(cls: Any) -> None:
 
 
 def save_video_cls(cls):
-    dir_path = os.path.join(root_path, 'output/video')
+    dir_path = os.path.join(config.output_dir, 'video')
     os.makedirs(dir_path, exist_ok=True)
 
     name = f'{cls.gen.batch_name}_{cls.gen.timestring}'

@@ -11,7 +11,7 @@ import torch
 import torchsde
 
 from deforum.generators.rng_noise_generator import randn_local
-from deforum.utils.constants import config, root_path
+from deforum.utils.constants import config
 from deforum.utils.logging_config import logger
 
 
@@ -246,7 +246,7 @@ mock_args = CLIArgs(
     port=8188,
     enable_cors_header=None,
     extra_model_paths_config="config/comfy_paths.yaml",
-    output_directory=root_path,
+    output_directory=config.output_dir,
     temp_directory=None,
     input_directory=None,
     auto_launch=False,

@@ -49,7 +49,7 @@ from ..deforum_pipeline import DeforumBase
 from ... import ComfyDeforumGenerator
 from ...models import DepthModel, RAFT
 from ...pipeline_utils import DeforumGenerationObject, pairwise_repl, isJson
-from ...utils.constants import root_path, config 
+from ...utils.constants import config 
 from ...utils.deforum_hybrid_animation import hybrid_generation
 from ...utils.deforum_logger_util import Logger
 from ...utils.image_utils import load_image_with_mask, prepare_mask, check_mask_for_errors, load_image
@@ -82,7 +82,7 @@ class DeforumAnimationPipeline(DeforumBase):
         self.generator = generator
 
         if logger is None:
-            self.logger = Logger(root_path)
+            self.logger = Logger(config.root_path)
         else:
             self.logger = logger
 

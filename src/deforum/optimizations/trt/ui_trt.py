@@ -10,7 +10,7 @@ from .exporter import export_onnx, export_trt
 from .model_manager import modelmanager
 from .models import make_OAIUNetXL
 from .utilities import PIPELINE_TYPE
-from deforum.utils.constants import root_path
+from deforum.utils.constants import config
 from deforum.utils.logging_config import logger
 
 # from modules import sd_models, shared
@@ -83,7 +83,7 @@ def export_unet_to_trt(
     #model_name = shared.sd_model.sd_checkpoint_info.model_name
     #onnx_filename, onnx_path = modelmanager.get_onnx_path(model_name, model_hash)
     onnx_filename = "xl_unet.onnx"
-    onnx_path = os.path.join(os.path.join(root_path, "models"), onnx_filename)
+    onnx_path = os.path.join(config.model_dir, onnx_filename)
     #print(f"Exporting {model_name} to TensorRT")
 
     timing_cache = modelmanager.get_timing_cache()
@@ -191,7 +191,7 @@ def export_unet_to_trt(
 
 #model = load_a_unet_here (normal model object of ModelPatcher is fine)
 import comfy
-model, _, _, _ = comfy.sd.load_checkpoint_guess_config(root_path+"/models/checkpoints/SSD-1B.safetensors", output_vae=True,
+model, _, _, _ = comfy.sd.load_checkpoint_guess_config(config.model_dir+"/checkpoints/SSD-1B.safetensors", output_vae=True,
                                                                                     output_clip=True,
                                                                                     embedding_directory="models/embeddings",
                                                                                     output_clipvision=False,

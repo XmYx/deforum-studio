@@ -2,6 +2,7 @@ import argparse
 import os
 import random
 from deforum.utils.logging_config import logger
+from deforum.utils.constants import config
 
 def start_deforum_cli():
 
@@ -51,8 +52,7 @@ def start_deforum_cli():
     if args_main.mode:
         if args_main.mode == "webui":
             import streamlit.web.cli as stcli
-            root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            stcli.main(["run", f"{root_path}/webui/deforum_webui.py", "--server.headless", "true"])
+            stcli.main(["run", f"{config.src_path}/webui/deforum_webui.py", "--server.headless", "true"])
         elif args_main.mode == "animatediff":
             from deforum.pipelines.animatediff_animation.pipeline_animatediff_animation import DeforumAnimateDiffPipeline
             modelid = str(options.get("modelid", "132632"))
