@@ -3,10 +3,12 @@ import os
 import sys
 import json
 
+import numba
+import numpy as np
 from PyQt6.QtGui import QImage, QAction
 from PyQt6.QtWidgets import QApplication, QTabWidget, QWidget, QVBoxLayout, QDockWidget, QSlider, QLabel, QMdiArea, \
     QPushButton, QComboBox, QFileDialog, QSpinBox, QLineEdit, QCheckBox, QTextEdit
-from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, pyqtSlot
 
 from deforum.ui.core import DeforumCore
 from deforum.ui.timeline import TimelineWidget
@@ -62,7 +64,20 @@ class BackendThread(QThread):
             animation = models["deforum_pipe"](callback=datacallback, **self.params) if not use_settings_file else models["deforum_pipe"](callback=datacallback, settings_file=file_path)
         except Exception as e:
             logger.info(repr(e))
-
+def npArrayToQPixmap(arr):
+    """Convert a numpy array to QPixmap."""
+    height, width, _ = arr.shape
+    bytes_per_line = 3 * width
+    qImg = QImage(
+        arr.data,
+        width,
+        height,
+        bytes_per_line,
+        QImage.Format.Format_RGB888,
+    )
+    # Convert QImage to QPixmap
+    pixmap = QPixmap.fromImage(qImg)
+    return pixmap
 class MainWindow(DeforumCore):
     def __init__(self):
         super().__init__()
@@ -226,6 +241,7 @@ class MainWindow(DeforumCore):
             models["deforum_pipe"].gen.max_frames = len(models["deforum_pipe"].images)
         except:
             pass
+    @pyqtSlot(dict)
     def updateImage(self, data):
         # Update the image on the label
         if 'image' in data:
@@ -233,9 +249,9 @@ class MainWindow(DeforumCore):
 
             img = copy.deepcopy(data['image'])
 
-            qt_img = ImageQt.ImageQt(img)  # ImageQt object
-            qimage = QImage(qt_img)  # Convert to QImage
-            qpixmap = QPixmap.fromImage(qimage)  # Convert to QPixmap
+            # qt_img = ImageQt.ImageQt(img.convert("RGB"))  # ImageQt object
+            # qimage = QImage(qt_img)  # Convert to QImage
+            qpixmap = npArrayToQPixmap(np.array(img).astype(np.uint8))  # Convert to QPixmap
             self.previewLabel.setPixmap(qpixmap)
             self.timelineWidget.add_image_to_track(qpixmap)
     def updateParam(self, key, value):
