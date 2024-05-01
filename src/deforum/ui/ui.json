@@ -150,6 +150,13 @@
       "label": "Max Frames",
       "accessible_name": "Maximum Number of Animation Frames"
     },
+    "fps": {
+      "widget_type": "number",
+      "default": 30,
+      "min": 1,
+      "max": 4096,
+      "label": "FPS:"
+    },
     "translation_x": {
       "widget_type": "text input",
       "default": "0: (0)",
