@@ -9,7 +9,6 @@ from .comfy_utils import ensure_comfy
 from .rng_noise_generator import ImageRNGNoise, slerp
 from deforum.utils.deforum_cond_utils import blend_tensors
 from deforum.utils.logging_config import logger
-from line_profiler_pycharm import profile
 
 cfg_guider = None
 
@@ -72,7 +71,6 @@ class HIJackCFGGuider:
                                  disable_pbar)
         return self.model_patcher.model.process_latent_out(samples.to(torch.float32))
 
-    @profile
     def sample(self, noise, latent_image, sampler, sigmas, denoise_mask=None, callback=None, disable_pbar=False,
                seed=None):
         # if sigmas.shape[-1] == 0:
@@ -118,7 +116,6 @@ class ComfyDeforumGenerator:
         ensure_comfy()
         import comfy.samplers
         import comfy
-        from line_profiler_pycharm import profile
         comfy.samplers.CFGGuider = HIJackCFGGuider
         comfy.samplers.sample = sampleDeforum
         self.optimize = True
@@ -161,7 +158,18 @@ class ComfyDeforumGenerator:
         # self.controlnet = controlnet.load_controlnet(model_name)
         self.pipeline_type = "comfy"
         self.rng = None
-
+        self.optimized = False
+    def optimize_model(self):
+        if self.optimize and not self.optimized:
+            try:
+                from nodes import NODE_CLASS_MAPPINGS
+                # print(NODE_CLASS_MAPPINGS)
+                sfast_node = NODE_CLASS_MAPPINGS['ApplyStableFastUnet']()
+                self.model = sfast_node.apply_stable_fast(self.model, True)[0]
+                logger.info("Applied Stable Fast Unet Patch")
+                self.optimized = True
+            except:
+                logger.warning("Stable Fast Patch Error")
     def encode_latent(self, vae, latent, seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w, reset_noise=False):
 
         ## TODO this looks wrong! Why override the supplied subseed strength?
@@ -238,15 +246,13 @@ class ComfyDeforumGenerator:
             self.model = settings_node.run(self.model, **settings_dict)[0]
             self.clip = settings_node.run(self.clip, **settings_dict)[0]
             if self.optimize:
-                try:
-                    from nodes import NODE_CLASS_MAPPINGS
-                    # print(NODE_CLASS_MAPPINGS)
-                    sfast_node = NODE_CLASS_MAPPINGS['ApplyStableFastUnet']()
-                    self.model = sfast_node.apply_stable_fast(self.model, True)[0]
-                    logger.info("Applied Stable Fast Unet Patch")
-                except:
-                    logger.warning("Stable Fast Patch Error")
+                self.optimize_model()
             self.model_loaded = True
+
+
+            # from ..optimizations.deforum_comfy_trt.deforum_trt_comfyunet import TrtUnet
+            # self.model.model.diffusion_model = TrtUnet()
+
     def load_lora(self, model, clip, lora_path, strength_model, strength_clip):
         import comfy
         if strength_model == 0 and strength_clip == 0:
@@ -340,6 +346,7 @@ class ComfyDeforumGenerator:
             strength = 1.0
             reset_noise = True
             init_image = None
+        self.optimize_model()
 
         if subseed == -1:
             subseed = secrets.randbelow(18446744073709551615)
@@ -447,6 +454,7 @@ class ComfyDeforumGenerator:
         return decoded
 
     def cleanup(self):
+        self.optimized = False
         return
         self.model.unpatch_model(device_to='cpu')
         self.vae.first_stage_model.to('cpu')
