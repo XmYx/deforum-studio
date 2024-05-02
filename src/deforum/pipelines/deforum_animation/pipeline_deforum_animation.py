@@ -188,6 +188,11 @@ class DeforumAnimationPipeline(DeforumBase):
         if not hasattr(self.gen, 'parseq_non_schedule_overrides'):
             self.gen.parseq_non_schedule_overrides = None
 
+        if not hasattr(self.gen, 'enable_steps_scheduling'):
+            self.gen.enable_steps_scheduling = False
+        if not self.gen.enable_steps_scheduling:
+            self.gen.steps_schedule = f"0: ({self.gen.steps})"
+
         # use parseq if manifest is provided
         #TODO Not passing controlnet_args yet
         self.parseq_adapter = ParseqAdapter(self.gen, self.gen, self.gen, None, self.gen)
