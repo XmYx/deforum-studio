@@ -42,9 +42,10 @@ Deforum has the following CLI modes:
 - `deforum ui`: PyQt6 UI for configuring and running animations
 - `deforum webui`: Streamlit web UI for configuring and running animations
 - `deforum animatediff`: Command-line tool for running animations
-- `deforum runpresets --options randomize_files=True`: Run through all motion presets in `presets/` for testing purposes.
+- `deforum runpresets --options randomize_files=True`: Run through all motion presets in `presets/` for testing purposes
 - `deforum api`: FastAPI server
 - `deforum setup`: Install Stable-Fast optimizations
+- `deforum runsingle --file ~/deforum/presets/preset.txt`: Run single settings file
 
 ## Documentation
 Documentation for Deforum is currently a work in progress and will be included as part of this library in the future.
