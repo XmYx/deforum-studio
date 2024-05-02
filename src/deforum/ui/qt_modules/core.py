@@ -41,10 +41,10 @@ class CustomTextBox(QWidget):
         theme = QApplication.instance().palette().color(QPalette.ColorRole.Window).lightness()
         if theme > 128:  # Light theme
             text_color = "black"
-            bg_label_color = "rgba(160, 160, 160, 100)"  # Light gray with some transparency
+            bg_label_color = "rgba(160, 160, 160, 50)"  # Light gray with some transparency
         else:  # Dark theme
             text_color = "white"
-            bg_label_color = "rgba(255, 255, 255, 100)"  # Light white with some transparency
+            bg_label_color = "rgba(200, 200, 200, 50)"  # Light white with some transparency
 
         self.text_box.setStyleSheet(f"color: {text_color}; background-color: transparent;")
         self.label.setStyleSheet(f"color: {bg_label_color}; font-size: 24px; font-weight: bold;")
