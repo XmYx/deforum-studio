@@ -2,11 +2,12 @@ import logging
 import logging.handlers
 import os
 
+from .constants import root_path
 # Retrieve the home directory using the HOME environment variable
 home_dir = os.getenv('HOME')
 
 # Define the path for the 'deforum' directory within the home directory
-root_path = os.path.join(home_dir, 'deforum')
+#root_path = os.path.join(home_dir, 'deforum')
 
 def setup_logging(config=None):
     log_level = os.environ.get('DEFORUM_LOG_LEVEL', 'DEBUG')
