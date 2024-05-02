@@ -175,29 +175,29 @@ def start_deforum_cli():
             deforum_directory = os.path.dirname(parent_directory)
             # Construct the path to main.py
             main_script_path = os.path.join(deforum_directory, "ui", "main.py")
-            try:
+            # try:
             # Execute main.py
-                subprocess.run([sys.executable, main_script_path])
-            except:
-
-                subprocess.run(
-                    [
-                        "python3",
-                        "-m" "pip",
-                        "uninstall",
-                        "PyQt6-Qt6",
-                        "-y"
-                    ]
-                )
-                subprocess.run(
-                    [
-                        "python3",
-                        "-m" "pip",
-                        "install",
-                        "PyQt6-Qt6==6.5.0",
-                    ]
-                )
-                subprocess.run([sys.executable, main_script_path])
+            subprocess.run([sys.executable, main_script_path])
+            # except:
+            #
+            #     subprocess.run(
+            #         [
+            #             "python3",
+            #             "-m" "pip",
+            #             "uninstall",
+            #             "PyQt6-Qt6",
+            #             "-y"
+            #         ]
+            #     )
+            #     subprocess.run(
+            #         [
+            #             "python3",
+            #             "-m" "pip",
+            #             "install",
+            #             "PyQt6-Qt6==6.5.0",
+            #         ]
+            #     )
+            #     subprocess.run([sys.executable, main_script_path])
         elif args_main.mode == 'config':
             # Get the absolute path of the current file
             current_file_path = os.path.abspath(__file__)

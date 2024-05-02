@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from decouple import config
 
 # Retrieve the home directory using the HOME environment variable
-home_dir = os.getenv('HOME')
+home_dir = os.path.expanduser('~')
 
 root_path_string = f"f{home_dir}/deforum"
 if not os.path.exists(root_path_string):
