@@ -111,6 +111,7 @@ class DeforumAnimationPipeline(DeforumBase):
         Returns:
             DeforumGenerationObject: The generated object after the pipeline execution.
         """
+
         self.interrupt = False
 
         self.combined_pre_checks(settings_file, callback, *args, **kwargs)

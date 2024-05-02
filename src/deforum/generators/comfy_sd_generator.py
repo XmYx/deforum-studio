@@ -86,9 +86,10 @@ class ComfyDeforumGenerator:
         return {"samples": noise}
 
     def get_conds(self, clip, prompt, width, height, taregt_width, target_height):
-        from nodes import NODE_CLASS_MAPPINGS
-        clip_node = NODE_CLASS_MAPPINGS['smZ CLIPTextEncode']()
-        conds = clip_node.encode(clip, prompt, parser="A1111", mean_normalization=True,
+        if not hasattr(self, 'clip_node'):
+            from nodes import NODE_CLASS_MAPPINGS
+            self.clip_node = NODE_CLASS_MAPPINGS['smZ CLIPTextEncode']()
+        conds = self.clip_node.encode(clip, prompt, parser="A1111", mean_normalization=True,
                multi_conditioning=False, use_old_emphasis_implementation=False,
                with_SDXL=True, ascore=6.0, width=width, height=height, crop_w=0,
                crop_h=0, target_width=taregt_width, target_height=target_height, text_g=prompt, text_l=prompt, smZ_steps=1)[0]
@@ -290,8 +291,8 @@ class ComfyDeforumGenerator:
             else:
                 latent = torch.from_numpy(np.array(init_image).astype(np.float32) / 255.0).unsqueeze(0)
                 latent = self.encode_latent(self.vae, latent, seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w)
-            assert isinstance(latent, dict), \
-                "Our Latents have to be in a dict format with the latent being the 'samples' value"
+            # assert isinstance(latent, dict), \
+            #     "Our Latents have to be in a dict format with the latent being the 'samples' value"
 
             cond = []
 
@@ -334,7 +335,6 @@ class ComfyDeforumGenerator:
 
             logger.info(f"seed/subseed/subseed_str={seed}/{subseed}/{subseed_strength}; strength={strength}; scale={scale}; sampler_name={sampler_name}; scheduler={scheduler};")
 
-            from nodes import NODE_CLASS_MAPPINGS
 
             # scheduler_node = NODE_CLASS_MAPPINGS['AlignYourStepsScheduler']()
             # sampler_select_node = NODE_CLASS_MAPPINGS['KSamplerSelect']()
@@ -359,6 +359,7 @@ class ComfyDeforumGenerator:
             #     sample = sample_with_subseed(self.model, latent, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond,
             #                         subseed_strength, subseed, strength, rng=None, sigmas=sigmas)
             if not hasattr(self, 'sampler_node'):
+                from nodes import NODE_CLASS_MAPPINGS
                 self.sampler_node = NODE_CLASS_MAPPINGS['KSampler //Inspire']()
             strength = 1 - strength if strength != 1.0 else strength
             steps = round(strength * steps)
@@ -441,7 +442,7 @@ class ComfyDeforumGenerator:
         with torch.inference_mode():
             sample = sample.to(torch.float32)
             #vae.first_stage_model.cuda()
-            decoded = vae.decode_tiled(sample).detach()
+            decoded = vae.decode(sample).detach()
 
         return decoded
 
