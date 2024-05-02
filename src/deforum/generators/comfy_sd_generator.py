@@ -216,6 +216,7 @@ class ComfyDeforumGenerator:
                                                     embedding_directory="models/embeddings",
                                                     output_clipvision=False,
                                                     )
+                self.vae.first_stage_model.cuda()
 
                 settings_node = NODE_CLASS_MAPPINGS['smZ Settings']()
 
@@ -357,12 +358,13 @@ class ComfyDeforumGenerator:
             # else:
             #     sample = sample_with_subseed(self.model, latent, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond,
             #                         subseed_strength, subseed, strength, rng=None, sigmas=sigmas)
-            sampler_node = NODE_CLASS_MAPPINGS['KSampler //Inspire']()
+            if not hasattr(self, 'sampler_node'):
+                self.sampler_node = NODE_CLASS_MAPPINGS['KSampler //Inspire']()
             strength = 1 - strength if strength != 1.0 else strength
             steps = round(strength * steps)
             if subseed_strength > 0:
                 subseed_strength = subseed_strength / 10
-            sample = sampler_node.sample(self.model, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond, latent, strength, noise_mode='GPU(=A1111)', batch_seed_mode="comfy", variation_seed=subseed, variation_strength=subseed_strength)[0]
+            sample = self.sampler_node.sample(self.model, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond, latent, strength, noise_mode='GPU(=A1111)', batch_seed_mode="comfy", variation_seed=subseed, variation_strength=subseed_strength)[0]
             sample = [{"samples": sample['samples']}]
             # sample = common_ksampler_with_custom_noise(model=self.model,
             #                                            seed=seed,
@@ -438,7 +440,7 @@ class ComfyDeforumGenerator:
     def decode_sample(self, vae, sample):
         with torch.inference_mode():
             sample = sample.to(torch.float32)
-            vae.first_stage_model.cuda()
+            #vae.first_stage_model.cuda()
             decoded = vae.decode_tiled(sample).detach()
 
         return decoded
