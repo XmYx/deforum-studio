@@ -64,22 +64,13 @@ def anim_frame_warp_cls(cls: Any) -> None:
         cls.gen.mask = None
         if cls.gen.use_depth_warping:
             if cls.gen.depth is None and cls.depth_model is not None:
-
-
-                #img = Image.fromarray(cv2.cvtColor(cls.gen.prev_img, cv2.COLOR_BGR2RGB))
-
-                #print("ERROR HERE", type(img))
                 if cls.depth_model.device != 'cuda':
                     cls.depth_model.to('cuda')
                     cls.depth_model.device = 'cuda'
                 with torch.no_grad():
                     cls.gen.depth = cls.depth_model.predict(cls.gen.prev_img, cls.gen.midas_weight, True)
-                                                            #cls.gen.half_precision)
-                    torch.cuda.empty_cache()
-                #cls.depth_model.to('cpu')
         else:
             cls.gen.depth = None
-
         if cls.gen.animation_mode == '2D':
             cls.gen.prev_img = anim_frame_warp_2d_cls(cls, cls.gen.prev_img)
         else:  # '3D'
@@ -180,7 +171,6 @@ def anim_frame_warp_3d_cls(cls: Any, image: Union[None, Any]) -> Tuple[Any, Any]
 
     result = transform_image_3d_new(torch.device('cuda'), image, cls.gen.depth, rot_mat, translate_xyz,
                                           cls.gen, cls.gen.keys, cls.gen.frame_idx)
-    torch.cuda.empty_cache()
     return result, None
 
 
@@ -201,7 +191,6 @@ def anim_frame_warp_3d_direct(cls, image, x, y, z, rx, ry, rz):
     rot_mat = p3d.euler_angles_to_matrix(torch.tensor(rotate_xyz, device="cuda"), "XYZ").unsqueeze(0)
     result, mask = transform_image_3d_new(torch.device('cuda'), image, cls.gen.depth, rot_mat, translate_xyz,
                                           cls.gen, cls.gen.keys, cls.gen.frame_idx)
-    torch.cuda.empty_cache()
     return result, mask
 
 def hybrid_composite_cls(cls: Any) -> None:
@@ -1197,7 +1186,7 @@ def film_interpolate_cls(cls: Any) -> None:
 
     film_in_between_frames_count = calculate_frames_to_add(len(cls.images), cls.gen.frame_interpolation_x_amount)
 
-    interpolated = interpolator(cls.images, film_in_between_frames_count)
+    interpolated = interpolator([Image.open(path) for path in cls.gen.image_paths], film_in_between_frames_count)
     cls.images = interpolated
     cls.gen.image_paths = []
     return

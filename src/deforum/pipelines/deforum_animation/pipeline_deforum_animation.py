@@ -96,6 +96,8 @@ class DeforumAnimationPipeline(DeforumBase):
             self.logging = False
 
         self.interrupt = False
+        self.raft_model = None
+
 
     def __call__(self, settings_file: str = None, callback=None, *args, **kwargs) -> DeforumGenerationObject:
         """
@@ -241,11 +243,10 @@ class DeforumAnimationPipeline(DeforumBase):
             self.depth_model = None
             self.gen.save_depth_maps = False
 
-        self.raft_model = None
         load_raft = (self.gen.optical_flow_cadence == "RAFT" and int(self.gen.diffusion_cadence) > 0) or \
                     (self.gen.hybrid_motion == "Optical Flow" and self.gen.hybrid_flow_method == "RAFT") or \
                     (self.gen.optical_flow_redo_generation == "RAFT")
-        if load_raft:
+        if load_raft and self.raft_model is None:
             logger.info("[ Loading RAFT model ]")
             self.raft_model = RAFT()
 
@@ -438,17 +439,13 @@ class DeforumAnimationPipeline(DeforumBase):
     def datacallback(self, data):
         pass
 
-
     def generate_(self):
         assert self.gen.prompt is not None
         prompt, negative_prompt = split_weighted_subprompts(self.gen.prompt, self.gen.frame_idx, self.gen.max_frames)
-
         next_prompt, blend_value = get_next_prompt_and_blend(self.gen.frame_idx, self.gen.prompt_series)
 
         if hasattr(self.gen, "sampler_name"):
             from comfy.samplers import SAMPLER_NAMES
-
-
             if self.gen.sampler_name not in SAMPLER_NAMES:
                 sampler_name = auto_to_comfy[self.gen.sampler_name]["sampler"]
                 scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
@@ -502,9 +499,6 @@ class DeforumAnimationPipeline(DeforumBase):
             gen_args["use_areas"] = True
             gen_args["prompt"] = None
 
-
-
-
         if self.gen.enable_subseed_scheduling:
             gen_args["subseed"] = self.gen.subseed
             gen_args["subseed_strength"] = self.gen.subseed_strength
@@ -512,8 +506,6 @@ class DeforumAnimationPipeline(DeforumBase):
             gen_args["seed_resize_from_w"] = self.gen.seed_resize_from_w
 
         processed = self.generator(**gen_args)
-        torch.cuda.empty_cache()
-
         return processed
 
     def generate(self):
@@ -749,7 +741,6 @@ class DeforumAnimationPipeline(DeforumBase):
                 gen_args["seed_resize_from_w"] = self.gen.seed_resize_from_w
 
             processed = self.generator(**gen_args)
-            torch.cuda.empty_cache()
 
         if processed is None:
             # Mask functions

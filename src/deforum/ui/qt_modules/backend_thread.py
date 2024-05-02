@@ -25,7 +25,7 @@ class BackendThread(QThread):
                 models["deforum_pipe"] = DeforumAnimationPipeline.from_civitai(model_id=self.params.get('model_id', "125703"))
                 loaded_model_id = self.params.get('model_id', "125703")
                                                                             #generator_name='DeforumDiffusersGenerator')
-            models["deforum_pipe"].generator.optimize = self.params["optimize"]
+            models["deforum_pipe"].generator.optimize = self.params.get('optimize', True)
             prom = self.params.get('prompts', 'cat sushi')
             key = self.params.get('keyframes', '0')
             if prom == "":
