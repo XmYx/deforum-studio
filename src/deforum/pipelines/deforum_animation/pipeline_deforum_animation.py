@@ -174,7 +174,7 @@ class DeforumAnimationPipeline(DeforumBase):
         frame_warp_modes = ['2D', '3D']
         hybrid_motion_modes = ['Affine', 'Perspective', 'Optical Flow']
 
-        self.gen.max_frames += 1
+        self.gen.max_frames += 5
 
         # if self.gen.animation_mode in frame_warp_modes:
         #     # handle hybrid video generation
@@ -207,7 +207,7 @@ class DeforumAnimationPipeline(DeforumBase):
                 prompt_series[int(numexpr.evaluate(i))] = prompt
         prompt_series = prompt_series.ffill().bfill()
         self.gen.prompt_series = prompt_series
-        self.gen.max_frames -= 1
+        self.gen.max_frames -= 5
 
         # check for video inits
         self.gen.using_vid_init = self.gen.animation_mode == 'Video Input'
