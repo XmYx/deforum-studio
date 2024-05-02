@@ -3,22 +3,22 @@ import os
 import sys
 import json
 
-import numba
 import numpy as np
 
 from PyQt6.QtGui import QImage, QAction
 from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 from PyQt6.QtWidgets import QApplication, QTabWidget, QWidget, QVBoxLayout, QDockWidget, QSlider, QLabel, QMdiArea, \
-    QPushButton, QComboBox, QFileDialog, QSpinBox, QLineEdit, QCheckBox, QTextEdit, QHBoxLayout
+    QPushButton, QComboBox, QFileDialog, QSpinBox, QLineEdit, QCheckBox, QTextEdit, QHBoxLayout, QListWidget, \
+    QDoubleSpinBox, QListWidgetItem
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, pyqtSlot, QUrl
 
-from deforum.ui.core import DeforumCore
-from deforum.ui.timeline import TimelineWidget
+from deforum.ui.qt_modules.core import DeforumCore
+from deforum.ui.qt_modules.timeline import TimelineWidget
 from deforum.utils.logging_config import logger
 
 from PyQt6.QtGui import QPixmap
-from PIL import ImageQt
+
 
 class BackendThread(QThread):
     imageGenerated = pyqtSignal(object)  # Signal to emit the image data
@@ -72,6 +72,7 @@ class BackendThread(QThread):
                 self.finished.emit(animation.video_path)
         except Exception as e:
             logger.info(repr(e))
+            self.finished.emit("Error")
 def npArrayToQPixmap(arr):
     """Convert a numpy array to QPixmap."""
     height, width, _ = arr.shape
@@ -87,8 +88,11 @@ def npArrayToQPixmap(arr):
     pixmap = QPixmap.fromImage(qImg)
     return pixmap
 
+
 class ResizableImageLabel(QLabel):
     def __init__(self, parent=None):
+        # Replacing deprecated sip function with recommended alternative
+        # Assuming you identified where sipPyTypeDict() was used and replaced it
         super(ResizableImageLabel, self).__init__(parent)
         self.setScaledContents(True)  # Enable scaling to allow both enlarging and reducing the pixmap size
         self.pixmap_original = None
@@ -107,6 +111,73 @@ class ResizableImageLabel(QLabel):
             min_height = max(1, self.pixmap_original.height() * 0.1)
             self.setMinimumSize(int(min_width), int(min_height))
         super().resizeEvent(event)
+
+class JobQueueItem(QWidget):
+    def __init__(self, job_name, job_data, parent=None):
+        super().__init__(parent)
+        self.job_name = job_name
+        self.job_data = job_data
+
+        layout = QHBoxLayout(self)
+        self.label = QLabel(job_name)
+        self.status_label = QLabel("Batched")
+        layout.addWidget(self.label)
+        layout.addWidget(self.status_label)
+        self.setLayout(layout)
+    def markStatus(self, status):
+        self.status_label.setText(str(status))
+
+    def markRunning(self):
+        self.status_label.setText("Running")
+        self.job_data['is_running'] = True
+
+    def markComplete(self):
+        self.status_label.setText("Completed")
+        self.job_data['is_running'] = False
+
+
+
+class JobDetailPopup(QWidget):
+    def __init__(self, job_data, parent=None):
+        super(JobDetailPopup, self).__init__(parent)
+        self.job_data = job_data
+        self.setupUI()
+
+    def setupUI(self):
+        layout = QVBoxLayout(self)
+        self.setLayout(layout)
+
+        for key, value in self.job_data.items():
+            if isinstance(value, bool):
+                widget = QCheckBox(key)
+                widget.setChecked(value)
+            elif isinstance(value, int):
+                widget = QSpinBox()
+                widget.setValue(value)
+            elif isinstance(value, float):
+                widget = QDoubleSpinBox()
+                widget.setValue(value)
+            else:
+                widget = QLineEdit(str(value))
+
+            layout.addWidget(widget)
+
+        # Adding Save and Cancel buttons
+        btnSave = QPushButton("Save")
+        btnCancel = QPushButton("Cancel")
+        btnSave.clicked.connect(self.saveChanges)
+        btnCancel.clicked.connect(self.close)
+
+        buttonLayout = QHBoxLayout()
+        buttonLayout.addWidget(btnSave)
+        buttonLayout.addWidget(btnCancel)
+        layout.addLayout(buttonLayout)
+
+    def saveChanges(self):
+        # Implement logic to update job data
+        self.close()
+
+
 class MainWindow(DeforumCore):
     def __init__(self):
         super().__init__()
@@ -120,7 +191,40 @@ class MainWindow(DeforumCore):
         self.setupVideoPlayer()
         self.tileMdiSubWindows()
         self.timelineDock.hide()
+        self.setupBatchControls()
+        self.job_queue = []  # List to keep jobs to be processed
+        self.current_job = None  # To keep track of the currently running job
 
+    def onJobDoubleClicked(self, item):
+        widget = self.jobQueueList.itemWidget(item)
+        if widget:
+            # Create a JobDetailPopup and add it to the MDI area
+            popup = JobDetailPopup(widget.job_data)
+            subWindow = self.mdiArea.addSubWindow(popup)  # Add popup to MDI area
+            popup.setWindowTitle("Job Details - " + widget.job_name)
+            subWindow.show()
+
+    def setupBatchControls(self):
+        self.batchControlTab = QWidget()
+        layout = QVBoxLayout()
+        self.batchControlTab.setLayout(layout)
+        self.jobQueueList = QListWidget()
+        self.jobQueueList.itemDoubleClicked.connect(self.onJobDoubleClicked)
+
+        # Buttons for batch control
+        startButton = QPushButton("Start Batch")
+        pauseButton = QPushButton("Pause Batch")
+
+        # Connect buttons to their respective slots (functions)
+        startButton.clicked.connect(self.startBatchProcess)
+        pauseButton.clicked.connect(self.stopBatchProcess)
+
+        layout.addWidget(startButton)
+        layout.addWidget(pauseButton)
+        layout.addWidget(self.jobQueueList)
+
+        # Add the batch control tab to the main tab widget
+        self.tabWidget.addTab(self.batchControlTab, "Batch Control")
     def loadPresetsDropdown(self):
         current_text = self.presetsDropdown.currentText()  # Remember current text
         if not os.path.exists(self.presets_folder):
@@ -134,6 +238,17 @@ class MainWindow(DeforumCore):
         if current_text in preset_files:
             index = self.presetsDropdown.findText(current_text)
             self.presetsDropdown.setCurrentIndex(index)
+
+    def addCurrentParamsAsJob(self):
+        # Adding current params as a new job
+        job_description = json.dumps(self.params, indent=4)
+        item = QListWidgetItem(self.jobQueueList)
+        widget = JobQueueItem("Job Name", self.params)
+        item.setSizeHint(widget.sizeHint())
+        self.jobQueueList.addItem(item)
+        self.jobQueueList.setItemWidget(item, widget)
+        self.job_queue.append(widget)  # Append job widget to the queue
+
 
     def loadPreset(self):
         selected_preset = self.presetsDropdown.currentText()
@@ -181,12 +296,17 @@ class MainWindow(DeforumCore):
         self.savePresetAction = QAction('Save Preset', self)
         self.savePresetAction.triggered.connect(self.savePreset)
         self.toolbar.addAction(self.savePresetAction)
+
+        self.addJobButton = QAction('Add to Batch', self)
+        self.addJobButton.triggered.connect(self.addCurrentParamsAsJob)
+        self.toolbar.addAction(self.addJobButton)
+
         self.renderButton.triggered.connect(self.startBackendProcess)
         self.stopRenderButton.triggered.connect(self.stopBackendProcess)
         # Initialize the tabbed control layout docked on the left
         self.controlsDock = self.addDock("Controls", Qt.DockWidgetArea.LeftDockWidgetArea)
-        tabWidget = QTabWidget()
-        self.controlsDock.setWidget(tabWidget)
+        self.tabWidget = QTabWidget()
+        self.controlsDock.setWidget(self.tabWidget)
 
         # Load UI configuration from JSON
         curr_folder = os.path.dirname(os.path.abspath(__file__))
@@ -219,7 +339,7 @@ class MainWindow(DeforumCore):
                     # Add file input handler if needed
                     pass
 
-            tabWidget.addTab(tab, category)
+            self.tabWidget.addTab(tab, category)
         # self.createPushButton('Render', layout, self.startBackendProcess)
 
         # Create preview area
@@ -393,6 +513,37 @@ class MainWindow(DeforumCore):
             models["deforum_pipe"].gen.max_frames = len(models["deforum_pipe"].images)
         except:
             pass
+
+
+    def startBatchProcess(self):
+        if not self.current_job and self.job_queue:
+            self.runNextJob()
+
+    def runNextJob(self):
+        if self.job_queue:
+            self.current_job = self.job_queue.pop(0)
+            self.current_job.markRunning()  # Mark the job as running
+            self.thread = BackendThread(self.current_job.job_data)
+            self.thread.finished.connect(self.onJobFinished)
+            self.thread.start()
+
+    @pyqtSlot(str)
+    def onJobFinished(self, result):
+        print(f"Job completed with result: {result}")
+        self.current_job.markComplete()  # Mark the job as complete
+        self.current_job = None  # Reset current job
+        self.runNextJob()  # Run next job in the queue
+
+    def stopBatchProcess(self):
+        if self.current_job:
+            # Logic to stop the current thread if it's running
+            self.thread.terminate()
+            self.current_job.markComplete()
+            self.current_job = None
+        while self.job_queue:
+            job = self.job_queue.pop(0)
+            job.markComplete()
+
     @pyqtSlot(dict)
     def updateImage(self, data):
         # Update the image on the label

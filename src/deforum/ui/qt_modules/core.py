@@ -4,9 +4,9 @@ import threading
 
 from PyQt6 import QtCore
 from PyQt6.QtCore import Qt, QRect
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QPalette
 from PyQt6.QtWidgets import QMainWindow, QMessageBox, QHBoxLayout, QSpinBox, QLabel, QDoubleSpinBox, QCheckBox, \
-    QComboBox, QPushButton, QFileDialog, QTextEdit, QWidget, QVBoxLayout
+    QComboBox, QPushButton, QFileDialog, QTextEdit, QWidget, QVBoxLayout, QApplication
 
 
 class CustomTextBox(QWidget):
@@ -14,13 +14,13 @@ class CustomTextBox(QWidget):
         super().__init__()
         self.layout = QVBoxLayout(self)
         self.text_box = QTextEdit(self)
+        self.text_box.setText(default)
         self.label = QLabel(label, self.text_box)
         self.setupUI()
+        self.updateStyles()
 
     def setupUI(self):
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.label.setStyleSheet("color: gray; font-size: 24px; font-weight: bold;")
-        self.label.setGeometry(QRect(0, 0, self.text_box.width(), self.text_box.height()))
         self.label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)  # Make label ignore mouse events
         self.layout.addWidget(self.text_box)
 
@@ -28,6 +28,26 @@ class CustomTextBox(QWidget):
         super().resizeEvent(event)
         # Update label size and position on resize
         self.label.setGeometry(QRect(0, 0, self.text_box.width(), self.text_box.height()))
+
+    def updateLabelVisibility(self):
+        # Hide label if there is text, otherwise show it
+        if self.text_box.toPlainText():
+            self.label.hide()
+        else:
+            self.label.show()
+
+    def updateStyles(self):
+        # Adjust style based on the system's theme
+        theme = QApplication.instance().palette().color(QPalette.ColorRole.Window).lightness()
+        if theme > 128:  # Light theme
+            text_color = "black"
+            bg_label_color = "rgba(160, 160, 160, 100)"  # Light gray with some transparency
+        else:  # Dark theme
+            text_color = "white"
+            bg_label_color = "rgba(255, 255, 255, 100)"  # Light white with some transparency
+
+        self.text_box.setStyleSheet(f"color: {text_color}; background-color: transparent;")
+        self.label.setStyleSheet(f"color: {bg_label_color}; font-size: 24px; font-weight: bold;")
 
 class DeforumCore(QMainWindow):
     def __init__(self, parent=None):

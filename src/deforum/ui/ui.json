@@ -299,6 +299,11 @@
       "default": false,
       "label": "Hybrid Generate Inputframes"
     },
+    "hybrid_use_full_video": {
+      "widget_type": "checkbox",
+      "default": true,
+      "label": "Hybrid Use Full Video"
+    },
     "hybrid_motion": {
       "widget_type": "dropdown",
       "options": ["None", "Optical Flow", "Perspective", "Affine"],
