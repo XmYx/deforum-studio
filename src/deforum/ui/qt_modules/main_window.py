@@ -18,7 +18,7 @@ from deforum import logger
 from deforum.ui.qt_helpers.qt_image import npArrayToQPixmap
 from deforum.ui.qt_modules.backend_thread import BackendThread
 from deforum.ui.qt_modules.core import DeforumCore
-from deforum.ui.qt_modules.custom_ui import ResizableImageLabel, JobDetailPopup, JobQueueItem
+from deforum.ui.qt_modules.custom_ui import ResizableImageLabel, JobDetailPopup, JobQueueItem, AspectRatioMdiSubWindow
 from deforum.ui.qt_modules.timeline import TimelineWidget
 
 
@@ -233,12 +233,18 @@ class MainWindow(DeforumCore):
         # Setting up an MDI area for previews
         self.mdiArea = QMdiArea()
         self.setCentralWidget(self.mdiArea)
-        self.previewSubWindow = self.mdiArea.addSubWindow(QWidget())
+
         self.previewLabel = ResizableImageLabel()
-        self.previewLabel.setScaledContents(True)
-        self.previewLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.previewSubWindow = AspectRatioMdiSubWindow(self.previewLabel)
+        self.mdiArea.addSubWindow(self.previewSubWindow)
         self.previewSubWindow.setWidget(self.previewLabel)
         self.previewSubWindow.show()
+        # self.previewSubWindow = self.mdiArea.addSubWindow(QWidget())
+        # self.previewLabel = ResizableImageLabel()
+        # self.previewLabel.setScaledContents(True)
+        # self.previewLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # self.previewSubWindow.setWidget(self.previewLabel)
+        # self.previewSubWindow.show()
 
     def setupVideoPlayer(self):
         self.videoSubWindow = self.mdiArea.addSubWindow(QWidget())
@@ -393,15 +399,7 @@ class MainWindow(DeforumCore):
         if 'image' in data:
             img = copy.deepcopy(data['image'])
             qpixmap = npArrayToQPixmap(np.array(img).astype(np.uint8))  # Convert to QPixmap
-            # Get the size of the container QMdiSubWindow
-            container_size = self.previewSubWindow.size()
-
-            # Scale the QPixmap to fit within the container while maintaining the aspect ratio
-            scaled_pixmap = qpixmap.scaled(container_size, Qt.AspectRatioMode.KeepAspectRatio,
-                                           Qt.TransformationMode.SmoothTransformation)
-
-            # Set the scaled pixmap to the label
-            self.previewLabel.setPixmap(scaled_pixmap)
+            self.previewLabel.setPixmap(qpixmap)
             self.previewLabel.setScaledContents(True)
             self.timelineWidget.add_image_to_track(qpixmap)
     def updateParam(self, key, value):
