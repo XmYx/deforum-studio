@@ -4,6 +4,11 @@
       "widget_type": "checkbox",
       "default": false,
       "label": "Optimize with StableFast"},
+      "model_id": {
+      "label": "Model ID",
+      "widget_type": "text input",
+      "default": "125703"
+    },
     "settings_file": {
       "widget_type": "file_input",
       "accepted_file_types": [".txt"],

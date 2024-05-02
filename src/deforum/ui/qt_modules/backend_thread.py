@@ -1,7 +1,7 @@
 from PyQt6.QtCore import pyqtSignal, QThread
 
 from deforum import logger
-
+loaded_model_id = ""
 
 class BackendThread(QThread):
     imageGenerated = pyqtSignal(object)  # Signal to emit the image data
@@ -10,17 +10,20 @@ class BackendThread(QThread):
     def __init__(self, params):
         super().__init__()
         self.params = params
-        print(params)
-
-
     def run(self):
+        global loaded_model_id
         try:
             from deforum.shared_storage import models
-
+            if loaded_model_id != self.params.get('model_id', "125703") and 'deforum_pipe' in models:
+                try:
+                    models["deforum_pipe"].generator.cleanup()
+                except:
+                    pass
             # Load the deforum pipeline if not already loaded
-            if "deforum_pipe" not in models:
+            if "deforum_pipe" not in models or loaded_model_id != self.params.get('model_id', "125703"):
                 from deforum import DeforumAnimationPipeline
-                models["deforum_pipe"] = DeforumAnimationPipeline.from_civitai(model_id="125703")
+                models["deforum_pipe"] = DeforumAnimationPipeline.from_civitai(model_id=self.params.get('model_id', "125703"))
+                loaded_model_id = self.params.get('model_id', "125703")
                                                                             #generator_name='DeforumDiffusersGenerator')
             models["deforum_pipe"].generator.optimize = self.params["optimize"]
             prom = self.params.get('prompts', 'cat sushi')
