@@ -39,12 +39,12 @@ The generated outputs will be saved to `$HOME/deforum/outputs`, which is the def
 
 ## CLI Commands
 Deforum has the following CLI modes:
-- `ui`: PyQt6 UI for configuring and running animations
-- `webui`: Streamlit web UI for configuring and running animations
-- `animatediff`: Command-line tool for running animations
-- `runpresets --options randomize_files`: Run through all motion presets in `presets/` for testing purposes.
-- `api`: FastAPI server
-- `setup`: Install Stable-Fast optimizations
+- `deforum ui`: PyQt6 UI for configuring and running animations
+- `deforum webui`: Streamlit web UI for configuring and running animations
+- `deforum animatediff`: Command-line tool for running animations
+- `deforum runpresets --options randomize_files=True`: Run through all motion presets in `presets/` for testing purposes.
+- `deforum api`: FastAPI server
+- `deforum setup`: Install Stable-Fast optimizations
 
 ## Documentation
 Documentation for Deforum is currently a work in progress and will be included as part of this library in the future.
