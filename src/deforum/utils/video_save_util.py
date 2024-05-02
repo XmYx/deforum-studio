@@ -38,7 +38,7 @@ def save_as_h264(frames, filename, audio_path=None, fps=12):
         writer.close()
 
         # Extract and merge audio if an audio path is provided
-        audio_path = False
+        # audio_path = False
         if audio_path:
             logger.info("Audio Extraction not implemented with imageio yet, you need to have ffmpeg available in your system")
             try:
@@ -56,7 +56,6 @@ def save_as_h264(frames, filename, audio_path=None, fps=12):
                              '-c:v', 'copy', '-c:a', 'aac', '-strict', 'experimental',
                              '-t', str(video_duration), output_filename]
                 result = subprocess.run(merge_cmd, stderr=subprocess.PIPE)
-
                 if result.returncode != 0:
                     logger.error(f"Audio file merge failed: {result.stderr.decode('utf-8')}")
                 else:

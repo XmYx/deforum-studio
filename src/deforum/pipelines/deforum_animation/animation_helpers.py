@@ -439,6 +439,7 @@ def add_noise_cls(cls: Any) -> None:
         # use transformed previous frame as init for current
         cls.gen.use_init = True
         cls.gen.init_sample = Image.fromarray(cv2.cvtColor(noised_image, cv2.COLOR_BGR2RGB))
+        cls.gen.prev_img = noised_image
         cls.gen.strength = max(0.0, min(1.0, cls.gen.strength))
     return
 
@@ -699,7 +700,7 @@ def post_color_match_with_cls(cls: Any) -> None:
         None: Modifies the class instance attributes in place.
     """
     # color matching on first frame is after generation, color match was collected earlier, so we do an extra generation to avoid the corruption introduced by the color match of first output
-    if cls.gen.color_match_sample is not None:
+    if cls.gen.color_match_sample is not None and 'post' in cls.gen.color_match_at:
         if cls.gen.frame_idx == 0 and (cls.gen.color_coherence == 'Image' or (
                 cls.gen.color_coherence == 'Video Input' and cls.gen.hybrid_available)):
             image = maintain_colors(cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR), cls.gen.color_match_sample,
@@ -806,10 +807,10 @@ def post_gen_cls(cls: Any) -> None:
 
 def generate_interpolated_frames(cls):
     
-    turbo_prev_image = cls.gen.turbo_prev_image
-    turbo_next_image = cls.gen.turbo_next_image
-    turbo_prev_frame_idx = cls.gen.turbo_prev_frame_idx
-    turbo_next_frame_idx = cls.gen.turbo_next_frame_idx
+    turbo_prev_image = copy.deepcopy(cls.gen.turbo_prev_image)
+    turbo_next_image = copy.deepcopy(cls.gen.turbo_next_image)
+    turbo_prev_frame_idx = copy.deepcopy(cls.gen.turbo_prev_frame_idx)
+    turbo_next_frame_idx = copy.deepcopy(cls.gen.turbo_next_frame_idx)
     
     # emit in-between frames
     if cls.gen.turbo_steps > 1 and cls.gen.frame_idx > 1:
@@ -934,7 +935,7 @@ def generate_interpolated_frames(cls):
                 img = do_overlay_mask(cls.gen, cls.gen, img, tween_frame_idx, True)
 
             # get prev_img during cadence
-            prev_img = img
+            prev_img = copy.deepcopy(img)
 
 
             # current image update for cadence frames (left commented because it doesn't currently update the preview)
@@ -946,14 +947,14 @@ def generate_interpolated_frames(cls):
             # cv2.imwrite("current_cadence.png", img)
             cb_img = Image.fromarray(cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB))
             cls.datacallback({"image":cb_img, "operation_id":cls.gen.operation_id, "frame_idx":cls.gen.frame_idx})
-            cls.images.append(cb_img)
+            cls.images.append(copy.deepcopy(cb_img))
 
 
             if cls.gen.save_depth_maps:
                 cls.depth_model.save(os.path.join(cls.gen.outdir, f"{cls.gen.timestring}_depth_{tween_frame_idx:09}.png"), depth)
-            cls.gen.prev_img = prev_img
-            cls.gen.turbo_prev_image = turbo_prev_image
-            cls.gen.turbo_next_image = turbo_next_image
+            cls.gen.prev_img = copy.deepcopy(prev_img)
+            cls.gen.turbo_prev_image = copy.deepcopy(turbo_prev_image)
+            cls.gen.turbo_next_image = copy.deepcopy(turbo_next_image)
 
 
 

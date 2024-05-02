@@ -1,3 +1,4 @@
+import re
 import secrets
 
 import numpy as np
@@ -14,7 +15,7 @@ class ComfyDeforumGenerator:
     def __init__(self, model_path: str = None, lcm=False, trt=False):
 
         ensure_comfy()
-
+        self.optimize = True
         # from deforum.datafunctions.ensure_comfy import ensure_comfy
         # ensure_comfy()
         # from deforum.datafunctions import comfy_functions
@@ -77,19 +78,26 @@ class ComfyDeforumGenerator:
     def generate_latent(self, width, height, seed, subseed, subseed_strength, seed_resize_from_h=None,
                         seed_resize_from_w=None, reset_noise=False):
         shape = [4, height // 8, width // 8]
-        if self.rng is None or reset_noise:
-            self.rng = ImageRNGNoise(shape=shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
-                                     seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
-        noise = self.rng.next()
-        # noise = torch.zeros([1, 4, width // 8, height // 8])
+        # if self.rng is None or reset_noise:
+        #     self.rng = ImageRNGNoise(shape=shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
+        #                              seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
+        # noise = self.rng.next()
+        noise = torch.zeros([1, 4, height // 8, width // 8])
         return {"samples": noise}
 
-    def get_conds(self, clip, prompt):
-        with torch.inference_mode():
-            # clip.clip_layer(0)
-            tokens = clip.tokenize(prompt)
-            cond, pooled = clip.encode_from_tokens(tokens, return_pooled=True)
-            return [[cond, {"pooled_output": pooled}]]
+    def get_conds(self, clip, prompt, width, height, taregt_width, target_height):
+        from nodes import NODE_CLASS_MAPPINGS
+        clip_node = NODE_CLASS_MAPPINGS['smZ CLIPTextEncode']()
+        conds = clip_node.encode(clip, prompt, parser="A1111", mean_normalization=True,
+               multi_conditioning=False, use_old_emphasis_implementation=False,
+               with_SDXL=True, ascore=6.0, width=width, height=height, crop_w=0,
+               crop_h=0, target_width=taregt_width, target_height=target_height, text_g=prompt, text_l=prompt, smZ_steps=1)[0]
+        return conds
+        # with torch.inference_mode():
+        #     # clip.clip_layer(0)
+        #     tokens = clip.tokenize(prompt)
+        #     cond, pooled = clip.encode_from_tokens(tokens, return_pooled=True)
+        #     return [[cond, {"pooled_output": pooled}]]
 
     def load_model(self, model_path: str, trt: bool = False):
         try:
@@ -186,45 +194,73 @@ class ComfyDeforumGenerator:
                  return_latent=None,
                  latent=None,
                  last_step=None,
-                 seed_resize_from_h=1024,
-                 seed_resize_from_w=1024,
+                 seed_resize_from_h=0,
+                 seed_resize_from_w=0,
                  reset_noise=False,
                  enable_prompt_blend=True,
                  use_areas= False,
                  areas= None,
                  *args,
                  **kwargs):
-
+        if seed_resize_from_h == 0:
+            seed_resize_from_h = height
+        if seed_resize_from_w == 0:
+            seed_resize_from_w = width
         if self.pipeline_type == "comfy":
             if (self.vae is None):
                 import comfy.sd
+                from nodes import NODE_CLASS_MAPPINGS
                 self.model, self.clip, self.vae, self.clipvision = comfy.sd.load_checkpoint_guess_config(self.model_path,
                                                     output_vae=True,
                                                     output_clip=True,
                                                     embedding_directory="models/embeddings",
                                                     output_clipvision=False,
                                                     )
-                try:
-                    from nodes import NODE_CLASS_MAPPINGS
-                    # print(NODE_CLASS_MAPPINGS)
-                    sfast_node = NODE_CLASS_MAPPINGS['ApplyStableFastUnet']()
-                    self.model = sfast_node.apply_stable_fast(self.model, True)[0]
-                    logger.info("Applied Stable Fast Unet Patch")
-                except:
-                    pass
+
+                settings_node = NODE_CLASS_MAPPINGS['smZ Settings']()
+
+                # print(settings_node.INPUT_TYPES()['optional'])
+                # Define a function to remove all whitespace from a string
+                # def remove_whitespace(text):
+                #     return re.sub(r'[\s\u200B]+', '', text)
+
+                settings_dict = {}
+                for k, v in settings_node.INPUT_TYPES()['optional'].items():
+                    # Remove leading and trailing spaces and then replace remaining spaces
+                    # sanitized_key = remove_whitespace(k)
+                    if 'default' in v[1]:
+                        settings_dict[k] = v[1]['default']
+                settings_dict["RNG"] = "gpu"
+                settings_dict["pad_cond_uncond"] = True
+                settings_dict["Use CFGDenoiser"] = True
+                settings_dict["disable_nan_check"] = True
+                settings_dict["upcast_sampling"] = False
+                settings_dict["batch_cond_uncond"] = True
+                self.model = settings_node.run(self.model, **settings_dict)[0]
+                self.clip = settings_node.run(self.clip, **settings_dict)[0]
+                if self.optimize:
+                    try:
+                        from nodes import NODE_CLASS_MAPPINGS
+                        # print(NODE_CLASS_MAPPINGS)
+                        sfast_node = NODE_CLASS_MAPPINGS['ApplyStableFastUnet']()
+                        self.model = sfast_node.apply_stable_fast(self.model, True)[0]
+                        logger.info("Applied Stable Fast Unet Patch")
+                    except:
+                        logger.warning("Stable Fast Patch Error")
 
             if seed == -1:
                 seed = secrets.randbelow(18446744073709551615)
-            if strength < 1.0:
-                strength = 1 - strength
+            # if strength < 1.0:
+            #     strength = 1 - strength
 
             if strength <= 0.0 or strength >= 1.0:
                 strength = 1.0
                 reset_noise = True
                 init_image = None
-                subseed_strength = 0.0
-            if strength < 1.0 and subseed_strength == 0.0:
-                steps = round(steps - steps * strength)
+                #subseed_strength = 0.0
+
+            # if strength < 1.0 and subseed_strength == 0.0:
+            #     steps = int(steps * (1 - strength))
 
             if subseed == -1:
                 subseed = secrets.randbelow(18446744073709551615)
@@ -259,7 +295,7 @@ class ComfyDeforumGenerator:
             cond = []
 
             if pooled_prompts is None and prompt is not None:
-                cond = self.get_conds(self.clip, prompt)
+                cond = self.get_conds(self.clip, prompt, width, height, seed_resize_from_w, seed_resize_from_w)
             elif pooled_prompts is not None:
                 cond = pooled_prompts
 
@@ -271,19 +307,19 @@ class ComfyDeforumGenerator:
                     prompt = area.get("prompt", None)
                     if prompt:
 
-                        new_cond = self.get_conds(self.clip, area["prompt"])
+                        new_cond = self.get_conds(self.clip, area["prompt"], width, height, seed_resize_from_w, seed_resize_from_w)
                         new_cond = area_setter.append(conditioning=new_cond, width=int(area["w"]), height=int(area["h"]), x=int(area["x"]),
                                                       y=int(area["y"]), strength=area["s"])[0]
                         cond += new_cond
 
-            self.n_cond = self.get_conds(self.clip, negative_prompt)
+            self.n_cond = self.get_conds(self.clip, negative_prompt, width, height, seed_resize_from_w, seed_resize_from_w)
             self.prompt = prompt
 
 
             if next_prompt is not None and enable_prompt_blend:
                 if next_prompt != prompt and next_prompt != "":
                     if 0.0 < prompt_blend < 1.0:
-                        next_cond = self.get_conds(self.clip, next_prompt)
+                        next_cond = self.get_conds(self.clip, next_prompt, width, height, seed_resize_from_w, seed_resize_from_w)
 
                         cond = blend_tensors(cond[0], next_cond[0], blend_value=prompt_blend)
 
@@ -299,35 +335,35 @@ class ComfyDeforumGenerator:
 
             from nodes import NODE_CLASS_MAPPINGS
 
-            scheduler_node = NODE_CLASS_MAPPINGS['AlignYourStepsScheduler']()
-            sampler_select_node = NODE_CLASS_MAPPINGS['KSamplerSelect']()
-            custom_sampler_node = NODE_CLASS_MAPPINGS['SamplerCustom']()
+            # scheduler_node = NODE_CLASS_MAPPINGS['AlignYourStepsScheduler']()
+            # sampler_select_node = NODE_CLASS_MAPPINGS['KSamplerSelect']()
+            # custom_sampler_node = NODE_CLASS_MAPPINGS['SamplerCustom']()
+            #
+            # sigmas = scheduler_node.get_sigmas("SDXL", steps, strength)[0]
+            # sampler = sampler_select_node.get_sampler(sampler_name)[0]
 
-            sigmas = scheduler_node.get_sigmas("SDXL", steps, strength)[0]
-            sampler = sampler_select_node.get_sampler(sampler_name)[0]
-
-            if init_image is None or subseed_strength == 0 :
-                from nodes import common_ksampler
-
-                # sample = [
-                #     {'samples':common_ksampler(self.model, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond, latent,
-                #                      denoise=strength, disable_noise=False, start_step=0, last_step=steps,
-                #                      force_full_denoise=True)[0]['samples']}]
-                _, sample = custom_sampler_node.sample(self.model, True, seed, scale, cond, self.n_cond, sampler,
-                                                       sigmas, latent)
-                sample = [{"samples": sample['samples']}]
-
-
-            else:
-                sample = sample_with_subseed(self.model, latent, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond,
-                                    subseed_strength, subseed, strength, rng=ImageRNGNoise, sigmas=sigmas)
-
-
-
-
-
-
-
+            # if init_image is None or subseed_strength == 0 :
+            #     from nodes import common_ksampler
+            #
+            #     # sample = [
+            #     #     {'samples':common_ksampler(self.model, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond, latent,
+            #     #                      denoise=strength, disable_noise=False, start_step=0, last_step=steps,
+            #     #                      force_full_denoise=True)[0]['samples']}]
+            #     _, sample = custom_sampler_node.sample(self.model, True, seed, scale, cond, self.n_cond, sampler,
+            #                                            sigmas, latent)
+            #     sample = [{"samples": sample['samples']}]
+            #
+            #
+            # else:
+            #     sample = sample_with_subseed(self.model, latent, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond,
+            #                         subseed_strength, subseed, strength, rng=None, sigmas=sigmas)
+            sampler_node = NODE_CLASS_MAPPINGS['KSampler //Inspire']()
+            strength = 1 - strength if strength != 1.0 else strength
+            steps = round(strength * steps)
+            if subseed_strength > 0:
+                subseed_strength = subseed_strength / 10
+            sample = sampler_node.sample(self.model, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond, latent, strength, noise_mode='GPU(=A1111)', batch_seed_mode="comfy", variation_seed=subseed, variation_strength=subseed_strength)[0]
+            sample = [{"samples": sample['samples']}]
             # sample = common_ksampler_with_custom_noise(model=self.model,
             #                                            seed=seed,
             #                                            steps=steps,
