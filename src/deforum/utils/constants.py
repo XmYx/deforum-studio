@@ -6,7 +6,7 @@ from decouple import config
 # Retrieve the home directory using the HOME environment variable
 home_dir = os.path.expanduser('~')
 
-root_path_string = f"f{home_dir}/deforum"
+root_path_string = f"{home_dir}/deforum"
 if not os.path.exists(root_path_string):
     os.makedirs(root_path_string, exist_ok=True)
 # Define the path for the 'deforum' directory within the home directory
