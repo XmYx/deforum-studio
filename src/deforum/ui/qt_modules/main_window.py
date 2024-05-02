@@ -93,12 +93,12 @@ class MainWindow(DeforumCore):
             print(f"Error loading {file_path}: {e}")
             QMessageBox.warning(self, "Loading Error", f"Failed to load {file_path}: {e}")
     def addCurrentParamsAsJob(self, job_name=None, job_params=None):
-
-        if job_name == None:
+        if not job_name:
             job_name = f"{self.params.get('batch_name')}_{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
             job_params = self.params
         # Adding current params as a new job
         # job_description = json.dumps(self.params, indent=4)
+
         item = QListWidgetItem(self.jobQueueList)
         widget = JobQueueItem(job_name, job_params)
         item.setSizeHint(widget.sizeHint())
@@ -374,15 +374,17 @@ class MainWindow(DeforumCore):
             self.jobQueueList.clear()
 
     def stopBatchProcess(self):
-        # if self.current_job:
+        if self.current_job:
             # Logic to stop the current thread if it's running
-        try:
-            from deforum.shared_storage import models
-            models["deforum_pipe"].gen.max_frames = len(models["deforum_pipe"].images)
-        except Exception as e:
-            logger.info(repr(e))
+            try:
+                from deforum.shared_storage import models
+                if 'deforum_pipe' in models:
+                    models["deforum_pipe"].gen.max_frames = len(models["deforum_pipe"].images)
+            except Exception as e:
+                logger.info(repr(e))
+        else:
+            self.jobQueueList.clear()
         self.current_job = None
-        # self.jobQueueList.clear()
 
 
     @pyqtSlot(dict)
