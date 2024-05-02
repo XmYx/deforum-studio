@@ -160,6 +160,7 @@ class ComfyDeforumGenerator:
         self.rng = None
         self.optimized = False
     def optimize_model(self):
+        # pass
         if self.optimize and not self.optimized:
             try:
                 from nodes import NODE_CLASS_MAPPINGS
@@ -418,7 +419,14 @@ class ComfyDeforumGenerator:
         steps = round(strength * steps)
         if subseed_strength > 0:
             subseed_strength = subseed_strength / 10
-        sample = self.sampler_node.sample(self.model, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond, latent, strength, noise_mode='GPU(=A1111)', batch_seed_mode="comfy", variation_seed=subseed, variation_strength=subseed_strength)[0]
+
+        if hasattr(self.sampler_node, 'sample'):
+            sample_fn = self.sampler_node.sample
+        elif hasattr(self.sampler_node, 'doit'):
+            sample_fn = self.sampler_node.doit
+
+
+        sample = sample_fn(self.model, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond, latent, strength, noise_mode='GPU(=A1111)', batch_seed_mode="comfy", variation_seed=subseed, variation_strength=subseed_strength)[0]
         sample = [{"samples": sample['samples']}]
 
         if sample[0]["samples"].shape[0] == 1:
