@@ -31,10 +31,10 @@ def start_deforum_cli():
 
     parser = argparse.ArgumentParser(description="Load settings from a txt file and run the deforum process.")
     # Positional mode argument
-    parser.add_argument("mode", choices=['webui', 'animatediff', 'runpresets', 'api', 'setup', 'ui', 'config'], default=None, nargs='?',
+    parser.add_argument("mode", choices=['webui', 'animatediff', 'runpresets', 'api', 'setup', 'ui', 'runsingle', 'config'], default=None, nargs='?',
                         help="Choose the mode to run.")
 
-    parser.add_argument("--file", type=str, help="Path to the txt file containing dictionaries to merge.")
+    parser.add_argument("--file", type=str, help="Path to the deforum settings file.")
     parser.add_argument("--options", nargs=argparse.REMAINDER,
                         help="Additional keyword arguments to pass to the deforum function.")
     args_main = parser.parse_args()
@@ -198,6 +198,24 @@ def start_deforum_cli():
             #         ]
             #     )
             #     subprocess.run([sys.executable, main_script_path])
+        elif args_main.mode == 'runsingle':
+            install_pyqt6()
+
+            # Get the absolute path of the current file
+            current_file_path = os.path.abspath(__file__)
+
+            # Get the parent directory of the current file
+            parent_directory = os.path.dirname(current_file_path)
+
+            # Assuming 'deforum' is in the parent directory of the current file
+            deforum_directory = os.path.dirname(parent_directory)
+            # Construct the path to main.py
+            print(extra_args["settings_file"])
+
+            main_script_path = os.path.join(deforum_directory, "ui", "process_only.py")
+            # try:
+            # Execute main.py
+            subprocess.run([sys.executable, main_script_path, f"{extra_args['settings_file']}"])
         elif args_main.mode == 'config':
             # Get the absolute path of the current file
             current_file_path = os.path.abspath(__file__)
