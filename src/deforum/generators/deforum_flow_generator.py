@@ -21,7 +21,7 @@ def get_flow_for_hybrid_motion(frame_idx,
                                consistency_check=True,
                                consistency_blur=0,
                                do_flow_visualization=False):
-    logger.info(f"Calculating {method} optical flow {'w/consistency mask' if consistency_check else ''} for frames {frame_idx} to {frame_idx + 1}")
+    # logger.info(f"Calculating {method} optical flow {'w/consistency mask' if consistency_check else ''} for frames {frame_idx} to {frame_idx + 1}")
     i1 = get_resized_image_from_filename(str(inputfiles[frame_idx]), dimensions)
     i2 = get_resized_image_from_filename(str(inputfiles[frame_idx + 1]), dimensions)
     if consistency_check:
@@ -45,7 +45,7 @@ def get_flow_for_hybrid_motion_prev(frame_idx,
                                     consistency_check=True,
                                     consistency_blur=0,
                                     do_flow_visualization=False):
-    logger.info(f"Calculating {method} optical flow {'w/consistency mask' if consistency_check else ''} for frames {frame_idx} to {frame_idx + 1}")
+    # logger.info(f"Calculating {method} optical flow {'w/consistency mask' if consistency_check else ''} for frames {frame_idx} to {frame_idx + 1}")
     reliable_flow = None
     # first handle invalid images by returning default flow
     height, width = prev_img.shape[:2]

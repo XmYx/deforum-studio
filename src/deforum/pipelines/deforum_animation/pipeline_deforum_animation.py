@@ -524,17 +524,12 @@ class DeforumAnimationPipeline(DeforumBase):
         Returns:
             processed (Image): The generated image or animation frame.
         """
-        assert self.gen.prompt is not None
         prompt, negative_prompt = split_weighted_subprompts(self.gen.prompt, self.gen.frame_idx, self.gen.max_frames)
         next_prompt, blend_value = get_next_prompt_and_blend(self.gen.frame_idx, self.gen.prompt_series)
-        # next_prompt = ""
+        init_image = None
+        cnet_image = None
         if not self.gen.use_init and self.gen.strength < 1.0 and self.gen.strength_0_no_init:
             self.gen.strength = 1.0
-        processed = None
-        mask_image = None
-        init_image = None
-        image_init0 = None
-
         if hasattr(self.gen, "sampler_name"):
             if isinstance(self.generator, ComfyDeforumGenerator):
                 try:
@@ -546,89 +541,12 @@ class DeforumAnimationPipeline(DeforumBase):
                         self.gen.scheduler = scheduler
                 except:
                     logger.info("No Comfy available when setting scheduler name")
-
         if self.gen.scheduled_sampler_name is not None and self.gen.enable_sampler_scheduling:
             if self.gen.scheduled_sampler_name in auto_to_comfy.keys():
                 self.gen.sampler_name = auto_to_comfy[self.gen.sampler_name]["sampler"]
                 self.gen.scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
 
-        logger.info(f"GENERATE'S SAMPLER NAME: {self.gen.sampler_name}, {self.gen.scheduler}")
-
-        if self.gen.use_looper and self.gen.animation_mode in ['2D', '3D']:
-            self.gen.strength = self.gen.imageStrength
-            tweeningFrames = self.gen.tweeningFrameSchedule
-            blendFactor = .07
-            colorCorrectionFactor = self.gen.colorCorrectionFactor
-            jsonImages = json.loads(self.gen.imagesToKeyframe)
-            # find which image to show
-            parsedImages = {}
-            frameToChoose = 0
-            max_f = self.gen.max_frames - 1
-
-            for key, value in jsonImages.items():
-                if check_is_number(key):  # default case 0:(1 + t %5), 30:(5-t%2)
-                    parsedImages[key] = value
-                else:  # math on the left hand side case 0:(1 + t %5), maxKeyframes/2:(5-t%2)
-                    parsedImages[int(numexpr.evaluate(key))] = value
-
-            framesToImageSwapOn = list(map(int, list(parsedImages.keys())))
-
-            for swappingFrame in framesToImageSwapOn[1:]:
-                frameToChoose += (self.gen.frame_idx >= int(swappingFrame))
-
-            # find which frame to do our swapping on for tweening
-            skipFrame = 25
-            for fs, fe in pairwise_repl(framesToImageSwapOn):
-                if fs <= self.gen.frame_idx <= fe:
-                    skipFrame = fe - fs
-            if skipFrame > 0:
-                # print("frame % skipFrame", frame % skipFrame)
-
-                if self.gen.frame_idx % skipFrame <= tweeningFrames:  # number of tweening frames
-                    blendFactor = self.gen.blendFactorMax - self.gen.blendFactorSlope * math.cos(
-                        (self.gen.frame_idx % tweeningFrames) / (tweeningFrames / 2))
-            else:
-                logger.warn("LOOPER ERROR, AVOIDING DIVISION BY 0")
-            init_image2, _ = load_image_with_mask(list(jsonImages.values())[frameToChoose],
-                                      shape=(self.gen.width, self.gen.height),
-                                      use_alpha_as_mask=self.gen.use_alpha_as_mask)
-            image_init0 = list(jsonImages.values())[0]
-            # print(" TYPE", type(image_init0))
-
-
-        else:  # they passed in a single init image
-            image_init0 = self.gen.init_image
-
-        available_samplers = {
-            'euler a': 'Euler a',
-            'euler': 'Euler',
-            'lms': 'LMS',
-            'heun': 'Heun',
-            'dpm2': 'DPM2',
-            'dpm2 a': 'DPM2 a',
-            'dpm++ 2s a': 'DPM++ 2S a',
-            'dpm++ 2m': 'DPM++ 2M',
-            'dpm++ sde': 'DPM++ SDE',
-            'dpm fast': 'DPM fast',
-            'dpm adaptive': 'DPM adaptive',
-            'lms karras': 'LMS Karras',
-            'dpm2 karras': 'DPM2 Karras',
-            'dpm2 a karras': 'DPM2 a Karras',
-            'dpm++ 2s a karras': 'DPM++ 2S a Karras',
-            'dpm++ 2m karras': 'DPM++ 2M Karras',
-            'dpm++ sde karras': 'DPM++ SDE Karras'
-        }
-
-
-            # else:
-            #     raise RuntimeError(
-            #         f"Sampler name '{sampler_name}' is invalid. Please check the available sampler list in the 'Run' tab")
-
-        # if self.gen.checkpoint is not None:
-        #    info = sd_models.get_closet_checkpoint_match(self.gen.checkpoint)
-        #    if info is None:
-        #        raise RuntimeError(f"Unknown checkpoint: {self.gen.checkpoint}")
-        #    sd_models.reload_model_weights(info=info)
+        # logger.info(f"GENERATE'S SAMPLER NAME: {self.gen.sampler_name}, {self.gen.scheduler}")
 
         if self.gen.prev_img is not None:
             # TODO: cleanup init_sample remains later
@@ -637,205 +555,359 @@ class DeforumAnimationPipeline(DeforumBase):
 
 
             init_image = img
-            image_init0 = img
-            if self.gen.use_looper and isJson(self.gen.imagesToKeyframe) and self.gen.animation_mode in ['2D', '3D']:
-                init_image = Image.blend(init_image, init_image2, blendFactor)
-                correction_colors = Image.blend(init_image, init_image2, colorCorrectionFactor)
-                color_corrections = [correction_colors]
 
-        # this is the first pass
-        elif (self.gen.use_looper and self.gen.animation_mode in ['2D', '3D']) or (
-                self.gen.use_init and ((self.gen.init_image is not None and self.gen.init_image != ''))):
-            init_image, mask_image = load_image_with_mask(image_init0,  # initial init image
-                                              shape=(self.gen.width, self.gen.height),
-                                              use_alpha_as_mask=self.gen.use_alpha_as_mask)
+        gen_args = {
+            "prompt": prompt,
+            "negative_prompt": negative_prompt,
+            "steps": self.gen.steps,
+            "seed": self.gen.seed,
+            "scale": self.gen.scale,
+            "strength": self.gen.strength,
+            "init_image": init_image,
+            "width": self.gen.width,
+            "height": self.gen.height,
+            "cnet_image": cnet_image,
+            "next_prompt": next_prompt,
+            "prompt_blend": blend_value,
+            "scheduler": self.gen.scheduler,
+            "sampler_name": self.gen.sampler_name,
+            "reset_noise": False if self.gen.strength < 1.0 else True
+        }
+        if self.gen.frame_idx == 0:
+            gen_args["reset_noise"] = True
+        if hasattr(self.gen, "style"):
+            if self.gen.style != "(No Style)" and self.gen.style in STYLE_NAMES:
+                gen_args["prompt"], gen_args["negative_prompt"] = apply_style(self.gen.style, gen_args["prompt"],
+                                                                              gen_args["negative_prompt"])
 
-        else:
+        if self.gen.use_areas:
+            gen_args["areas"] = self.gen.areas[self.gen.frame_idx]
+            gen_args["use_areas"] = True
+            gen_args["prompt"] = None
 
-            # if self.gen.animation_mode != 'Interpolation':
-            #    print(f"Not using an init image (doing pure txt2img)")
-            """p_txt = StableDiffusionProcessingTxt2Img( 
-                sd_model=sd_model,
-                outpath_samples=self.gen.tmp_deforum_run_duplicated_folder,
-                outpath_grids=self.gen.tmp_deforum_run_duplicated_folder,
-                prompt=p.prompt,
-                styles=p.styles,
-                negative_prompt=p.negative_prompt,
-                seed=p.seed,
-                subseed=p.subseed,
-                subseed_strength=p.subseed_strength,
-                seed_resize_from_h=p.seed_resize_from_h,
-                seed_resize_from_w=p.seed_resize_from_w,
-                sampler_name=p.sampler_name,
-                batch_size=p.batch_size,
-                n_iter=p.n_iter,
-                steps=p.steps,
-                cfg_scale=p.cfg_scale,
-                width=p.width,
-                height=p.height,
-                restore_faces=p.restore_faces,
-                tiling=p.tiling,
-                enable_hr=None,
-                denoising_strength=None,
-            )"""
+        if self.gen.enable_subseed_scheduling:
+            gen_args["subseed"] = self.gen.subseed
+            gen_args["subseed_strength"] = self.gen.subseed_strength
+            gen_args["seed_resize_from_h"] = self.gen.seed_resize_from_h
+            gen_args["seed_resize_from_w"] = self.gen.seed_resize_from_w
 
-            # print_combined_table(args, anim_args, p_txt, keys, frame)  # print dynamic table to cli
-
-            # if is_controlnet_enabled(controlnet_args):
-            #    process_with_controlnet(p_txt, args, anim_args, loop_args, controlnet_args, root, is_img2img=False,
-            #                            self.gen.frame_idx=frame)
-
-            # processed = self.generate_txt2img(prompt, next_prompt, blend_value, negative_prompt, args, anim_args, root, self.gen.frame_idx,
-            #                                init_image)
-            # self.gen.strength = 1 - self.gen.strength if isinstance(self.generator, ComfyDeforumGenerator) else self.gen.strength
-            self.gen.strength = 1.0 if init_image is None else self.gen.strength
-            #self.gen.steps = int(self.gen.strength * self.gen.steps) if isinstance(self.generator, ComfyDeforumGenerator) and init_image is not None else self.gen.steps
-
-            cnet_image = None
-            input_file = os.path.join(self.gen.outdir, 'inputframes',
-                                      get_frame_name(self.gen.video_init_path) + f"{self.gen.frame_idx:09}.jpg")
-
-            # if os.path.isfile(input_file):
-            #     input_frame = Image.open(input_file)
-            #     cnet_image = get_canny_image(input_frame)
-            #     cnet_image = ImageOps.invert(cnet_image)
-
-            if prompt == "!reset!":
-                self.gen.init_image = None
-                self.gen.strength = 1.0
-                prompt = next_prompt
-
-            if negative_prompt == "":
-                negative_prompt = self.gen.animation_prompts_negative
-
-            gen_args = {
-                "prompt": prompt,
-                "negative_prompt": negative_prompt,
-                "steps": self.gen.steps,
-                "seed": self.gen.seed,
-                "scale": self.gen.scale,
-                "strength": self.gen.strength,
-                "init_image": init_image,
-                "width": self.gen.width,
-                "height": self.gen.height,
-                "cnet_image": cnet_image,
-                "next_prompt": next_prompt,
-                "prompt_blend": blend_value,
-                "scheduler":self.gen.scheduler,
-                "sampler_name":self.gen.sampler_name,
-                "reset_noise":False if self.gen.strength < 1.0 else True
-            }
-            if self.gen.frame_idx == 0:
-                gen_args["reset_noise"] = True
-            if hasattr(self.gen, "style"):
-                if self.gen.style != "(No Style)" and self.gen.style in STYLE_NAMES:
-                    gen_args["prompt"], gen_args["negative_prompt"] = apply_style(self.gen.style, gen_args["prompt"], gen_args["negative_prompt"])
-
-
-            if self.gen.use_areas:
-                gen_args["areas"] = self.gen.areas[self.gen.frame_idx]
-                gen_args["use_areas"] = True
-                gen_args["prompt"] = None
-
-
-
-
-            if self.gen.enable_subseed_scheduling:
-                gen_args["subseed"] = self.gen.subseed
-                gen_args["subseed_strength"] = self.gen.subseed_strength
-                gen_args["seed_resize_from_h"] = self.gen.seed_resize_from_h
-                gen_args["seed_resize_from_w"] = self.gen.seed_resize_from_w
-
-            processed = self.generator(**gen_args)
-
-        if processed is None:
-            # Mask functions
-            if self.gen.use_mask:
-                mask_image = self.gen.mask_image
-                mask = prepare_mask(self.gen.mask_file if mask_image is None else mask_image,
-                                    (self.gen.width, self.gen.H),
-                                    self.gen.mask_contrast_adjust,
-                                    self.gen.mask_brightness_adjust)
-                inpainting_mask_invert = self.gen.invert_mask
-                inpainting_fill = self.gen.fill
-                inpaint_full_res = self.gen.full_res_mask
-                inpaint_full_res_padding = self.gen.full_res_mask_padding
-                # prevent loaded mask from throwing errors in Image operations if completely black and crop and resize in webui pipeline
-                # doing this after contrast and brightness adjustments to ensure that mask is not passed as black or blank
-                mask = check_mask_for_errors(mask, self.gen.invert_mask)
-                self.gen.noise_mask = mask
-
-            else:
-                mask = None
-
-            assert not ((mask is not None and self.gen.use_mask and self.gen.overlay_mask) and (
-                    self.gen.init_sample is None and init_image is None)), "Need an init image when use_mask == True and overlay_mask == True"
-
-            image_mask = mask
-            image_cfg_scale = self.gen.pix2pix_img_cfg_scale
-
-            # print_combined_table(args, anim_args, p, keys, frame)  # print dynamic table to cli
-
-            # if is_controlnet_enabled(controlnet_args):
-            #    process_with_controlnet(p, args, anim_args, loop_args, controlnet_args, root, is_img2img=True,
-            #                            self.gen.frame_idx=frame)
-            self.gen.strength = 1.0 if init_image is None else self.gen.strength
-
-            cnet_image = None
-            input_file = os.path.join(self.gen.outdir, 'inputframes',
-                                      get_frame_name(self.gen.video_init_path) + f"{self.gen.frame_idx:09}.jpg")
-
-            # if os.path.isfile(input_file):
-            #     input_frame = Image.open(input_file)
-            #     cnet_image = get_canny_image(input_frame)
-            #     cnet_image = ImageOps.invert(cnet_image)
-
-            if prompt == "!reset!":
-                init_image = None
-                self.gen.strength = 1.0
-                prompt = next_prompt
-
-            if negative_prompt == "":
-                negative_prompt = self.gen.animation_prompts_negative
-
-            gen_args = {
-                "prompt": prompt,
-                "negative_prompt": negative_prompt,
-                "steps": self.gen.steps,
-                "seed": self.gen.seed,
-                "scale": self.gen.scale,
-                "strength": self.gen.strength,
-                "init_image": init_image,
-                "width": self.gen.width,
-                "height": self.gen.height,
-                "cnet_image": cnet_image,
-                "next_prompt": next_prompt,
-                "prompt_blend": blend_value,
-                "scheduler": self.gen.scheduler,
-                "sampler_name": self.gen.sampler_name,
-                "reset_noise": False if self.gen.strength < 1.0 else True
-            }
-
-            if self.gen.use_areas:
-
-                gen_args["areas"] =  self.gen.areas[self.gen.frame_idx]
-                gen_args["use_areas"] = True
-                gen_args["prompt"] = None
-                #print(f"DEFORUM GEN ARGS: [{gen_args}] ")
-
-            if self.gen.enable_subseed_scheduling:
-                gen_args["subseed"] = self.gen.subseed
-                gen_args["subseed_strength"] = self.gen.subseed_strength
-                gen_args["seed_resize_from_h"] = self.gen.seed_resize_from_h
-                gen_args["seed_resize_from_w"] = self.gen.seed_resize_from_w
-
-
-            processed = self.generator(**gen_args)
-
+        processed = self.generator(**gen_args)
         if self.gen.first_frame is None:
             self.gen.first_frame = processed
 
         return processed
+        # assert self.gen.prompt is not None
+        # prompt, negative_prompt = split_weighted_subprompts(self.gen.prompt, self.gen.frame_idx, self.gen.max_frames)
+        # next_prompt, blend_value = get_next_prompt_and_blend(self.gen.frame_idx, self.gen.prompt_series)
+        # # next_prompt = ""
+        # if not self.gen.use_init and self.gen.strength < 1.0 and self.gen.strength_0_no_init:
+        #     self.gen.strength = 1.0
+        # processed = None
+        # mask_image = None
+        # init_image = None
+        # image_init0 = None
+        #
+        # if hasattr(self.gen, "sampler_name"):
+        #     if isinstance(self.generator, ComfyDeforumGenerator):
+        #         try:
+        #             from comfy.samplers import SAMPLER_NAMES
+        #             if self.gen.sampler_name not in SAMPLER_NAMES:
+        #                 sampler_name = auto_to_comfy[self.gen.sampler_name]["sampler"]
+        #                 scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
+        #                 self.gen.sampler_name = sampler_name
+        #                 self.gen.scheduler = scheduler
+        #         except:
+        #             logger.info("No Comfy available when setting scheduler name")
+        #
+        # if self.gen.scheduled_sampler_name is not None and self.gen.enable_sampler_scheduling:
+        #     if self.gen.scheduled_sampler_name in auto_to_comfy.keys():
+        #         self.gen.sampler_name = auto_to_comfy[self.gen.sampler_name]["sampler"]
+        #         self.gen.scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
+        #
+        # logger.info(f"GENERATE'S SAMPLER NAME: {self.gen.sampler_name}, {self.gen.scheduler}")
+        #
+        # if self.gen.use_looper and self.gen.animation_mode in ['2D', '3D']:
+        #     self.gen.strength = self.gen.imageStrength
+        #     tweeningFrames = self.gen.tweeningFrameSchedule
+        #     blendFactor = .07
+        #     colorCorrectionFactor = self.gen.colorCorrectionFactor
+        #     jsonImages = json.loads(self.gen.imagesToKeyframe)
+        #     # find which image to show
+        #     parsedImages = {}
+        #     frameToChoose = 0
+        #     max_f = self.gen.max_frames - 1
+        #
+        #     for key, value in jsonImages.items():
+        #         if check_is_number(key):  # default case 0:(1 + t %5), 30:(5-t%2)
+        #             parsedImages[key] = value
+        #         else:  # math on the left hand side case 0:(1 + t %5), maxKeyframes/2:(5-t%2)
+        #             parsedImages[int(numexpr.evaluate(key))] = value
+        #
+        #     framesToImageSwapOn = list(map(int, list(parsedImages.keys())))
+        #
+        #     for swappingFrame in framesToImageSwapOn[1:]:
+        #         frameToChoose += (self.gen.frame_idx >= int(swappingFrame))
+        #
+        #     # find which frame to do our swapping on for tweening
+        #     skipFrame = 25
+        #     for fs, fe in pairwise_repl(framesToImageSwapOn):
+        #         if fs <= self.gen.frame_idx <= fe:
+        #             skipFrame = fe - fs
+        #     if skipFrame > 0:
+        #         # print("frame % skipFrame", frame % skipFrame)
+        #
+        #         if self.gen.frame_idx % skipFrame <= tweeningFrames:  # number of tweening frames
+        #             blendFactor = self.gen.blendFactorMax - self.gen.blendFactorSlope * math.cos(
+        #                 (self.gen.frame_idx % tweeningFrames) / (tweeningFrames / 2))
+        #     else:
+        #         logger.warn("LOOPER ERROR, AVOIDING DIVISION BY 0")
+        #     init_image2, _ = load_image_with_mask(list(jsonImages.values())[frameToChoose],
+        #                               shape=(self.gen.width, self.gen.height),
+        #                               use_alpha_as_mask=self.gen.use_alpha_as_mask)
+        #     image_init0 = list(jsonImages.values())[0]
+        #     # print(" TYPE", type(image_init0))
+        #
+        #
+        # else:  # they passed in a single init image
+        #     image_init0 = self.gen.init_image
+        #
+        # available_samplers = {
+        #     'euler a': 'Euler a',
+        #     'euler': 'Euler',
+        #     'lms': 'LMS',
+        #     'heun': 'Heun',
+        #     'dpm2': 'DPM2',
+        #     'dpm2 a': 'DPM2 a',
+        #     'dpm++ 2s a': 'DPM++ 2S a',
+        #     'dpm++ 2m': 'DPM++ 2M',
+        #     'dpm++ sde': 'DPM++ SDE',
+        #     'dpm fast': 'DPM fast',
+        #     'dpm adaptive': 'DPM adaptive',
+        #     'lms karras': 'LMS Karras',
+        #     'dpm2 karras': 'DPM2 Karras',
+        #     'dpm2 a karras': 'DPM2 a Karras',
+        #     'dpm++ 2s a karras': 'DPM++ 2S a Karras',
+        #     'dpm++ 2m karras': 'DPM++ 2M Karras',
+        #     'dpm++ sde karras': 'DPM++ SDE Karras'
+        # }
+        #
+        #
+        #     # else:
+        #     #     raise RuntimeError(
+        #     #         f"Sampler name '{sampler_name}' is invalid. Please check the available sampler list in the 'Run' tab")
+        #
+        # # if self.gen.checkpoint is not None:
+        # #    info = sd_models.get_closet_checkpoint_match(self.gen.checkpoint)
+        # #    if info is None:
+        # #        raise RuntimeError(f"Unknown checkpoint: {self.gen.checkpoint}")
+        # #    sd_models.reload_model_weights(info=info)
+        #
+        # if self.gen.prev_img is not None:
+        #     # TODO: cleanup init_sample remains later
+        #     img = cv2.cvtColor(self.gen.prev_img, cv2.COLOR_BGR2RGB)
+        #
+        #
+        #
+        #     init_image = img
+        #     image_init0 = img
+        #     if self.gen.use_looper and isJson(self.gen.imagesToKeyframe) and self.gen.animation_mode in ['2D', '3D']:
+        #         init_image = Image.blend(init_image, init_image2, blendFactor)
+        #         correction_colors = Image.blend(init_image, init_image2, colorCorrectionFactor)
+        #         color_corrections = [correction_colors]
+        #
+        # # this is the first pass
+        # elif (self.gen.use_looper and self.gen.animation_mode in ['2D', '3D']) or (
+        #         self.gen.use_init and ((self.gen.init_image is not None and self.gen.init_image != ''))):
+        #     init_image, mask_image = load_image_with_mask(image_init0,  # initial init image
+        #                                       shape=(self.gen.width, self.gen.height),
+        #                                       use_alpha_as_mask=self.gen.use_alpha_as_mask)
+        #
+        # else:
+        #
+        #     # if self.gen.animation_mode != 'Interpolation':
+        #     #    print(f"Not using an init image (doing pure txt2img)")
+        #     """p_txt = StableDiffusionProcessingTxt2Img(
+        #         sd_model=sd_model,
+        #         outpath_samples=self.gen.tmp_deforum_run_duplicated_folder,
+        #         outpath_grids=self.gen.tmp_deforum_run_duplicated_folder,
+        #         prompt=p.prompt,
+        #         styles=p.styles,
+        #         negative_prompt=p.negative_prompt,
+        #         seed=p.seed,
+        #         subseed=p.subseed,
+        #         subseed_strength=p.subseed_strength,
+        #         seed_resize_from_h=p.seed_resize_from_h,
+        #         seed_resize_from_w=p.seed_resize_from_w,
+        #         sampler_name=p.sampler_name,
+        #         batch_size=p.batch_size,
+        #         n_iter=p.n_iter,
+        #         steps=p.steps,
+        #         cfg_scale=p.cfg_scale,
+        #         width=p.width,
+        #         height=p.height,
+        #         restore_faces=p.restore_faces,
+        #         tiling=p.tiling,
+        #         enable_hr=None,
+        #         denoising_strength=None,
+        #     )"""
+        #
+        #     # print_combined_table(args, anim_args, p_txt, keys, frame)  # print dynamic table to cli
+        #
+        #     # if is_controlnet_enabled(controlnet_args):
+        #     #    process_with_controlnet(p_txt, args, anim_args, loop_args, controlnet_args, root, is_img2img=False,
+        #     #                            self.gen.frame_idx=frame)
+        #
+        #     # processed = self.generate_txt2img(prompt, next_prompt, blend_value, negative_prompt, args, anim_args, root, self.gen.frame_idx,
+        #     #                                init_image)
+        #     # self.gen.strength = 1 - self.gen.strength if isinstance(self.generator, ComfyDeforumGenerator) else self.gen.strength
+        #     self.gen.strength = 1.0 if init_image is None else self.gen.strength
+        #     #self.gen.steps = int(self.gen.strength * self.gen.steps) if isinstance(self.generator, ComfyDeforumGenerator) and init_image is not None else self.gen.steps
+        #
+        #     cnet_image = None
+        #     input_file = os.path.join(self.gen.outdir, 'inputframes',
+        #                               get_frame_name(self.gen.video_init_path) + f"{self.gen.frame_idx:09}.jpg")
+        #
+        #     # if os.path.isfile(input_file):
+        #     #     input_frame = Image.open(input_file)
+        #     #     cnet_image = get_canny_image(input_frame)
+        #     #     cnet_image = ImageOps.invert(cnet_image)
+        #
+        #     if prompt == "!reset!":
+        #         self.gen.init_image = None
+        #         self.gen.strength = 1.0
+        #         prompt = next_prompt
+        #
+        #     if negative_prompt == "":
+        #         negative_prompt = self.gen.animation_prompts_negative
+        #
+        #     gen_args = {
+        #         "prompt": prompt,
+        #         "negative_prompt": negative_prompt,
+        #         "steps": self.gen.steps,
+        #         "seed": self.gen.seed,
+        #         "scale": self.gen.scale,
+        #         "strength": self.gen.strength,
+        #         "init_image": init_image,
+        #         "width": self.gen.width,
+        #         "height": self.gen.height,
+        #         "cnet_image": cnet_image,
+        #         "next_prompt": next_prompt,
+        #         "prompt_blend": blend_value,
+        #         "scheduler":self.gen.scheduler,
+        #         "sampler_name":self.gen.sampler_name,
+        #         "reset_noise":False if self.gen.strength < 1.0 else True
+        #     }
+        #     if self.gen.frame_idx == 0:
+        #         gen_args["reset_noise"] = True
+        #     if hasattr(self.gen, "style"):
+        #         if self.gen.style != "(No Style)" and self.gen.style in STYLE_NAMES:
+        #             gen_args["prompt"], gen_args["negative_prompt"] = apply_style(self.gen.style, gen_args["prompt"], gen_args["negative_prompt"])
+        #
+        #
+        #     if self.gen.use_areas:
+        #         gen_args["areas"] = self.gen.areas[self.gen.frame_idx]
+        #         gen_args["use_areas"] = True
+        #         gen_args["prompt"] = None
+        #
+        #
+        #
+        #
+        #     if self.gen.enable_subseed_scheduling:
+        #         gen_args["subseed"] = self.gen.subseed
+        #         gen_args["subseed_strength"] = self.gen.subseed_strength
+        #         gen_args["seed_resize_from_h"] = self.gen.seed_resize_from_h
+        #         gen_args["seed_resize_from_w"] = self.gen.seed_resize_from_w
+        #
+        #     processed = self.generator(**gen_args)
+        #
+        # if processed is None:
+        #     # Mask functions
+        #     if self.gen.use_mask:
+        #         mask_image = self.gen.mask_image
+        #         mask = prepare_mask(self.gen.mask_file if mask_image is None else mask_image,
+        #                             (self.gen.width, self.gen.H),
+        #                             self.gen.mask_contrast_adjust,
+        #                             self.gen.mask_brightness_adjust)
+        #         inpainting_mask_invert = self.gen.invert_mask
+        #         inpainting_fill = self.gen.fill
+        #         inpaint_full_res = self.gen.full_res_mask
+        #         inpaint_full_res_padding = self.gen.full_res_mask_padding
+        #         # prevent loaded mask from throwing errors in Image operations if completely black and crop and resize in webui pipeline
+        #         # doing this after contrast and brightness adjustments to ensure that mask is not passed as black or blank
+        #         mask = check_mask_for_errors(mask, self.gen.invert_mask)
+        #         self.gen.noise_mask = mask
+        #
+        #     else:
+        #         mask = None
+        #
+        #     assert not ((mask is not None and self.gen.use_mask and self.gen.overlay_mask) and (
+        #             self.gen.init_sample is None and init_image is None)), "Need an init image when use_mask == True and overlay_mask == True"
+        #
+        #     image_mask = mask
+        #     image_cfg_scale = self.gen.pix2pix_img_cfg_scale
+        #
+        #     # print_combined_table(args, anim_args, p, keys, frame)  # print dynamic table to cli
+        #
+        #     # if is_controlnet_enabled(controlnet_args):
+        #     #    process_with_controlnet(p, args, anim_args, loop_args, controlnet_args, root, is_img2img=True,
+        #     #                            self.gen.frame_idx=frame)
+        #     self.gen.strength = 1.0 if init_image is None else self.gen.strength
+        #
+        #     cnet_image = None
+        #     input_file = os.path.join(self.gen.outdir, 'inputframes',
+        #                               get_frame_name(self.gen.video_init_path) + f"{self.gen.frame_idx:09}.jpg")
+        #
+        #     # if os.path.isfile(input_file):
+        #     #     input_frame = Image.open(input_file)
+        #     #     cnet_image = get_canny_image(input_frame)
+        #     #     cnet_image = ImageOps.invert(cnet_image)
+        #
+        #     if prompt == "!reset!":
+        #         init_image = None
+        #         self.gen.strength = 1.0
+        #         prompt = next_prompt
+        #
+        #     if negative_prompt == "":
+        #         negative_prompt = self.gen.animation_prompts_negative
+        #
+        #     gen_args = {
+        #         "prompt": prompt,
+        #         "negative_prompt": negative_prompt,
+        #         "steps": self.gen.steps,
+        #         "seed": self.gen.seed,
+        #         "scale": self.gen.scale,
+        #         "strength": self.gen.strength,
+        #         "init_image": init_image,
+        #         "width": self.gen.width,
+        #         "height": self.gen.height,
+        #         "cnet_image": cnet_image,
+        #         "next_prompt": next_prompt,
+        #         "prompt_blend": blend_value,
+        #         "scheduler": self.gen.scheduler,
+        #         "sampler_name": self.gen.sampler_name,
+        #         "reset_noise": False if self.gen.strength < 1.0 else True
+        #     }
+        #
+        #     if self.gen.use_areas:
+        #
+        #         gen_args["areas"] =  self.gen.areas[self.gen.frame_idx]
+        #         gen_args["use_areas"] = True
+        #         gen_args["prompt"] = None
+        #         #print(f"DEFORUM GEN ARGS: [{gen_args}] ")
+        #
+        #     if self.gen.enable_subseed_scheduling:
+        #         gen_args["subseed"] = self.gen.subseed
+        #         gen_args["subseed_strength"] = self.gen.subseed_strength
+        #         gen_args["seed_resize_from_h"] = self.gen.seed_resize_from_h
+        #         gen_args["seed_resize_from_w"] = self.gen.seed_resize_from_w
+        #
+        #
+        #     processed = self.generator(**gen_args)
+        #
+        # if self.gen.first_frame is None:
+        #     self.gen.first_frame = processed
+        #
+        # return processed
 
     def cleanup(self):
         # Iterate over all attributes of the class instance

@@ -447,7 +447,7 @@ def get_generation_params(cls: Any) -> None:
     frame_idx = cls.gen.frame_idx
     keys = cls.gen.keys
 
-    logger.info(f"\033[36mAnimation frame: \033[0m{frame_idx}/{cls.gen.max_frames}  ")
+    # logger.info(f"\033[36mAnimation frame: \033[0m{frame_idx}/{cls.gen.max_frames}  ")
 
     cls.gen.noise = keys.noise_schedule_series[frame_idx]
     cls.gen.strength = keys.strength_schedule_series[frame_idx]

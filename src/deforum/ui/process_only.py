@@ -75,7 +75,8 @@ class ApplicationManager(QObject):
         self.backend_thread.start()
 
     def image_generated_handler(self, image_data):
-        print("Image data received:", image_data)
+        pass
+        # print("Image data received:", image_data)
 
     def finished_handler(self, status):
         print("Process finished with status:", status)
