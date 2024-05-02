@@ -3,12 +3,31 @@ import os
 import threading
 
 from PyQt6 import QtCore
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QRect
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import QMainWindow, QMessageBox, QHBoxLayout, QSpinBox, QLabel, QDoubleSpinBox, QCheckBox, \
-    QComboBox, QPushButton, QFileDialog, QTextEdit
+    QComboBox, QPushButton, QFileDialog, QTextEdit, QWidget, QVBoxLayout
 
 
+class CustomTextBox(QWidget):
+    def __init__(self, label, default):
+        super().__init__()
+        self.layout = QVBoxLayout(self)
+        self.text_box = QTextEdit(self)
+        self.label = QLabel(label, self.text_box)
+        self.setupUI()
+
+    def setupUI(self):
+        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.label.setStyleSheet("color: gray; font-size: 24px; font-weight: bold;")
+        self.label.setGeometry(QRect(0, 0, self.text_box.width(), self.text_box.height()))
+        self.label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)  # Make label ignore mouse events
+        self.layout.addWidget(self.text_box)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        # Update label size and position on resize
+        self.label.setGeometry(QRect(0, 0, self.text_box.width(), self.text_box.height()))
 
 class DeforumCore(QMainWindow):
     def __init__(self, parent=None):
@@ -121,16 +140,16 @@ class DeforumCore(QMainWindow):
 
     def createTextBox(self, label, layout, value, key):
         hbox = QHBoxLayout()
-        textBox = QTextEdit()
-        textBox.setText(value)
-        textBox.setAccessibleName(key)
+        textBox = CustomTextBox(label, value)
+        textBox.text_box.setText(value)
+        textBox.text_box.setAccessibleName(key)
         # Connect the lambda directly without expecting arguments from the signal
-        textBox.textChanged.connect(lambda: self.updateParam(key, textBox.toPlainText()))
+        textBox.text_box.textChanged.connect(lambda: self.updateParam(key, textBox.text_box.toPlainText()))
         self.params[key] = value
-        hbox.addWidget(QLabel(label))
+        # hbox.addWidget(QLabel(label))
         hbox.addWidget(textBox)
         layout.addLayout(hbox)
-        return textBox
+        return textBox.text_box
 
     def createCheckBox(self, label, layout, default, key):
         checkBox = QCheckBox(label)

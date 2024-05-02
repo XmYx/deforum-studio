@@ -140,6 +140,7 @@ class VideoTrack(QGraphicsItem):
     def __init__(self, y, parent=None):
         super().__init__(parent)
         self.signals = VideoTrackSignals(self)
+        self.frame_width = 105
         self.y = y
         self.original_width = 700  # Store the original width
         self.width = self.original_width  # Use original width as the initial width
@@ -173,11 +174,11 @@ class VideoTrack(QGraphicsItem):
         self.currentVideoObject = None
         self.videoObjects = []
 
-    def setHorizontalScale(self, scale):
-        """Scale only the video track area."""
-        self.prepareGeometryChange()
-        self.width = self.original_width * scale
-        self.update()
+    # def setHorizontalScale(self, scale):
+    #     """Scale only the video track area."""
+    #     self.prepareGeometryChange()
+    #     self.width = self.original_width * scale
+    #     self.update()
 
 
     def setHorizontalScale(self, scale):

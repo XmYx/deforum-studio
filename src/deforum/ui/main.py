@@ -86,6 +86,27 @@ def npArrayToQPixmap(arr):
     # Convert QImage to QPixmap
     pixmap = QPixmap.fromImage(qImg)
     return pixmap
+
+class ResizableImageLabel(QLabel):
+    def __init__(self, parent=None):
+        super(ResizableImageLabel, self).__init__(parent)
+        self.setScaledContents(True)  # Enable scaling to allow both enlarging and reducing the pixmap size
+        self.pixmap_original = None
+
+    def setPixmap(self, pixmap):
+        self.pixmap_original = pixmap  # Store the original pixmap
+        super().setPixmap(pixmap)  # Set the initial pixmap
+        self.setMinimumSize(0, 0)
+    def resizeEvent(self, event):
+        if self.pixmap_original:
+            # Scale pixmap to fit the current label size while maintaining the aspect ratio
+            scaled_pixmap = self.pixmap_original.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            super().setPixmap(scaled_pixmap)
+            # Adjust minimum size based on a minimum scale factor, e.g., allow scaling down to 10% of original
+            min_width = max(1, self.pixmap_original.width() * 0.1)
+            min_height = max(1, self.pixmap_original.height() * 0.1)
+            self.setMinimumSize(int(min_width), int(min_height))
+        super().resizeEvent(event)
 class MainWindow(DeforumCore):
     def __init__(self):
         super().__init__()
@@ -222,7 +243,8 @@ class MainWindow(DeforumCore):
         self.mdiArea = QMdiArea()
         self.setCentralWidget(self.mdiArea)
         self.previewSubWindow = self.mdiArea.addSubWindow(QWidget())
-        self.previewLabel = QLabel("No preview available")
+        self.previewLabel = ResizableImageLabel()
+        self.previewLabel.setScaledContents(True)
         self.previewLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.previewSubWindow.setWidget(self.previewLabel)
         self.previewSubWindow.show()
@@ -375,14 +397,18 @@ class MainWindow(DeforumCore):
     def updateImage(self, data):
         # Update the image on the label
         if 'image' in data:
-
-
             img = copy.deepcopy(data['image'])
-
-            # qt_img = ImageQt.ImageQt(img.convert("RGB"))  # ImageQt object
-            # qimage = QImage(qt_img)  # Convert to QImage
             qpixmap = npArrayToQPixmap(np.array(img).astype(np.uint8))  # Convert to QPixmap
-            self.previewLabel.setPixmap(qpixmap)
+            # Get the size of the container QMdiSubWindow
+            container_size = self.previewSubWindow.size()
+
+            # Scale the QPixmap to fit within the container while maintaining the aspect ratio
+            scaled_pixmap = qpixmap.scaled(container_size, Qt.AspectRatioMode.KeepAspectRatio,
+                                           Qt.TransformationMode.SmoothTransformation)
+
+            # Set the scaled pixmap to the label
+            self.previewLabel.setPixmap(scaled_pixmap)
+            self.previewLabel.setScaledContents(True)
             self.timelineWidget.add_image_to_track(qpixmap)
     def updateParam(self, key, value):
         super().updateParam(key, value)

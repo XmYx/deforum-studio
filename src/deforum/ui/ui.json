@@ -247,6 +247,19 @@
       "default": "0: (1)",
       "label": "Cadence Flow Factor",
       "accessible_name": "Cadence Flow Factor"
+    },
+    "frame_interpolation_engine": {
+      "widget_type": "dropdown",
+      "options": ["None", "FILM"],
+      "default": "None",
+      "label": "Frame Interpolation Engine"
+    },
+    "frame_interpolation_x_amount": {
+      "widget_type": "number",
+      "default": 2,
+      "min": 2,
+      "max": 64,
+      "label": "Frame Interpolation X Amount"
     }
   },
   "Hybrid": {
@@ -254,6 +267,27 @@
       "widget_type": "text input",
       "default": "",
       "label": "Init Video Path"
+    },
+    "extract_nth_frame": {
+      "widget_type": "number",
+      "default": 1,
+      "min": 1,
+      "max": 2048,
+      "label": "Extract Nth Frame"
+    },
+    "extract_from_frame": {
+      "widget_type": "number",
+      "default": 0,
+      "min": 0,
+      "max": 65536000,
+      "label": "Extract From Frame"
+    },
+    "extract_to_frame": {
+      "widget_type": "number",
+      "default": -1,
+      "min": -1,
+      "max": 65536000,
+      "label": "Extract To Frame"
     },
     "hybrid_flow_factor_schedule": {
       "widget_type": "text input",
