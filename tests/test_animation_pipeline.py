@@ -1,6 +1,3 @@
-import os
-os.environ['COMFY_PATH'] = 'src/ComfyUI'
-
 from deforum import DeforumAnimationPipeline
 
 pipeline = DeforumAnimationPipeline.from_civitai("125703")

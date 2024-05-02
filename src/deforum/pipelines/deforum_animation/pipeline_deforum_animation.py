@@ -322,8 +322,9 @@ class DeforumAnimationPipeline(DeforumBase):
                 self.post_fns.append(film_interpolate_cls)
         if self.gen.max_frames > 1 and not self.gen.skip_video_creation:
             self.post_fns.append(save_video_cls)
-        os.makedirs("deforum_configs", exist_ok=True)
-        settings_file_name = os.path.join("deforum_configs", f"{self.gen.timestring}_settings.txt")
+        config
+        os.makedirs(config.settings_path, exist_ok=True)
+        settings_file_name = os.path.join(config.settings_path, f"{self.gen.timestring}_settings.txt")
         self.gen.save_as_json(settings_file_name)
 
         if self.gen.use_init and self.gen.init_image:
