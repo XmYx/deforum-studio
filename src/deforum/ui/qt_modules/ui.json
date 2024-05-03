@@ -4,7 +4,7 @@
       "widget_type": "checkbox",
       "default": false,
       "label": "Optimize with StableFast"},
-      "model_id": {
+    "model_id": {
       "label": "Model ID",
       "widget_type": "text input",
       "default": "125703"
@@ -16,6 +16,10 @@
       "label": "Upload Settings File",
       "accessible_name": "Settings File Upload"
     },
+    "dry_run": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Dry Run"},
     "prompts": {
       "label": "Prompts",
       "widget_type": "text box",
@@ -255,7 +259,7 @@
     },
     "frame_interpolation_engine": {
       "widget_type": "dropdown",
-      "options": ["None", "FILM"],
+      "options": ["None", "RIFE", "FILM"],
       "default": "None",
       "label": "Frame Interpolation Engine"
     },
@@ -317,7 +321,7 @@
     },
     "hybrid_flow_method": {
       "widget_type": "dropdown",
-      "options": ["RAFT", "DIS Medium", "DIS Fine", "Farneback"],
+      "options": ["None", "RAFT", "DIS Medium", "DIS Fine", "Farneback"],
       "default": "RAFT",
       "label": "Hybrid motion"
     },    

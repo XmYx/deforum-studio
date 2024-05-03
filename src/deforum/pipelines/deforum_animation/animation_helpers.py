@@ -1187,14 +1187,15 @@ def film_interpolate_cls(cls: Any) -> None:
 
     film_in_between_frames_count = calculate_frames_to_add(len(cls.images), cls.gen.frame_interpolation_x_amount)
 
-    interpolated = interpolator([Image.open(path) for path in cls.gen.image_paths], film_in_between_frames_count)
+    interpolated = interpolator(cls.images, film_in_between_frames_count)
     cls.images = interpolated
     cls.gen.image_paths = []
     return
 
+
 def rife_interpolate_cls(cls: Any) -> None:
     """
-    Performs frame interpolation on a sequence of images stored in cls.images using a custom FrameInterpolator class.
+    Performs frame interpolation on a sequence of images stored in cls.images using a custom RIFEInterpolator class.
     The interpolated images will replace the original sequence in cls.images.
 
     Args:
@@ -1211,27 +1212,38 @@ def rife_interpolate_cls(cls: Any) -> None:
 
     # Prepare an empty list to hold all the interpolated images
     new_images = []
-    rife_in_between_frames_count = calculate_frames_to_add(len(cls.images), cls.gen.frame_interpolation_x_amount)
+    new_images.append(Image.fromarray(cls.images[0]))
     # Iterate through pairs of consecutive images in cls.images
     for i in range(len(cls.images) - 1):
         img1 = cls.images[i]
         img2 = cls.images[i + 1]
 
         # Interpolate between each pair
-        interpolated_frames = interpolator.interpolate(np.array(img1), np.array(img2), interp_amount=cls.gen.frame_interpolation_x_amount)
-        # Append all but the last interpolated frame to avoid duplicates
-        new_images.extend(interpolated_frames[:-1])
+        interpolated_frames = interpolator.interpolate(np.array(img1), np.array(img2),
+                                                       interp_amount=cls.gen.frame_interpolation_x_amount + 1)
+        # Append all interpolated frames including the first of the pair but excluding the last one
+        # The last frame of each segment should not be added to avoid duplication except for the final segment
+        for i in interpolated_frames[:-1]:
 
-    # Add the very last frame of the last interpolation to complete the sequence
-    new_images.append(interpolated_frames[-1])
+            new_images.append(i)
+
+    # After the loop, add the last frame of the last interpolated segment to complete the sequence
+    if interpolated_frames:
+        new_images.append(interpolated_frames[-1])  # Add the final image of the last interpolation batch
+
+    # Print the number of interpolated frames for debugging
+    print(f"Interpolated frame count: {len(new_images)}")
 
     # Replace the original images with the new, interpolated ones
     cls.images = new_images
+
 
     # Optionally clear image paths if no longer needed
     if hasattr(cls, 'gen') and hasattr(cls.gen, 'image_paths'):
         cls.gen.image_paths = []
     return
+
+
 def save_video_cls(cls):
     dir_path = os.path.join(root_path, 'output/video')
     os.makedirs(dir_path, exist_ok=True)

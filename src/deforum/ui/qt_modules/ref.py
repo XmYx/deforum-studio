@@ -1,21 +1,20 @@
 import sys
 
 from PyQt6.QtWidgets import QLineEdit, QPushButton
-from qtpy.QtWidgets import (QApplication, QHBoxLayout, QVBoxLayout, QWidget, QSlider, QDockWidget, QAction, QMenu)
-
+from PyQt6.QtWidgets import (QApplication, QHBoxLayout, QVBoxLayout, QWidget, QSlider, QDockWidget, QMenu)
 
 import math
 from datetime import datetime
 from uuid import uuid4
 
-from qtpy.QtWidgets import QHBoxLayout
-from qtpy.QtCore import Qt, Signal, QLine, QPoint, QRectF, QSize, QRect, QPropertyAnimation, QEasingCurve
-from qtpy.QtGui import QColor, QFont, QPalette, QPainter, QPen, QPolygon, QBrush, QPainterPath, QAction, QCursor
-from qtpy.QtWidgets import QSizePolicy, QVBoxLayout, QWidget, QSlider, QDockWidget, QMenu
+from PyQt6.QtWidgets import QHBoxLayout
+from PyQt6.QtCore import Qt, pyqtSignal, QLine, QPoint, QRectF, QSize, QRect, QPropertyAnimation, QEasingCurve
+from PyQt6.QtGui import QColor, QFont, QPalette, QPainter, QPen, QPolygon, QBrush, QPainterPath, QAction, QCursor
+from PyQt6.QtWidgets import QSizePolicy, QVBoxLayout, QWidget, QSlider, QDockWidget, QMenu
 
 
 class KeyFrame:
-    def __init__(self, uid, valueType, position, value, color=Qt.darkYellow):
+    def __init__(self, uid, valueType, position, value, color=Qt.GlobalColor.darkYellow):
         self.uid = uid
         self.valueType = valueType
         self.position = position
@@ -30,9 +29,9 @@ __gridColor__ = QColor(211, 211, 211)  # Light Grey
 
 
 class TimeLine(QWidget):
-    keyFramesUpdated = Signal()
-    selectionChanged = Signal(object)
-    keyframeValuesChanged = Signal(str)
+    keyFramesUpdated = pyqtSignal()
+    selectionChanged = pyqtSignal(object)
+    keyframeValuesChanged = pyqtSignal(str)
 
     def __init__(self, duration, length):
         super().__init__()
@@ -75,9 +74,9 @@ class TimeLine(QWidget):
         self.setWindowTitle("TESTE")
 
         # Set Background
-        pal = QPalette()
-        pal.setColor(QPalette.Base, self.backgroundColor)
-        self.setPalette(pal)
+        # pal = QPalette()
+        # pal.setColor(QPalette.ColorGroup.Base, self.backgroundColor)
+        # self.setPalette(pal)
 
     def mixed_order(self, a):
         return (a.valueType, a.position)
@@ -86,7 +85,7 @@ class TimeLine(QWidget):
         self.keyFrameList.sort(key=self.mixed_order)
         self.yMiddlePoint = self.height() / 2
         qp = QPainter(self)
-        qp.setRenderHint(QPainter.Antialiasing)
+        qp.setRenderHint(QPainter.RenderHint.Antialiasing)
         # Fill the entire background first
         qp.fillRect(self.rect(), __backgroudColor__)
 
@@ -96,22 +95,22 @@ class TimeLine(QWidget):
         scale = self.getScale()
         w = 0
         while w <= self.width():
-            qp.drawText(w - 50, 0, 100, 100, Qt.AlignHCenter, self.get_time_string(w * scale))
+            qp.drawText(w - 50, 0, 100, 100, Qt.AlignmentFlag.AlignHCenter, self.get_time_string(w * scale))
             w += 100
         # Draw numeric values on the vertical edge
         qp.setPen(self.textColor)
         max_value = int(self.height() / 2 / self.verticalScale)
         for val in range(-max_value, max_value + 1, 5):  # Adjust the range and step for desired density
             y_pos = int(self.yMiddlePoint - val * self.verticalScale)
-            qp.drawText(0, y_pos, 40, 20, Qt.AlignRight, str(val))
+            qp.drawText(0, y_pos, 40, 20, Qt.AlignmentFlag.AlignRight, str(val))
 
 
         # Draw down line
-        qp.setPen(QPen(Qt.darkCyan, 5, Qt.SolidLine))
+        qp.setPen(QPen(Qt.GlobalColor.darkCyan, 5, Qt.PenStyle.SolidLine))
         qp.drawLine(0, 40, self.width(), 40)
 
         # Draw Middle Line for 0 Value of Keyframes
-        qp.setPen(QPen(Qt.darkGreen, 2, Qt.SolidLine))
+        qp.setPen(QPen(Qt.GlobalColor.darkGreen, 2, Qt.PenStyle.SolidLine))
         qp.drawLine(0, int(self.yMiddlePoint), int(self.width()), int(self.yMiddlePoint))
 
         # Draw dash lines
@@ -133,12 +132,12 @@ class TimeLine(QWidget):
                     kfStartPoint = int(i.position / self.getScale())
                     kfYPos = int(self.yMiddlePoint - i.value * self.verticalScale)
                     if self.oldY is not None:
-                        qp.setPen(QPen(Qt.darkMagenta, 2, Qt.SolidLine))
+                        qp.setPen(QPen(Qt.GlobalColor.darkMagenta, 2, Qt.PenStyle.SolidLine))
                         qp.drawLine(self.oldX, self.oldY, kfStartPoint, kfYPos)
                     if self.selectedKey == i.uid:
-                        kfbrush = QBrush(Qt.blue)  # Color for selected keyframe
+                        kfbrush = QBrush(Qt.GlobalColor.blue)  # Color for selected keyframe
                     else:
-                        kfbrush = QBrush(Qt.darkRed)
+                        kfbrush = QBrush(Qt.GlobalColor.darkRed)
                     scaleMod = 5
                     kfPoly = QPolygon([
                         QPoint(kfStartPoint - scaleMod, kfYPos),
@@ -146,7 +145,7 @@ class TimeLine(QWidget):
                         QPoint(kfStartPoint + scaleMod, kfYPos),
                         QPoint(kfStartPoint, kfYPos + scaleMod)
                     ])
-                    qp.setPen(Qt.darkRed)
+                    qp.setPen(Qt.GlobalColor.darkRed)
                     qp.setBrush(kfbrush)
                     qp.drawPolygon(kfPoly)
 
@@ -195,8 +194,8 @@ class TimeLine(QWidget):
                              QPoint(int(self.pointerTimePos / self.getScale() + 10), 20),
                              QPoint(int(self.pointerTimePos / self.getScale()), 40)])
             # Draw pointer
-            qp.setPen(Qt.darkCyan)
-            qp.setBrush(QBrush(Qt.darkCyan))
+            qp.setPen(Qt.GlobalColor.darkCyan)
+            qp.setBrush(QBrush(Qt.GlobalColor.darkCyan))
 
             qp.drawPolygon(poly)
             qp.drawLine(line)
@@ -269,7 +268,7 @@ class TimeLine(QWidget):
         self.selectedKey = None
         self.update()
         self.scale = self.getScale()
-        if e.button() == Qt.LeftButton:
+        if e.button() == Qt.MouseButton.LeftButton:
 
             x = e.pos().x()
             self.checkKeyClicked()
@@ -287,7 +286,7 @@ class TimeLine(QWidget):
                 self.middleHoverActive = True
             else:
                 self.middleHoverActive = False
-        elif e.button() == Qt.RightButton:
+        elif e.button() == Qt.MouseButton.RightButton:
             self.popMenu = QMenu()
             menuPosition = QCursor.pos()
             x = self.pos
@@ -367,7 +366,7 @@ class TimeLine(QWidget):
 
     def mouseReleaseEvent(self, e):
         self.scale = self.getScale()
-        if e.button() == Qt.LeftButton:
+        if e.button() == Qt.MouseButton.LeftButton:
             self.clicking = False  # Set clicking check to false
             #self.selectedKey = None
             self.keyHover = False
@@ -391,7 +390,7 @@ class TimeLine(QWidget):
         # Check if user clicked in video sample
         for sample in self.videoSamples:
             if sample.startPos + 25 < x < sample.endPos - 25:
-                sample.color = Qt.darkCyan
+                sample.color = Qt.GlobalColor.darkCyan
                 self.middleHover = True
                 if self.selectedSample is not sample:
                     self.selectedSample = sample
@@ -405,12 +404,12 @@ class TimeLine(QWidget):
 
         for sample in self.videoSamples:
             if sample.startPos < x < sample.startPos + 24:
-                sample.color = Qt.darkMagenta
+                sample.color = Qt.GlobalColor.darkMagenta
                 if self.selectedSample is not sample:
                     self.selectedSample = sample
                     # self.selectionChanged.emit(sample)
             elif sample.endPos - 24 < x < sample.endPos:
-                sample.color = Qt.darkGreen
+                sample.color = Qt.GlobalColor.darkGreen
                 self.edgeGrab = True
                 if self.selectedSample is not sample:
                     self.selectedSample = sample
@@ -466,8 +465,8 @@ class TimeLineQDockWidget(QDockWidget):
 
         self.timeline = TimeLine(1000, 1000)
 
-        self.horizontalZoomSlider = QSlider(Qt.Horizontal)
-        self.verticalZoomSlider = QSlider(Qt.Vertical)
+        self.horizontalZoomSlider = QSlider(Qt.Orientation.Horizontal)
+        self.verticalZoomSlider = QSlider(Qt.Orientation.Vertical)
         # Initialize the sliders' range and default value
         self.horizontalZoomSlider.setRange(5, 5000)  # example range
         self.horizontalZoomSlider.setValue(1000)  # default value
