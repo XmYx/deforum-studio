@@ -551,11 +551,7 @@ class DeforumAnimationPipeline(DeforumBase):
         if self.gen.prev_img is not None:
             # TODO: cleanup init_sample remains later
             img = cv2.cvtColor(self.gen.prev_img, cv2.COLOR_BGR2RGB)
-
-
-
             init_image = img
-
         gen_args = {
             "prompt": prompt,
             "negative_prompt": negative_prompt,
@@ -591,7 +587,18 @@ class DeforumAnimationPipeline(DeforumBase):
             gen_args["seed_resize_from_h"] = self.gen.seed_resize_from_h
             gen_args["seed_resize_from_w"] = self.gen.seed_resize_from_w
 
-        processed = self.generator(**gen_args)
+        if not self.gen.dry_run:
+            processed = self.generator(**gen_args)
+        else:
+            if self.gen.prev_img is None:
+                default_image_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'ui', 'deforum.png')
+                processed = Image.open(default_image_path).resize((self.gen.width, self.gen.height), resample=Image.Resampling.LANCZOS)
+            else:
+
+
+
+                processed = Image.fromarray(cv2.cvtColor(self.gen.prev_img, cv2.COLOR_BGR2RGB))
+
         if self.gen.first_frame is None:
             self.gen.first_frame = processed
 
