@@ -320,12 +320,17 @@ class MainWindow(DeforumCore):
     def updateDuration(self, duration):
         self.videoSlider.setMaximum(duration)
 
-    @pyqtSlot(str)
-    def playVideo(self, path):
+    @pyqtSlot(dict)
+    def playVideo(self, data):
         # Play video in the QMediaPlayer
-        self.player.setSource(QUrl.fromLocalFile(path))
-        self.player.play()
-        self.videoSubWindow.show()  # Ensure the video subwindow is visible
+        if 'video_path' in data:
+            self.player.setSource(QUrl.fromLocalFile(data['video_path']))
+            self.player.play()
+            self.videoSubWindow.show()  # Ensure the video subwindow is visible
+        if 'timestring' in data:
+            self.params['resume_timestring'] = data['timestring']
+            self.params['resume_path'] = data['resume_path']
+            self.updateUIFromParams()
 
     def addDock(self, title, area):
         dock = QDockWidget(title, self)
@@ -374,9 +379,9 @@ class MainWindow(DeforumCore):
             self.thread.finished.connect(self.playVideo)
             self.thread.start()
 
-    @pyqtSlot(str)
+    @pyqtSlot(dict)
     def onJobFinished(self, result):
-        print(f"Job completed with result: {result}")
+        #print(f"Job completed with result: {result}")
         if self.current_job:
             self.current_job.markComplete()  # Mark the job as complete
             self.current_job = None  # Reset current job

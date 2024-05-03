@@ -24,6 +24,17 @@
       "widget_type": "checkbox",
       "default": false,
       "label": "Resume"},
+    "resume_from_frame": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Resume"},
+    "resume_from": {
+      "widget_type": "number",
+      "default": 1,
+      "min": 1,
+      "max": 655360,
+      "label": "Resume Frame"
+    },
     "resume_timestring": {
       "label": "Resume Timestring",
       "widget_type": "text box",

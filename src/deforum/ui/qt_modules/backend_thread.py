@@ -5,7 +5,7 @@ loaded_model_id = ""
 
 class BackendThread(QThread):
     imageGenerated = pyqtSignal(object)  # Signal to emit the image data
-    finished = pyqtSignal(str)  # Signal to emit the image data
+    finished = pyqtSignal(dict)  # Signal to emit the image data
 
     def __init__(self, params):
         super().__init__()
@@ -54,8 +54,12 @@ class BackendThread(QThread):
             self.params['color_coherence'] = False
             self.params['hybrid_use_first_frame_as_init_image'] = False
             animation = models["deforum_pipe"](callback=datacallback, **self.params) if not use_settings_file else models["deforum_pipe"](callback=datacallback, settings_file=file_path)
+            result = {"status":"Ready",
+                      "timestring":animation.timestring,
+                      "resume_path":animation.outdir}
             if hasattr(animation, 'video_path'):
-                self.finished.emit(animation.video_path)
+                result["video_path"] = animation.video_path
+            self.finished.emit(result)
         except Exception as e:
             logger.info(repr(e))
-            self.finished.emit("Error")
+            self.finished.emit({"status": "Error"})

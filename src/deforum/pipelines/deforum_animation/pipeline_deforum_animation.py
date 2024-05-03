@@ -3,7 +3,9 @@ import json
 import math
 import os
 import secrets
+import shutil
 import time
+from glob import glob
 from typing import Callable, Optional
 
 import PIL.Image
@@ -120,7 +122,7 @@ class DeforumAnimationPipeline(DeforumBase):
 
         self.log_function_lists()
 
-        self.pbar = tqdm(total=self.gen.max_frames, desc="Processing", position=0, leave=True)
+        self.pbar = tqdm(total=self.gen.max_frames - self.gen.frame_idx, desc="Processing", position=0, leave=True)
 
         self.run_prep_fn_list()
 
@@ -355,6 +357,44 @@ class DeforumAnimationPipeline(DeforumBase):
             resume_timestring = self.gen.resume_timestring
 
             print("GETTING VARS FROM", self.gen.outdir, self.gen.resume_from_timestring)
+            # Load and sort images by creation order
+            if hasattr(self.gen, 'resume_from') and hasattr(self.gen, 'resume_from_frame'):
+                if self.gen.resume_from_frame:
+                    resume_from = self.gen.resume_from
+
+                    # Determine the next version number by examining existing directories
+                    parent_dir = os.path.dirname(self.gen.resume_path)
+                    existing_versions = [d for d in os.listdir(parent_dir) if
+                                         d.startswith(os.path.basename(self.gen.resume_path) + "_v")]
+                    if existing_versions:
+                        latest_version = max([int(v.split('_v')[-1]) for v in existing_versions])
+                        next_version = latest_version + 1
+                    else:
+                        next_version = 1
+
+                    # Establish new versioned output directory
+                    new_outdir = os.path.join(parent_dir, f"{os.path.basename(self.gen.resume_path)}_v{next_version}")
+                    os.makedirs(new_outdir, exist_ok=True)
+
+                    # Determine which files to copy based on resume_from
+                    sorted_files = sorted(glob(os.path.join(self.gen.resume_path, '*.*')),
+                                          key=lambda x: os.path.getmtime(x))  # Adjust sorting key if necessary
+                    files_to_copy = sorted_files[:resume_from]  # Copy only up to the `resume_from` index
+
+                    # Copy the filtered files to the new versioned directory
+                    for file in files_to_copy:
+                        shutil.copy(file, new_outdir)
+
+                    # Update resume_path to the new versioned directory
+                    self.gen.resume_path = new_outdir
+            image_files = sorted(
+                glob(os.path.join(self.gen.resume_path, '*.png')),  # Adjust the pattern if necessary
+                key=os.path.getmtime
+            )
+
+            # Loading images into memory and paths into list
+            self.images = [Image.open(img_path) for img_path in image_files]
+            self.image_paths = image_files
             # determine last frame and frame to start on
             batch_name, prev_frame, next_frame, prev_img, next_img = get_resume_vars(
                 resume_path=self.gen.resume_path,
@@ -365,7 +405,6 @@ class DeforumAnimationPipeline(DeforumBase):
             self.gen.timestring = resume_timestring
             self.gen.batch_name = batch_name
             self.gen.outdir = os.path.join(root_path, f"output/deforum/{batch_name}")
-            print("SHOULD RESUME", prev_frame, next_frame)
 
             # set up turbo step vars
             if self.gen.turbo_steps > 1:
@@ -379,12 +418,9 @@ class DeforumAnimationPipeline(DeforumBase):
             self.gen.init_image = prev_img
             self.gen.prev_img = prev_img
             self.gen.opencv_image = prev_img
-            print(prev_img.shape)
             self.gen.width, self.gen.height = prev_img.shape[1], prev_img.shape[0]
             self.gen.frame_idx = start_frame
             self.gen.use_init = True
-            print(self.gen.frame_idx)
-            print(self.gen.outdir)
 
         self.gen.image_paths = []
     def live_update_from_kwargs(self, **kwargs):
