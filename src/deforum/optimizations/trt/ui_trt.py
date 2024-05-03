@@ -6,10 +6,10 @@ from collections import defaultdict
 import torch
 from torch.cuda import nvtx
 
-from .exporter import export_onnx, export_trt
-from .model_manager import modelmanager
-from .models import make_OAIUNetXL
-from .utilities import PIPELINE_TYPE
+from exporter import export_onnx, export_trt
+from model_manager import modelmanager
+from models import make_OAIUNetXL
+from utilities import PIPELINE_TYPE
 from deforum.utils.constants import root_path
 from deforum.utils.logging_config import logger
 
@@ -190,12 +190,19 @@ def export_unet_to_trt(
 
 
 #model = load_a_unet_here (normal model object of ModelPatcher is fine)
+
+from deforum.generators.comfy_utils import ensure_comfy
+ensure_comfy('src/ComfyUI')
 import comfy
-model, _, _, _ = comfy.sd.load_checkpoint_guess_config(root_path+"/models/checkpoints/SSD-1B.safetensors", output_vae=True,
-                                                                                    output_clip=True,
-                                                                                    embedding_directory="models/embeddings",
-                                                                                    output_clipvision=False,
-                                                                                    )
+with torch.inference_mode():
+    model, clip, vae, clipvision = comfy.sd.load_checkpoint_guess_config("/home/mix/deforum/models/protovisionXLHighFidelity3D_releaseV660Bakedvae.safetensors",
+                                                                                             output_vae=True,
+                                                                                             output_clip=True,
+                                                                                             embedding_directory="models/embeddings",
+                                                                                             output_clipvision=False,
+                                                                                             )
+
+
 
 
 export_unet_to_trt(model)

@@ -39,7 +39,8 @@ from .animation_helpers import (
     save_video_cls,
     DeforumAnimKeys,
     LooperAnimKeys,
-    generate_interpolated_frames
+    generate_interpolated_frames,
+    rife_interpolate_cls
 )
 
 from .parseq_adapter import ParseqAdapter
@@ -327,6 +328,8 @@ class DeforumAnimationPipeline(DeforumBase):
         if self.gen.max_frames > 3:
             if self.gen.frame_interpolation_engine == "FILM":
                 self.post_fns.append(film_interpolate_cls)
+            elif 'rife' in self.gen.frame_interpolation_engine.lower():
+                self.post_fns.append(rife_interpolate_cls)
         if self.gen.max_frames > 1 and not self.gen.skip_video_creation:
             self.post_fns.append(save_video_cls)
 
@@ -587,20 +590,36 @@ class DeforumAnimationPipeline(DeforumBase):
             gen_args["seed_resize_from_h"] = self.gen.seed_resize_from_h
             gen_args["seed_resize_from_w"] = self.gen.seed_resize_from_w
 
+        def calculate_blend_factor(frame_idx, cycle_length=100):
+            """Calculate the blending factor for the frame index within a cycle of length `cycle_length`.
+            The factor linearly increases from 0 to 1 and then resets."""
+            phase = frame_idx % cycle_length
+            return phase / (cycle_length - 1)
         if not self.gen.dry_run:
             processed = self.generator(**gen_args)
         else:
+            # Get the path to the default image or use the previous image
             if self.gen.prev_img is None:
-                default_image_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'ui', 'deforum.png')
-                processed = Image.open(default_image_path).resize((self.gen.width, self.gen.height), resample=Image.Resampling.LANCZOS)
+                default_image_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'ui',
+                                                  'deforum.png')
+                default_image = Image.open(default_image_path).resize((self.gen.width, self.gen.height),
+                                                                      resample=Image.Resampling.LANCZOS)
             else:
+                default_image = Image.fromarray(cv2.cvtColor(self.gen.prev_img, cv2.COLOR_BGR2RGB))
 
+            # Calculate blend factor
+            blend_factor = 0.01
 
+            # Determine the original image to blend with
+            if self.gen.first_frame is None:
+                self.gen.first_frame = default_image
 
-                processed = Image.fromarray(cv2.cvtColor(self.gen.prev_img, cv2.COLOR_BGR2RGB))
+            # Blend images
+            processed = Image.blend(default_image, self.gen.first_frame, blend_factor)
 
-        if self.gen.first_frame is None:
-            self.gen.first_frame = processed
+            # Update first_frame at the end of each cycle
+            if (self.gen.frame_idx + 1) % 200 == 0:  # Reset first frame after each full cycle
+                self.gen.first_frame = processed
 
         return processed
         # assert self.gen.prompt is not None

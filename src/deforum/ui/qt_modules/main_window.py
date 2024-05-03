@@ -11,16 +11,16 @@ from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 from PyQt6.QtWidgets import QApplication, QTabWidget, QWidget, QVBoxLayout, QDockWidget, QSlider, QLabel, QMdiArea, \
     QPushButton, QComboBox, QFileDialog, QSpinBox, QLineEdit, QCheckBox, QTextEdit, QHBoxLayout, QListWidget, \
-    QDoubleSpinBox, QListWidgetItem, QMessageBox
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, pyqtSlot, QUrl
+    QDoubleSpinBox, QListWidgetItem, QMessageBox, QScrollArea
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, pyqtSlot, QUrl, QSize
 
 from deforum import logger
 from deforum.ui.qt_helpers.qt_image import npArrayToQPixmap
 from deforum.ui.qt_modules.backend_thread import BackendThread
 from deforum.ui.qt_modules.core import DeforumCore
 from deforum.ui.qt_modules.custom_ui import ResizableImageLabel, JobDetailPopup, JobQueueItem, AspectRatioMdiSubWindow
+from deforum.ui.qt_modules.ref import TimeLineQDockWidget
 from deforum.ui.qt_modules.timeline import TimelineWidget
-
 
 
 class MainWindow(DeforumCore):
@@ -177,6 +177,7 @@ class MainWindow(DeforumCore):
         # Initialize the tabbed control layout docked on the left
         self.controlsDock = self.addDock("Controls", Qt.DockWidgetArea.LeftDockWidgetArea)
         self.tabWidget = QTabWidget()
+        self.tabWidget.setMinimumSize(QSize(0,0))
         self.controlsDock.setWidget(self.tabWidget)
 
         # Load UI configuration from JSON
@@ -186,7 +187,7 @@ class MainWindow(DeforumCore):
             config = json.load(file)
 
         for category, settings in config.items():
-            tab = QWidget()
+            tab = QWidget()  # This is the actual tab that will hold the layout
             layout = QVBoxLayout()
             tab.setLayout(layout)
 
@@ -209,8 +210,12 @@ class MainWindow(DeforumCore):
                 elif params['widget_type'] == 'file_input':
                     # Add file input handler if needed
                     pass
+            scroll = QScrollArea()  # Create a scroll area
+            scroll.setWidget(tab)
+            scroll.setWidgetResizable(True)  # Make the scroll area resizable
 
-            self.tabWidget.addTab(tab, category)
+            self.tabWidget.addTab(scroll, category)  # Add the scroll area to the tab widget
+            # self.tabWidget.addTab(tab, category)
         # self.createPushButton('Render', layout, self.startBackendProcess)
 
         # Create preview area
@@ -219,12 +224,13 @@ class MainWindow(DeforumCore):
         # self.timeline = TimelineWidget()
         # self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.timeline)
         # Create the timeline dock widget
-        self.timelineDock = QDockWidget("Timeline", self)
+        self.timelineDock = TimeLineQDockWidget(self)
+        # self.timelineDock = QDockWidget("Timeline", self)
         self.timelineDock.setAllowedAreas(Qt.DockWidgetArea.BottomDockWidgetArea)
 
         # Create and set the timeline widget inside the dock
-        self.timelineWidget = TimelineWidget()
-        self.timelineDock.setWidget(self.timelineWidget)
+        # self.timelineWidget = TimelineWidget()
+        # self.timelineDock.setWidget(self.timelineWidget)
 
         # Add the dock widget to the main window
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.timelineDock)
@@ -239,12 +245,7 @@ class MainWindow(DeforumCore):
         self.mdiArea.addSubWindow(self.previewSubWindow)
         self.previewSubWindow.setWidget(self.previewLabel)
         self.previewSubWindow.show()
-        # self.previewSubWindow = self.mdiArea.addSubWindow(QWidget())
-        # self.previewLabel = ResizableImageLabel()
-        # self.previewLabel.setScaledContents(True)
-        # self.previewLabel.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        # self.previewSubWindow.setWidget(self.previewLabel)
-        # self.previewSubWindow.show()
+
 
     def setupVideoPlayer(self):
         self.videoSubWindow = self.mdiArea.addSubWindow(QWidget())
@@ -328,9 +329,9 @@ class MainWindow(DeforumCore):
 
     def addDock(self, title, area):
         dock = QDockWidget(title, self)
+        dock.setMinimumSize(QSize(0, 0))  # Allow resizing to very small sizes
         self.addDockWidget(area, dock)
         return dock
-
     def createSlider(self, label, layout, minimum, maximum, value, key):
         # Creating a slider and adding it to the layout
         slider = QSlider(Qt.Orientation.Horizontal)
@@ -401,7 +402,7 @@ class MainWindow(DeforumCore):
             qpixmap = npArrayToQPixmap(np.array(img).astype(np.uint8))  # Convert to QPixmap
             self.previewLabel.setPixmap(qpixmap)
             self.previewLabel.setScaledContents(True)
-            self.timelineWidget.add_image_to_track(qpixmap)
+            # self.timelineWidget.add_image_to_track(qpixmap)
     def updateParam(self, key, value):
         super().updateParam(key, value)
         from deforum.shared_storage import models

@@ -22,6 +22,7 @@ from ...generators.deforum_flow_generator import (get_flow_for_hybrid_motion_pre
                                                   abs_flow_to_rel_flow,
                                                   rel_flow_to_abs_flow, get_flow_from_images)
 from ...generators.deforum_noise_generator import add_noise
+from ...models.RIFE.rife_model import RIFEInterpolator
 from ...pipeline_utils import next_seed
 from ...utils import py3d_tools as p3d
 from ...utils.constants import root_path, config
@@ -1191,7 +1192,46 @@ def film_interpolate_cls(cls: Any) -> None:
     cls.gen.image_paths = []
     return
 
+def rife_interpolate_cls(cls: Any) -> None:
+    """
+    Performs frame interpolation on a sequence of images stored in cls.images using a custom FrameInterpolator class.
+    The interpolated images will replace the original sequence in cls.images.
 
+    Args:
+        cls: An instance of a class containing:
+             - images: a list of PIL Image objects to interpolate.
+             - frame_interpolation_x_amount: the number of frames to interpolate between each pair of images.
+
+    Returns:
+        None: Modifies the cls.images attribute in place.
+    """
+
+    # Initialize the interpolator
+    interpolator = RIFEInterpolator()
+
+    # Prepare an empty list to hold all the interpolated images
+    new_images = []
+    rife_in_between_frames_count = calculate_frames_to_add(len(cls.images), cls.gen.frame_interpolation_x_amount)
+    # Iterate through pairs of consecutive images in cls.images
+    for i in range(len(cls.images) - 1):
+        img1 = cls.images[i]
+        img2 = cls.images[i + 1]
+
+        # Interpolate between each pair
+        interpolated_frames = interpolator.interpolate(np.array(img1), np.array(img2), interp_amount=cls.gen.frame_interpolation_x_amount)
+        # Append all but the last interpolated frame to avoid duplicates
+        new_images.extend(interpolated_frames[:-1])
+
+    # Add the very last frame of the last interpolation to complete the sequence
+    new_images.append(interpolated_frames[-1])
+
+    # Replace the original images with the new, interpolated ones
+    cls.images = new_images
+
+    # Optionally clear image paths if no longer needed
+    if hasattr(cls, 'gen') and hasattr(cls.gen, 'image_paths'):
+        cls.gen.image_paths = []
+    return
 def save_video_cls(cls):
     dir_path = os.path.join(root_path, 'output/video')
     os.makedirs(dir_path, exist_ok=True)
