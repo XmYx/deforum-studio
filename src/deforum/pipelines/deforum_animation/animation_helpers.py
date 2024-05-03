@@ -299,7 +299,10 @@ def affine_persp_motion(cls: Any) -> None:
     Returns:
         None: Modifies the class instance attributes in place.
     """
-    if cls.gen.hybrid_motion_use_prev_img:
+    if cls.gen.frame_idx < 1:
+        logger.info("Skipping optical flow motion for first frame.")
+        return
+    if cls.gen.hybrid_motion_use_prev_img and cls.gen.prev_img is not None:
         matrix = get_matrix_for_hybrid_motion_prev(cls.gen.frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
                                                    cls.gen.prev_img,
                                                    cls.gen.hybrid_motion)
@@ -646,15 +649,12 @@ def diffusion_redo(cls: Any) -> None:
 def main_generate_with_cls(cls: Any) -> None:
     """
     Executes the main generation process for the given class instance.
-
     Args:
         cls: The class instance containing generation parameters and other attributes.
-
     Returns:
         None: Modifies the class instance attributes in place.
     """
     cls.gen.image = cls.generate()
-
     return
 
 
