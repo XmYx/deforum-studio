@@ -54,6 +54,7 @@ from ...utils.constants import root_path, config
 from ...utils.deforum_hybrid_animation import hybrid_generation
 from ...utils.deforum_logger_util import Logger
 from ...utils.image_utils import load_image_with_mask, prepare_mask, check_mask_for_errors, load_image
+from ...utils.resume_vars import get_resume_vars
 from ...utils.sdxl_styles import STYLE_NAMES, apply_style
 from ...utils.string_utils import split_weighted_subprompts, check_is_number
 from ...utils.video_frame_utils import get_frame_name
@@ -347,6 +348,44 @@ class DeforumAnimationPipeline(DeforumBase):
 
             self.gen.prev_img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
             self.gen.opencv_image = self.gen.prev_img
+        start_frame = 0
+
+        # resume animation (requires at least two frames - see function)
+        if self.gen.resume_from_timestring:
+            resume_timestring = self.gen.resume_timestring
+
+            print("GETTING VARS FROM", self.gen.outdir, self.gen.resume_from_timestring)
+            # determine last frame and frame to start on
+            batch_name, prev_frame, next_frame, prev_img, next_img = get_resume_vars(
+                resume_path=self.gen.resume_path,
+                timestring=self.gen.resume_timestring,
+                cadence=self.gen.turbo_steps
+            )
+            batch_name = self.gen.resume_path.split('/')[-1]
+            self.gen.timestring = resume_timestring
+            self.gen.batch_name = batch_name
+            self.gen.outdir = os.path.join(root_path, f"output/deforum/{batch_name}")
+            print("SHOULD RESUME", prev_frame, next_frame)
+
+            # set up turbo step vars
+            if self.gen.turbo_steps > 1:
+                self.gen.turbo_prev_image, self.gen.turbo_prev_frame_idx = prev_img, prev_frame
+                self.gen.turbo_next_image, self.gen.turbo_next_frame_idx = next_img, next_frame
+
+            # advance start_frame to next frame
+            start_frame = next_frame + 1
+
+            self.gen.image = prev_img
+            self.gen.init_image = prev_img
+            self.gen.prev_img = prev_img
+            self.gen.opencv_image = prev_img
+            print(prev_img.shape)
+            self.gen.width, self.gen.height = prev_img.shape[1], prev_img.shape[0]
+            self.gen.frame_idx = start_frame
+            self.gen.use_init = True
+            print(self.gen.frame_idx)
+            print(self.gen.outdir)
+
         self.gen.image_paths = []
     def live_update_from_kwargs(self, **kwargs):
         try:
@@ -473,8 +512,8 @@ class DeforumAnimationPipeline(DeforumBase):
             if not isinstance(img, PIL.Image.Image):
                 img = Image.fromarray(cv2.cvtColor(self.gen.opencv_image.astype(np.uint8), cv2.COLOR_BGR2RGB))
 
-        # if self.gen.use_init and self.gen.init_image:
-        #     img = self.gen.init_image
+        if self.gen.use_init and self.gen.init_image:
+            img = self.gen.init_image
 
         self.gen.strength = 1.0 if img is None else 1 - self.gen.strength
 
