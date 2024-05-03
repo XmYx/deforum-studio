@@ -552,7 +552,12 @@ class DeforumAnimationPipeline(DeforumBase):
             gen_args["subseed_strength"] = self.gen.subseed_strength
             gen_args["seed_resize_from_h"] = self.gen.seed_resize_from_h
             gen_args["seed_resize_from_w"] = self.gen.seed_resize_from_w
-
+        if hasattr(self.gen, 'animation_prompts_positive'):
+            gen_args["prompt"] = gen_args["prompt"] + self.gen.animation_prompts_positive
+            if next_prompt:
+                gen_args['next_prompt'] = next_prompt + self.gen.animation_prompts_positive
+        if hasattr(self.gen, 'animation_prompts_negative'):
+            gen_args["negative_prompt"] = gen_args["negative_prompt"] + self.gen.animation_prompts_negative
         processed = self.generator(**gen_args)
         return processed
 
@@ -628,7 +633,12 @@ class DeforumAnimationPipeline(DeforumBase):
             gen_args["subseed_strength"] = self.gen.subseed_strength
             gen_args["seed_resize_from_h"] = self.gen.seed_resize_from_h
             gen_args["seed_resize_from_w"] = self.gen.seed_resize_from_w
-
+        if hasattr(self.gen, 'animation_prompts_positive'):
+            gen_args["prompt"] = gen_args["prompt"] + self.gen.animation_prompts_positive
+            if next_prompt:
+                gen_args['next_prompt'] = next_prompt + self.gen.animation_prompts_positive
+        if hasattr(self.gen, 'animation_prompts_negative'):
+            gen_args["negative_prompt"] = gen_args["negative_prompt"] + self.gen.animation_prompts_negative
         def calculate_blend_factor(frame_idx, cycle_length=100):
             """Calculate the blending factor for the frame index within a cycle of length `cycle_length`.
             The factor linearly increases from 0 to 1 and then resets."""

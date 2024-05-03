@@ -366,8 +366,12 @@ class MainWindow(DeforumCore):
         if self.job_queue:
             self.current_job = self.job_queue.pop(0)
             self.current_job.markRunning()  # Mark the job as running
+            self.params.update(self.current_job.job_data)
+            self.updateUIFromParams()
             self.thread = BackendThread(self.current_job.job_data)
             self.thread.finished.connect(self.onJobFinished)
+            self.thread.imageGenerated.connect(self.updateImage)
+            self.thread.finished.connect(self.playVideo)
             self.thread.start()
 
     @pyqtSlot(str)

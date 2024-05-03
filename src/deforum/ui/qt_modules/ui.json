@@ -20,6 +20,22 @@
       "widget_type": "checkbox",
       "default": false,
       "label": "Dry Run"},
+    "resume_from_timestring": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Resume"},
+    "resume_timestring": {
+      "label": "Resume Timestring",
+      "widget_type": "text box",
+      "default": "",
+      "accessible_name": ""
+    },
+    "resume_path": {
+      "label": "Resume Path",
+      "widget_type": "text box",
+      "default": "",
+      "accessible_name": ""
+    },
     "prompts": {
       "label": "Prompts",
       "widget_type": "text box",
@@ -184,19 +200,19 @@
       "label": "Translation Z",
       "accessible_name": "Z-axis Translation Formula"
     },
-    "rotation_x": {
+    "rotation_3d_x": {
       "widget_type": "text input",
       "default": "0: (0)",
       "label": "Rotation X",
       "accessible_name": "X-axis Rotation Formula"
     },
-    "rotation_y": {
+    "rotation_3d_y": {
       "widget_type": "text input",
       "default": "0: (0)",
       "label": "Rotation Y",
       "accessible_name": "Y-axis Rotation Formula"
     },
-    "rotation_z": {
+    "rotation_3d_z": {
       "widget_type": "text input",
       "default": "0: (0)",
       "label": "Rotation Z",

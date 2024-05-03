@@ -88,6 +88,7 @@ def start_deforum_cli():
             modelid = str(options.get("modelid", "125703"))
 
             deforum = DeforumAnimationPipeline.from_civitai(model_id=modelid)
+            deforum.generator.optimize = True
 
             preset_dir = "presets"
             files = []

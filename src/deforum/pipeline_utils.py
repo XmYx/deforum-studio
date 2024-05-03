@@ -188,6 +188,9 @@ class DeforumGenerationObject(DeforumDataObject):
         self.parseq_manifest = None
         animation_prompts = DeforumAnimPrompts()
         self.animation_prompts = json.loads(animation_prompts)
+        self.resume_timestring = None
+        self.resume_from_timestring = False
+
         self.timestring = time.strftime('%Y%m%d%H%M%S')
         self.batch_name = kwargs.get('batch_name', f"deforum_{self.timestring}")
         # current_arg_list = [deforum.args, deforum.anim_args, deforum.video_args, deforum.parseq_args]
@@ -238,6 +241,8 @@ class DeforumGenerationObject(DeforumDataObject):
         self.skip_video_creation = False
         self.color_match_at = 'pre'
         self.dry_run = False
+        self.animation_prompts_positive = ""
+        self.animation_prompts_negative = ""
 
         # Set all provided keyword arguments as attributes
         for key, value in kwargs.items():
