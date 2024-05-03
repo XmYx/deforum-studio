@@ -234,10 +234,12 @@ def start_deforum_cli():
 
     else:
         from deforum import DeforumAnimationPipeline
+
         modelid = str(options.get("modelid", "125703"))
         deforum = DeforumAnimationPipeline.from_civitai(modelid)
+        deforum.generator.optimize = False
+
         options["batch_name"] = options.get("batch_name", f"deforum-{time.strftime('%Y%m%d%H%M%S')}")
-        
         expected_output_dir = os.path.join(config.output_dir, options["batch_name"])
         logger.info(f"Output directory: {expected_output_dir}")
 
