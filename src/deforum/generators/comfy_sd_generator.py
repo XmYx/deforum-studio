@@ -1,3 +1,4 @@
+import os
 import re
 import secrets
 
@@ -9,6 +10,8 @@ from .comfy_utils import ensure_comfy
 from .rng_noise_generator import ImageRNGNoise, slerp
 from deforum.utils.deforum_cond_utils import blend_tensors
 from deforum.utils.logging_config import logger
+from ..utils.constants import root_path
+from ..utils.model_download import download_from_civitai, download_from_civitai_by_version_id
 
 cfg_guider = None
 
@@ -77,12 +80,13 @@ class HIJackCFGGuider:
         #     return latent_image
         #
         self.conds = self.original_conds
+        import comfy
         # self.conds = {}
         # for k in self.original_conds:
         #     self.conds[k] = list(map(lambda a: a.copy(), self.original_conds[k]))
         #
-        # # self.inner_model, self.conds, self.loaded_models = comfy.sampler_helpers.prepare_sampling(
-        # #     self.model_patcher, noise.shape, self.conds)
+        # self.model_patcher.model, self.conds, self.loaded_models = comfy.sampler_helpers.prepare_sampling(
+        #     self.model_patcher, noise.shape, self.conds)
         # device = self.model_patcher.load_device
         #
         # # if denoise_mask is not None:
@@ -160,7 +164,6 @@ class ComfyDeforumGenerator:
         self.rng = None
         self.optimized = False
     def optimize_model(self):
-        # pass
         if self.optimize and not self.optimized:
             try:
                 from nodes import NODE_CLASS_MAPPINGS
@@ -253,6 +256,34 @@ class ComfyDeforumGenerator:
 
             # from ..optimizations.deforum_comfy_trt.deforum_trt_comfyunet import TrtUnet
             # self.model.model.diffusion_model = TrtUnet()
+    def load_lora_from_civitai(self, lora_id="", model_strength=0.0, clip_strength=0.0):
+
+
+        cache_dir = os.path.join(root_path, 'models')
+        os.makedirs(cache_dir, exist_ok=True)
+
+        try:
+            import comfy
+            filename = download_from_civitai_by_version_id(
+                model_id=lora_id, destination=cache_dir, force_download=False
+            )
+            lora_path = os.path.join(cache_dir, filename)
+            lora = None
+            if self.loaded_lora is not None:
+                if self.loaded_lora[0] == lora_path:
+                    lora = self.loaded_lora[1]
+                else:
+                    temp = self.loaded_lora
+                    self.loaded_lora = None
+                    del temp
+
+            if lora is None:
+                lora = comfy.utils.load_torch_file(lora_path, safe_load=True)
+                self.loaded_lora = (lora_path, lora)
+
+            self.model, self.clip = comfy.sd.load_lora_for_models(self.model, self.clip, lora, model_strength, clip_strength)
+        except:
+            print("LORA FAILED")
 
     def load_lora(self, model, clip, lora_path, strength_model, strength_clip):
         import comfy
@@ -337,6 +368,7 @@ class ComfyDeforumGenerator:
 
         if not self.model_loaded:
             self.load_model()
+            # self.load_lora_from_civitai('413566', 1.0, 1.0)
         if seed_resize_from_h == 0:
             seed_resize_from_h = height
         if seed_resize_from_w == 0:
@@ -417,8 +449,8 @@ class ComfyDeforumGenerator:
             self.sampler_node = NODE_CLASS_MAPPINGS['KSampler //Inspire']()
         strength = 1 - strength if strength != 1.0 else strength
         steps = round(strength * steps)
-        if subseed_strength > 0:
-            subseed_strength = subseed_strength / 10
+        # if subseed_strength > 0:
+        #     subseed_strength = subseed_strength * 10
 
         if hasattr(self.sampler_node, 'sample'):
             sample_fn = self.sampler_node.sample

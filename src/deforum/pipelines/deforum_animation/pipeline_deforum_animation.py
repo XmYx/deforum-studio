@@ -324,12 +324,12 @@ class DeforumAnimationPipeline(DeforumBase):
             self.shoot_fns.append(overlay_mask_cls)
 
         self.shoot_fns.append(post_gen_cls)
-
-        if self.gen.max_frames > 3:
-            if self.gen.frame_interpolation_engine == "FILM":
-                self.post_fns.append(film_interpolate_cls)
-            elif 'rife' in self.gen.frame_interpolation_engine.lower():
-                self.post_fns.append(rife_interpolate_cls)
+        if self.gen.frame_interpolation_engine is not None:
+            if self.gen.max_frames > 3:
+                if self.gen.frame_interpolation_engine == "FILM":
+                    self.post_fns.append(film_interpolate_cls)
+                elif 'rife' in self.gen.frame_interpolation_engine.lower():
+                    self.post_fns.append(rife_interpolate_cls)
         if self.gen.max_frames > 1 and not self.gen.skip_video_creation:
             self.post_fns.append(save_video_cls)
 
