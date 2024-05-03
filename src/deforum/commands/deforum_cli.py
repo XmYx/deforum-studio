@@ -2,17 +2,40 @@ import argparse
 import os
 import random
 import time
-from deforum.utils.constants import config
+import subprocess
+import sys
 from deforum.utils.logging_config import logger
+from deforum.utils.constants import config
+
+def install_pyqt6():
+    try:
+        import PyQt6
+    except:
+        subprocess.run(
+            [
+                "python3",
+                "-m" "pip",
+                "install",
+                "PyQt6-Qt6==6.5.0",
+            ]
+        )
+        subprocess.run(
+            [
+                "python3",
+                "-m" "pip",
+                "install",
+                "pyqt6==6.5.0",
+            ]
+        )
 
 def start_deforum_cli():
 
     parser = argparse.ArgumentParser(description="Load settings from a txt file and run the deforum process.")
     # Positional mode argument
-    parser.add_argument("mode", choices=['webui', 'animatediff', 'runpresets', 'api', 'setup'], default=None, nargs='?',
+    parser.add_argument("mode", choices=['webui', 'animatediff', 'runpresets', 'api', 'setup', 'ui', 'runsingle', 'config'], default=None, nargs='?',
                         help="Choose the mode to run.")
 
-    parser.add_argument("--file", type=str, help="Path to the txt file containing dictionaries to merge.")
+    parser.add_argument("--file", type=str, help="Path to the deforum settings file.")
     parser.add_argument("--options", nargs=argparse.REMAINDER,
                         help="Additional keyword arguments to pass to the deforum function.")
     args_main = parser.parse_args()
@@ -142,6 +165,73 @@ def start_deforum_cli():
             logger.info("Installing stable-fast and its dependencies...")
             from deforum.utils.install_sfast import install_sfast
             install_sfast()
+        elif args_main.mode == "ui":
+            install_pyqt6()
+
+            # Get the absolute path of the current file
+            current_file_path = os.path.abspath(__file__)
+
+            # Get the parent directory of the current file
+            parent_directory = os.path.dirname(current_file_path)
+
+            # Assuming 'deforum' is in the parent directory of the current file
+            deforum_directory = os.path.dirname(parent_directory)
+            # Construct the path to main.py
+            main_script_path = os.path.join(deforum_directory, "ui", "main.py")
+            # try:
+            # Execute main.py
+            subprocess.run([sys.executable, main_script_path])
+            # except:
+            #
+            #     subprocess.run(
+            #         [
+            #             "python3",
+            #             "-m" "pip",
+            #             "uninstall",
+            #             "PyQt6-Qt6",
+            #             "-y"
+            #         ]
+            #     )
+            #     subprocess.run(
+            #         [
+            #             "python3",
+            #             "-m" "pip",
+            #             "install",
+            #             "PyQt6-Qt6==6.5.0",
+            #         ]
+            #     )
+            #     subprocess.run([sys.executable, main_script_path])
+        elif args_main.mode == 'runsingle':
+            install_pyqt6()
+
+            # Get the absolute path of the current file
+            current_file_path = os.path.abspath(__file__)
+
+            # Get the parent directory of the current file
+            parent_directory = os.path.dirname(current_file_path)
+
+            # Assuming 'deforum' is in the parent directory of the current file
+            deforum_directory = os.path.dirname(parent_directory)
+            # Construct the path to main.py
+            print(extra_args["settings_file"])
+
+            main_script_path = os.path.join(deforum_directory, "ui", "process_only.py")
+            # try:
+            # Execute main.py
+            subprocess.run([sys.executable, main_script_path, f"{extra_args['settings_file']}"])
+        elif args_main.mode == 'config':
+            # Get the absolute path of the current file
+            current_file_path = os.path.abspath(__file__)
+
+            # Get the parent directory of the current file
+            parent_directory = os.path.dirname(current_file_path)
+
+            # Assuming 'deforum' is in the parent directory of the current file
+            deforum_directory = os.path.dirname(parent_directory)
+            # Construct the path to main.py
+            main_script_path = os.path.join(deforum_directory, "commands", "deforum_config.py")
+            subprocess.run([sys.executable, main_script_path])
+
     else:
         from deforum import DeforumAnimationPipeline
         modelid = str(options.get("modelid", "125703"))

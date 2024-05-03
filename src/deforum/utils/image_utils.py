@@ -501,12 +501,28 @@ def get_output_folder(output_path, batch_folder):
     return out_path
 
 
+import os
+from multiprocessing import Process
+
+def save_image_subprocess(image, path):
+    # Save the image at the specified path
+    image.save(path)
+
 def save_image(image, image_type, filename, args, video_args, root):
     if video_args.store_frames_in_ram:
-        root.frames_cache.append(
-            {'path': os.path.join(args.outdir, filename), 'image': image, 'image_type': image_type})
+        return
+        # You can uncomment the following lines if you need to cache the frames instead of saving them directly
+        # root.frames_cache.append(
+        #     {'path': os.path.join(args.outdir, filename), 'image': image, 'image_type': image_type})
     else:
-        image.save(os.path.join(args.outdir, filename))
+        # Construct the full path where the image will be saved
+        full_path = os.path.join(args.outdir, filename)
+
+        # Create a new process for saving the image
+        process = Process(target=save_image_subprocess, args=(image, full_path))
+
+        # Start the process
+        process.start()
 
 
 def reset_frames_cache(root):

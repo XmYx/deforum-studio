@@ -1,3 +1,4 @@
+import re
 import secrets
 
 import numpy as np
@@ -9,12 +10,115 @@ from .rng_noise_generator import ImageRNGNoise, slerp
 from deforum.utils.deforum_cond_utils import blend_tensors
 from deforum.utils.logging_config import logger
 
+cfg_guider = None
+
+
+def prepare_sampling(model, noise_shape, conds):
+    device = model.load_device
+    real_model = None
+    # models, inference_memory = get_additional_models(conds, model.model_dtype())
+    # comfy.model_management.load_models_gpu([model] + models, model.memory_required(
+    #     [noise_shape[0] * 2] + list(noise_shape[1:])) + inference_memory)
+    # real_model = model.model
+
+    return model.model, conds, []
+
+
+class HIJackCFGGuider:
+    def __init__(self, model_patcher):
+        # print("BIG HOOOORAAAAY\n\n\n\n\n")
+        self.model_patcher = model_patcher
+        self.inner_model = self.model_patcher.model
+        self.model_options = model_patcher.model_options
+        self.original_conds = {}
+        self.cfg = 1.0
+
+    def set_conds(self, positive, negative):
+        self.inner_set_conds({"positive": positive, "negative": negative})
+
+    def set_cfg(self, cfg):
+        self.cfg = cfg
+
+    def inner_set_conds(self, conds):
+        import comfy
+        for k in conds:
+            self.original_conds[k] = comfy.sampler_helpers.convert_cond(conds[k])
+
+    def __call__(self, *args, **kwargs):
+        return self.predict_noise(*args, **kwargs)
+
+    def predict_noise(self, x, timestep, model_options={}, seed=None):
+        import comfy
+
+        return comfy.samplers.sampling_function(self.model_patcher.model, x, timestep, self.conds.get("negative", None),
+                                                self.conds.get("positive", None), self.cfg, model_options=model_options,
+                                                seed=seed)
+
+    def inner_sample(self, noise, latent_image, device, sampler, sigmas, denoise_mask, callback, disable_pbar,
+                     seed):
+        import comfy
+        if latent_image is not None and torch.count_nonzero(
+                latent_image) > 0:  # Don't shift the empty latent image.
+            latent_image = self.model_patcher.model.process_latent_in(latent_image)
+
+        self.conds = comfy.samplers.process_conds(self.model_patcher.model, noise, self.conds, device, latent_image,
+                                                  denoise_mask,
+                                                  seed)
+
+        extra_args = {"model_options": self.model_options, "seed": seed}
+
+        samples = sampler.sample(self, sigmas, extra_args, callback, noise, latent_image, denoise_mask,
+                                 disable_pbar)
+        return self.model_patcher.model.process_latent_out(samples.to(torch.float32))
+
+    def sample(self, noise, latent_image, sampler, sigmas, denoise_mask=None, callback=None, disable_pbar=False,
+               seed=None):
+        # if sigmas.shape[-1] == 0:
+        #     return latent_image
+        #
+        self.conds = self.original_conds
+        # self.conds = {}
+        # for k in self.original_conds:
+        #     self.conds[k] = list(map(lambda a: a.copy(), self.original_conds[k]))
+        #
+        # # self.inner_model, self.conds, self.loaded_models = comfy.sampler_helpers.prepare_sampling(
+        # #     self.model_patcher, noise.shape, self.conds)
+        # device = self.model_patcher.load_device
+        #
+        # # if denoise_mask is not None:
+        # #     denoise_mask = comfy.sampler_helpers.prepare_mask(denoise_mask, noise.shape, device)
+        device = torch.device('cuda')
+        # noise = noise.to(device)
+        # latent_image = latent_image.to(device)
+        sigmas = sigmas.to(device)
+
+        output = self.inner_sample(noise, latent_image, device, sampler, sigmas, denoise_mask, None,
+                                   True, seed)
+
+        return output
+
+
+def sampleDeforum(model, noise, positive, negative, cfg, device, sampler, sigmas, model_options={}, latent_image=None, denoise_mask=None, callback=None, disable_pbar=False, seed=None):
+    global cfg_guider
+    # print("Hooray here too")
+    if cfg_guider is None:
+        cfg_guider = HIJackCFGGuider(model)
+    cfg_guider.set_conds(positive, negative)
+    cfg_guider.set_cfg(cfg)
+    return cfg_guider.sample(noise, latent_image, sampler, sigmas, denoise_mask, callback, disable_pbar, seed)
+
+
+
 class ComfyDeforumGenerator:
 
     def __init__(self, model_path: str = None, lcm=False, trt=False):
 
         ensure_comfy()
-
+        import comfy.samplers
+        import comfy
+        comfy.samplers.CFGGuider = HIJackCFGGuider
+        comfy.samplers.sample = sampleDeforum
+        self.optimize = True
         # from deforum.datafunctions.ensure_comfy import ensure_comfy
         # ensure_comfy()
         # from deforum.datafunctions import comfy_functions
@@ -27,7 +131,7 @@ class ComfyDeforumGenerator:
         self.prompt = ""
         self.n_prompt = ""
 
-        cond = None
+        self.cond = None
         self.n_cond = None
 
         self.model = None
@@ -35,6 +139,7 @@ class ComfyDeforumGenerator:
         self.vae = None
         self.pipe = None
         self.loaded_lora = None
+        self.model_loaded = None
         self.model_path = model_path
         # if not lcm:
         #     # if model_path is None:
@@ -53,7 +158,19 @@ class ComfyDeforumGenerator:
         # self.controlnet = controlnet.load_controlnet(model_name)
         self.pipeline_type = "comfy"
         self.rng = None
-
+        self.optimized = False
+    def optimize_model(self):
+        # pass
+        if self.optimize and not self.optimized:
+            try:
+                from nodes import NODE_CLASS_MAPPINGS
+                # print(NODE_CLASS_MAPPINGS)
+                sfast_node = NODE_CLASS_MAPPINGS['ApplyStableFastUnet']()
+                self.model = sfast_node.apply_stable_fast(self.model, True)[0]
+                logger.info("Applied Stable Fast Unet Patch")
+                self.optimized = True
+            except:
+                logger.warning("Stable Fast Patch Error")
     def encode_latent(self, vae, latent, seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w, reset_noise=False):
 
         ## TODO this looks wrong! Why override the supplied subseed strength?
@@ -63,9 +180,9 @@ class ComfyDeforumGenerator:
             latent = latent.to(torch.float32)
             latent = vae.encode_tiled(latent[:, :, :, :3])
             latent = latent.to("cuda")
-        if self.rng is None or reset_noise:
-            self.rng = ImageRNGNoise(shape=latent[0].shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
-                                     seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
+        # if self.rng is None or reset_noise:
+        #     self.rng = ImageRNGNoise(shape=latent[0].shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
+        #                              seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
         #     noise = self.rng.first()
         # #     noise = slerp(subseed_strength, noise, latent)
         # else:
@@ -77,44 +194,66 @@ class ComfyDeforumGenerator:
     def generate_latent(self, width, height, seed, subseed, subseed_strength, seed_resize_from_h=None,
                         seed_resize_from_w=None, reset_noise=False):
         shape = [4, height // 8, width // 8]
-        if self.rng is None or reset_noise:
-            self.rng = ImageRNGNoise(shape=shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
-                                     seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
-        noise = self.rng.next()
-        # noise = torch.zeros([1, 4, width // 8, height // 8])
-        return {"samples": noise}
+        # if self.rng is None or reset_noise:
+        #     self.rng = ImageRNGNoise(shape=shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
+        #                              seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
+        # noise = self.rng.next()
+        noise = torch.zeros([1, 4, height // 8, width // 8])
+        return {"samples": noise.to('cuda')}
 
-    def get_conds(self, clip, prompt):
-        with torch.inference_mode():
-            # clip.clip_layer(0)
-            tokens = clip.tokenize(prompt)
-            cond, pooled = clip.encode_from_tokens(tokens, return_pooled=True)
-            return [[cond, {"pooled_output": pooled}]]
+    def get_conds(self, clip, prompt, width, height, target_width, target_height):
+        if not hasattr(self, 'clip_node'):
+            from nodes import NODE_CLASS_MAPPINGS
+            self.clip_node = NODE_CLASS_MAPPINGS['smZ CLIPTextEncode']()
+        conds = self.clip_node.encode(clip, prompt, parser="A1111", mean_normalization=True,
+               multi_conditioning=False, use_old_emphasis_implementation=False,
+               with_SDXL=True, ascore=6.0, width=width, height=height, crop_w=0,
+               crop_h=0, target_width=target_width, target_height=target_height, text_g=prompt, text_l=prompt, smZ_steps=1)[0]
+        return conds
+        # with torch.inference_mode():
+        #     # clip.clip_layer(0)
+        #     tokens = clip.tokenize(prompt)
+        #     cond, pooled = clip.encode_from_tokens(tokens, return_pooled=True)
+        #     return [[cond, {"pooled_output": pooled}]]
 
-    def load_model(self, model_path: str, trt: bool = False):
-        try:
-            self.cleanup()
-        except:
-            pass
-        import comfy.sd
-        model, clip, vae, clipvision = (
-            comfy.sd.load_checkpoint_guess_config(model_path,
-                                                  output_vae=True,
-                                                  output_clip=True,
-                                                  embedding_directory="models/embeddings",
-                                                  output_clipvision=False,
-                                                  )
-        )
-        # from comfy import utils
-        # lora_path = "/home/mix/Downloads/pytorch_lora_weights.safetensors"
-        # lora = utils.load_torch_file(lora_path, safe_load=True)
-        # self.model, self.clip = comfy.sd.load_lora_for_models(
-        #     self.model, self.clip, lora, 1.0, 1.0)
-        trt = False
-        if trt:
-            from ..optimizations.deforum_comfy_trt.deforum_trt_comfyunet import TrtUnet
-            model.model.diffusion_model = TrtUnet()
-        return model, clip, vae, clipvision
+    def load_model(self):
+        if (self.vae is None):
+            import comfy.sd
+            from nodes import NODE_CLASS_MAPPINGS
+            self.model, self.clip, self.vae, self.clipvision = comfy.sd.load_checkpoint_guess_config(self.model_path,
+                                                output_vae=True,
+                                                output_clip=True,
+                                                embedding_directory="models/embeddings",
+                                                output_clipvision=False,
+                                                )
+            print(self.model.offload_device)
+            self.clip.patcher.offload_device = torch.device('cuda')
+            self.vae.patcher.offload_device = torch.device('cuda')
+            print(self.clip.patcher.offload_device)
+            print(self.vae.patcher.offload_device)
+            self.vae.first_stage_model.cuda()
+
+            settings_node = NODE_CLASS_MAPPINGS['smZ Settings']()
+            settings_dict = {}
+            for k, v in settings_node.INPUT_TYPES()['optional'].items():
+                if 'default' in v[1]:
+                    settings_dict[k] = v[1]['default']
+            settings_dict["RNG"] = "gpu"
+            settings_dict["pad_cond_uncond"] = True
+            settings_dict["Use CFGDenoiser"] = True
+            settings_dict["disable_nan_check"] = True
+            settings_dict["upcast_sampling"] = False
+            settings_dict["batch_cond_uncond"] = True
+            self.model = settings_node.run(self.model, **settings_dict)[0]
+            self.clip = settings_node.run(self.clip, **settings_dict)[0]
+            if self.optimize:
+                self.optimize_model()
+            self.model_loaded = True
+
+
+            # from ..optimizations.deforum_comfy_trt.deforum_trt_comfyunet import TrtUnet
+            # self.model.model.diffusion_model = TrtUnet()
+
     def load_lora(self, model, clip, lora_path, strength_model, strength_clip):
         import comfy
         if strength_model == 0 and strength_clip == 0:
@@ -163,6 +302,7 @@ class ComfyDeforumGenerator:
         #     safety_checker=None,
         # ).to("cuda")
 
+    @torch.inference_mode()
     def __call__(self,
                  prompt="",
                  pooled_prompts=None,
@@ -186,8 +326,8 @@ class ComfyDeforumGenerator:
                  return_latent=None,
                  latent=None,
                  last_step=None,
-                 seed_resize_from_h=1024,
-                 seed_resize_from_w=1024,
+                 seed_resize_from_h=0,
+                 seed_resize_from_w=0,
                  reset_noise=False,
                  enable_prompt_blend=True,
                  use_areas= False,
@@ -195,219 +335,134 @@ class ComfyDeforumGenerator:
                  *args,
                  **kwargs):
 
-        if self.pipeline_type == "comfy":
-            if (self.vae is None):
-                import comfy.sd
-                self.model, self.clip, self.vae, self.clipvision = comfy.sd.load_checkpoint_guess_config(self.model_path,
-                                                    output_vae=True,
-                                                    output_clip=True,
-                                                    embedding_directory="models/embeddings",
-                                                    output_clipvision=False,
-                                                    )
-                try:
-                    from nodes import NODE_CLASS_MAPPINGS
-                    # print(NODE_CLASS_MAPPINGS)
-                    sfast_node = NODE_CLASS_MAPPINGS['ApplyStableFastUnet']()
-                    self.model = sfast_node.apply_stable_fast(self.model, True)[0]
-                    logger.info("Applied Stable Fast Unet Patch")
-                except:
-                    pass
+        if not self.model_loaded:
+            self.load_model()
+        if seed_resize_from_h == 0:
+            seed_resize_from_h = height
+        if seed_resize_from_w == 0:
+            seed_resize_from_w = width
+        if seed == -1:
+            seed = secrets.randbelow(18446744073709551615)
+        if strength <= 0.0 or strength >= 1.0:
+            strength = 1.0
+            reset_noise = True
+            init_image = None
+        self.optimize_model()
 
-            if seed == -1:
-                seed = secrets.randbelow(18446744073709551615)
-            if strength < 1.0:
-                strength = 1 - strength
+        if subseed == -1:
+            subseed = secrets.randbelow(18446744073709551615)
 
-            if strength <= 0.0 or strength >= 1.0:
-                strength = 1.0
-                reset_noise = True
-                init_image = None
-                subseed_strength = 0.0
-            if strength < 1.0 and subseed_strength == 0.0:
-                steps = round(steps - steps * strength)
+        if cnet_image is not None:
+            cnet_image = torch.from_numpy(np.array(cnet_image).astype(np.float32) / 255.0).unsqueeze(0)
 
-            if subseed == -1:
-                subseed = secrets.randbelow(18446744073709551615)
+        if init_image is None or reset_noise:
+            logger.info(f"reset_noise: {reset_noise}; resetting strength to 1.0 from: {strength}")
+            strength = 1.0
+            if latent is None:
 
-            if cnet_image is not None:
-                cnet_image = torch.from_numpy(np.array(cnet_image).astype(np.float32) / 255.0).unsqueeze(0)
-
-            if init_image is None or reset_noise:
-                logger.info(f"reset_noise: {reset_noise}; resetting strength to 1.0 from: {strength}")
-                strength = 1.0
-                if latent is None:
-
-                    if width is None:
-                        width = 1024
-                    if height is None:
-                        height = 960
-                    latent = self.generate_latent(width, height, seed, subseed, subseed_strength, seed_resize_from_h,
-                                                  seed_resize_from_w, reset_noise)
+                if width is None:
+                    width = 1024
+                if height is None:
+                    height = 960
+                latent = self.generate_latent(width, height, seed, subseed, subseed_strength, seed_resize_from_h,
+                                              seed_resize_from_w, reset_noise)
+            else:
+                if isinstance(latent, torch.Tensor):
+                    latent = {"samples":latent}
+                elif isinstance(latent, list):
+                    latent = {"samples":torch.stack(latent, dim=0)}
                 else:
-                    if isinstance(latent, torch.Tensor):
-                        latent = {"samples":latent}
-                    elif isinstance(latent, list):
-                        latent = {"samples":torch.stack(latent, dim=0)}
-                    else:
-                        latent = latent
-            else:
-                latent = torch.from_numpy(np.array(init_image).astype(np.float32) / 255.0).unsqueeze(0)
-                latent = self.encode_latent(self.vae, latent, seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w)
-            assert isinstance(latent, dict), \
-                "Our Latents have to be in a dict format with the latent being the 'samples' value"
+                    latent = latent
+        else:
+            latent = torch.from_numpy(np.array(init_image)).cuda().unsqueeze(0).to(dtype=torch.float16) / 255.0
+            latent = self.encode_latent(self.vae, latent, seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w)
 
-            cond = []
-
-            if pooled_prompts is None and prompt is not None:
-                cond = self.get_conds(self.clip, prompt)
-            elif pooled_prompts is not None:
-                cond = pooled_prompts
-
-            if use_areas and areas is not None:
-                from nodes import ConditioningSetArea
-                area_setter = ConditioningSetArea()
-                for area in areas:
-                    logger.info(f"AREA TO USE: {area}")
-                    prompt = area.get("prompt", None)
-                    if prompt:
-
-                        new_cond = self.get_conds(self.clip, area["prompt"])
-                        new_cond = area_setter.append(conditioning=new_cond, width=int(area["w"]), height=int(area["h"]), x=int(area["x"]),
-                                                      y=int(area["y"]), strength=area["s"])[0]
-                        cond += new_cond
-
-            self.n_cond = self.get_conds(self.clip, negative_prompt)
+        #cond = []
+        if self.prompt != prompt or self.cond is None:
             self.prompt = prompt
+            if pooled_prompts is None and prompt is not None:
+                self.cond = self.get_conds(self.clip, prompt, width, height, seed_resize_from_w, seed_resize_from_w)
+            elif pooled_prompts is not None:
+                self.cond = pooled_prompts
 
+        cond = self.cond
+        if use_areas and areas is not None:
+            from nodes import ConditioningSetArea
+            area_setter = ConditioningSetArea()
+            for area in areas:
+                logger.info(f"AREA TO USE: {area}")
+                prompt = area.get("prompt", None)
+                if prompt:
 
-            if next_prompt is not None and enable_prompt_blend:
-                if next_prompt != prompt and next_prompt != "":
-                    if 0.0 < prompt_blend < 1.0:
-                        next_cond = self.get_conds(self.clip, next_prompt)
+                    new_cond = self.get_conds(self.clip, area["prompt"], width, height, seed_resize_from_w, seed_resize_from_w)
+                    new_cond = area_setter.append(conditioning=new_cond, width=int(area["w"]), height=int(area["h"]), x=int(area["x"]),
+                                                  y=int(area["y"]), strength=area["s"])[0]
+                    cond += new_cond
+        if self.n_prompt != negative_prompt or self.n_cond is None:
+            self.n_cond = self.get_conds(self.clip, negative_prompt, width, height, seed_resize_from_w, seed_resize_from_w)
+            self.n_prompt = negative_prompt
 
-                        cond = blend_tensors(cond[0], next_cond[0], blend_value=prompt_blend)
+        if next_prompt is not None and enable_prompt_blend:
+            if next_prompt != prompt and next_prompt != "":
+                if 0.0 < prompt_blend < 1.0:
+                    next_cond = self.get_conds(self.clip, next_prompt, width, height, seed_resize_from_w, seed_resize_from_w)
+                    cond = blend_tensors(cond[0], next_cond[0], blend_value=prompt_blend)
 
-            if cnet_image is not None:
-                cond = apply_controlnet(cond, self.controlnet, cnet_image, 1.0)
+        if cnet_image is not None:
+            cond = apply_controlnet(cond, self.controlnet, cnet_image, 1.0)
 
-            # from nodes import common_ksampler as ksampler
-
-            #steps = int((strength) * steps) if (strength != 1.0 or not reset_noise) else steps
-            last_step = steps# if last_step is None else last_step
-
-            logger.info(f"seed/subseed/subseed_str={seed}/{subseed}/{subseed_strength}; strength={strength}; scale={scale}; sampler_name={sampler_name}; scheduler={scheduler};")
-
+        #logger.info(f"seed/subseed/subseed_str={seed}/{subseed}/{subseed_strength}; strength={strength}; scale={scale}; sampler_name={sampler_name}; scheduler={scheduler};")
+        if not hasattr(self, 'sampler_node'):
             from nodes import NODE_CLASS_MAPPINGS
+            self.sampler_node = NODE_CLASS_MAPPINGS['KSampler //Inspire']()
+        strength = 1 - strength if strength != 1.0 else strength
+        steps = round(strength * steps)
+        if subseed_strength > 0:
+            subseed_strength = subseed_strength / 10
 
-            scheduler_node = NODE_CLASS_MAPPINGS['AlignYourStepsScheduler']()
-            sampler_select_node = NODE_CLASS_MAPPINGS['KSamplerSelect']()
-            custom_sampler_node = NODE_CLASS_MAPPINGS['SamplerCustom']()
-
-            sigmas = scheduler_node.get_sigmas("SDXL", steps, strength)[0]
-            sampler = sampler_select_node.get_sampler(sampler_name)[0]
-
-            if init_image is None or subseed_strength == 0 :
-                from nodes import common_ksampler
-
-                # sample = [
-                #     {'samples':common_ksampler(self.model, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond, latent,
-                #                      denoise=strength, disable_noise=False, start_step=0, last_step=steps,
-                #                      force_full_denoise=True)[0]['samples']}]
-                _, sample = custom_sampler_node.sample(self.model, True, seed, scale, cond, self.n_cond, sampler,
-                                                       sigmas, latent)
-                sample = [{"samples": sample['samples']}]
+        if hasattr(self.sampler_node, 'sample'):
+            sample_fn = self.sampler_node.sample
+        elif hasattr(self.sampler_node, 'doit'):
+            sample_fn = self.sampler_node.doit
 
 
+        sample = sample_fn(self.model, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond, latent, strength, noise_mode='GPU(=A1111)', batch_seed_mode="comfy", variation_seed=subseed, variation_strength=subseed_strength)[0]
+        sample = [{"samples": sample['samples']}]
+
+        if sample[0]["samples"].shape[0] == 1:
+            decoded = self.decode_sample(self.vae, sample[0]["samples"])
+            np_array = np.clip(255. * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[0]
+            image = Image.fromarray(np_array)
+            # image = Image.fromarray(np.clip(255. * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[0])
+            image = image.convert("RGB")
+
+            if return_latent:
+                return sample[0]["samples"], image
             else:
-                sample = sample_with_subseed(self.model, latent, seed, steps, scale, sampler_name, scheduler, cond, self.n_cond,
-                                    subseed_strength, subseed, strength, rng=ImageRNGNoise, sigmas=sigmas)
-
-
-
-
-
-
-
-            # sample = common_ksampler_with_custom_noise(model=self.model,
-            #                                            seed=seed,
-            #                                            steps=steps,
-            #                                            cfg=scale,
-            #                                            sampler_name=sampler_name,
-            #                                            scheduler=scheduler,
-            #                                            positive=cond,
-            #                                            negative=self.n_cond,
-            #                                            latent=latent,
-            #                                            denoise=strength,
-            #                                            disable_noise=False,
-            #                                            start_step=0,
-            #                                            last_step=last_step,
-            #                                            force_full_denoise=True, # TODO - what does this do?
-            #                                            noise=self.rng)
-
-            if sample[0]["samples"].shape[0] == 1:
-                decoded = self.decode_sample(self.vae, sample[0]["samples"])
-                np_array = np.clip(255. * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[0]
+                return image
+        else:
+            logger.info("decoding multi images")
+            images = []
+            x_samples = self.vae.decode_tiled(sample[0]["samples"])
+            for sample in x_samples:
+                np_array = np.clip(255. * sample.cpu().numpy(), 0, 255).astype(np.uint8)
                 image = Image.fromarray(np_array)
                 # image = Image.fromarray(np.clip(255. * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[0])
                 image = image.convert("RGB")
-
-                if return_latent:
-                    return sample[0]["samples"], image
-                else:
-                    return image
-            else:
-                logger.info("decoding multi images")
-                images = []
-                x_samples = self.vae.decode_tiled(sample[0]["samples"])
-                for sample in x_samples:
-                    np_array = np.clip(255. * sample.cpu().numpy(), 0, 255).astype(np.uint8)
-                    image = Image.fromarray(np_array)
-                    # image = Image.fromarray(np.clip(255. * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[0])
-                    image = image.convert("RGB")
-                    images.append(image)
+                images.append(image)
 
 
-                return images
-
-        elif self.pipeline_type == "diffusers_lcm":
-            if init_image is None:
-                image = self.pipe(
-                    prompt=prompt,
-                    width=width,
-                    height=height,
-                    guidance_scale=scale,
-                    num_inference_steps=int(steps / 5),
-                    num_images_per_prompt=1,
-                    lcm_origin_steps=50,
-                    output_type="pil",
-                ).images[0]
-            else:
-                # init_image = np.array(init_image)
-                # init_image = Image.fromarray(init_image)
-                image = self.img2img_pipe(
-                    prompt=prompt,
-                    strength=strength,
-                    image=init_image,
-                    width=width,
-                    height=height,
-                    guidance_scale=scale,
-                    num_inference_steps=int(steps / 5),
-                    num_images_per_prompt=1,
-                    lcm_origin_steps=50,
-                    output_type="pil",
-                ).images[0]
-
-            return image
+            return images
 
     def decode_sample(self, vae, sample):
         with torch.inference_mode():
             sample = sample.to(torch.float32)
-            vae.first_stage_model.cuda()
-            decoded = vae.decode_tiled(sample).detach()
+            decoded = vae.decode(sample).detach()
 
         return decoded
 
     def cleanup(self):
+        self.optimized = False
         return
         self.model.unpatch_model(device_to='cpu')
         self.vae.first_stage_model.to('cpu')

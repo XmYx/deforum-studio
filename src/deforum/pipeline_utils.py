@@ -195,7 +195,7 @@ class DeforumGenerationObject(DeforumDataObject):
         self.raw_batch_name = self.batch_name
         # self.batch_name = substitute_placeholders(deforum.args.batch_name, current_arg_list,
         #                                                  full_base_folder_path)
-        self.outdir = os.path.join(full_base_folder_path, str(self.batch_name))
+        self.outdir = os.path.join(full_base_folder_path, f"{self.batch_name}_{self.timestring}")
         os.makedirs(self.outdir, exist_ok=True)
 
         # Handle seed initialization
@@ -236,6 +236,7 @@ class DeforumGenerationObject(DeforumDataObject):
         self.amount = 0
         self.noise = 0.002
         self.skip_video_creation = False
+        self.color_match_at = 'pre'
 
         # Set all provided keyword arguments as attributes
         for key, value in kwargs.items():

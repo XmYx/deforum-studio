@@ -64,22 +64,13 @@ def anim_frame_warp_cls(cls: Any) -> None:
         cls.gen.mask = None
         if cls.gen.use_depth_warping:
             if cls.gen.depth is None and cls.depth_model is not None:
-
-
-                #img = Image.fromarray(cv2.cvtColor(cls.gen.prev_img, cv2.COLOR_BGR2RGB))
-
-                #print("ERROR HERE", type(img))
                 if cls.depth_model.device != 'cuda':
                     cls.depth_model.to('cuda')
                     cls.depth_model.device = 'cuda'
                 with torch.no_grad():
                     cls.gen.depth = cls.depth_model.predict(cls.gen.prev_img, cls.gen.midas_weight, True)
-                                                            #cls.gen.half_precision)
-                    torch.cuda.empty_cache()
-                #cls.depth_model.to('cpu')
         else:
             cls.gen.depth = None
-
         if cls.gen.animation_mode == '2D':
             cls.gen.prev_img = anim_frame_warp_2d_cls(cls, cls.gen.prev_img)
         else:  # '3D'
@@ -180,7 +171,6 @@ def anim_frame_warp_3d_cls(cls: Any, image: Union[None, Any]) -> Tuple[Any, Any]
 
     result = transform_image_3d_new(torch.device('cuda'), image, cls.gen.depth, rot_mat, translate_xyz,
                                           cls.gen, cls.gen.keys, cls.gen.frame_idx)
-    torch.cuda.empty_cache()
     return result, None
 
 
@@ -201,7 +191,6 @@ def anim_frame_warp_3d_direct(cls, image, x, y, z, rx, ry, rz):
     rot_mat = p3d.euler_angles_to_matrix(torch.tensor(rotate_xyz, device="cuda"), "XYZ").unsqueeze(0)
     result, mask = transform_image_3d_new(torch.device('cuda'), image, cls.gen.depth, rot_mat, translate_xyz,
                                           cls.gen, cls.gen.keys, cls.gen.frame_idx)
-    torch.cuda.empty_cache()
     return result, mask
 
 def hybrid_composite_cls(cls: Any) -> None:
@@ -439,6 +428,7 @@ def add_noise_cls(cls: Any) -> None:
         # use transformed previous frame as init for current
         cls.gen.use_init = True
         cls.gen.init_sample = Image.fromarray(cv2.cvtColor(noised_image, cv2.COLOR_BGR2RGB))
+        cls.gen.prev_img = noised_image
         cls.gen.strength = max(0.0, min(1.0, cls.gen.strength))
     return
 
@@ -457,7 +447,7 @@ def get_generation_params(cls: Any) -> None:
     frame_idx = cls.gen.frame_idx
     keys = cls.gen.keys
 
-    # print(f"\033[36mAnimation frame: \033[0m{frame_idx}/{cls.gen.max_frames}  ")
+    # logger.info(f"\033[36mAnimation frame: \033[0m{frame_idx}/{cls.gen.max_frames}  ")
 
     cls.gen.noise = keys.noise_schedule_series[frame_idx]
     cls.gen.strength = keys.strength_schedule_series[frame_idx]
@@ -699,7 +689,7 @@ def post_color_match_with_cls(cls: Any) -> None:
         None: Modifies the class instance attributes in place.
     """
     # color matching on first frame is after generation, color match was collected earlier, so we do an extra generation to avoid the corruption introduced by the color match of first output
-    if cls.gen.color_match_sample is not None:
+    if cls.gen.color_match_sample is not None and 'post' in cls.gen.color_match_at:
         if cls.gen.frame_idx == 0 and (cls.gen.color_coherence == 'Image' or (
                 cls.gen.color_coherence == 'Video Input' and cls.gen.hybrid_available)):
             image = maintain_colors(cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR), cls.gen.color_match_sample,
@@ -806,10 +796,10 @@ def post_gen_cls(cls: Any) -> None:
 
 def generate_interpolated_frames(cls):
     
-    turbo_prev_image = cls.gen.turbo_prev_image
-    turbo_next_image = cls.gen.turbo_next_image
-    turbo_prev_frame_idx = cls.gen.turbo_prev_frame_idx
-    turbo_next_frame_idx = cls.gen.turbo_next_frame_idx
+    turbo_prev_image = copy.deepcopy(cls.gen.turbo_prev_image)
+    turbo_next_image = copy.deepcopy(cls.gen.turbo_next_image)
+    turbo_prev_frame_idx = copy.deepcopy(cls.gen.turbo_prev_frame_idx)
+    turbo_next_frame_idx = copy.deepcopy(cls.gen.turbo_next_frame_idx)
     
     # emit in-between frames
     if cls.gen.turbo_steps > 1 and cls.gen.frame_idx > 1:
@@ -934,7 +924,7 @@ def generate_interpolated_frames(cls):
                 img = do_overlay_mask(cls.gen, cls.gen, img, tween_frame_idx, True)
 
             # get prev_img during cadence
-            prev_img = img
+            prev_img = copy.deepcopy(img)
 
 
             # current image update for cadence frames (left commented because it doesn't currently update the preview)
@@ -946,14 +936,14 @@ def generate_interpolated_frames(cls):
             # cv2.imwrite("current_cadence.png", img)
             cb_img = Image.fromarray(cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB))
             cls.datacallback({"image":cb_img, "operation_id":cls.gen.operation_id, "frame_idx":cls.gen.frame_idx})
-            cls.images.append(cb_img)
+            cls.images.append(copy.deepcopy(cb_img))
 
 
             if cls.gen.save_depth_maps:
                 cls.depth_model.save(os.path.join(cls.gen.outdir, f"{cls.gen.timestring}_depth_{tween_frame_idx:09}.png"), depth)
-            cls.gen.prev_img = prev_img
-            cls.gen.turbo_prev_image = turbo_prev_image
-            cls.gen.turbo_next_image = turbo_next_image
+            cls.gen.prev_img = copy.deepcopy(prev_img)
+            cls.gen.turbo_prev_image = copy.deepcopy(turbo_prev_image)
+            cls.gen.turbo_next_image = copy.deepcopy(turbo_next_image)
 
 
 
@@ -1196,7 +1186,7 @@ def film_interpolate_cls(cls: Any) -> None:
 
     film_in_between_frames_count = calculate_frames_to_add(len(cls.images), cls.gen.frame_interpolation_x_amount)
 
-    interpolated = interpolator(cls.images, film_in_between_frames_count)
+    interpolated = interpolator([Image.open(path) for path in cls.gen.image_paths], film_in_between_frames_count)
     cls.images = interpolated
     cls.gen.image_paths = []
     return

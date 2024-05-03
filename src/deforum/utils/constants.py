@@ -32,7 +32,7 @@ class AppConfig(LogConfig):
     def load():
         # The path under which all Deforum non-code assets will be stored (logs, outputs, models etc...)
         # defaults to <HOME>/deforum. Other paths configured below depend on this value unless overriden.
-        default_root_path = os.path.join(os.getenv('HOME'), 'deforum')
+        default_root_path = os.path.join(os.path.expanduser('~'), 'deforum')
         root_path = config('ROOT_PATH', default_root_path)
         os.makedirs(root_path, exist_ok=True)
         
@@ -49,14 +49,14 @@ class AppConfig(LogConfig):
             comfy_path = config('COMFY_PATH', default=os.path.join(src_path, "ComfyUI")),
             settings_path = config('SETTINGS_PATH', default=os.path.join(root_path, "settings")),
             model_dir = config('MODEL_PATH', default=os.path.join(root_path, "models")),
-            other_model_dir = config('OTHER_MODEL_PATH', default=os.path.join(root_path, "models/other")),
-            output_dir = config('OUTPUT_PATH', default=os.path.join(root_path, "output/deforum")),
+            other_model_dir = config('OTHER_MODEL_PATH', default=os.path.join(root_path, "models", "other")),
+            output_dir = config('OUTPUT_PATH', default=os.path.join(root_path, "output", "deforum")),
             comfy_update = config('COMFY_UPDATE', default=False, cast=bool),
             allow_blocking_input_frame_lists = config('ALLOW_BLOCKING_INPUT_FRAME_LISTS', default=False, cast=bool),
             projectm_docker_image = config('PROJECTM_DOCKER_IMAGE', default="rewbs/projectm-cli:0.0.4"),
             log_level = config('DEFORUM_LOG_LEVEL', default='DEBUG'),
             log_to_file = config('DEFORUM_LOG_TO_FILE', default=False, cast=bool),
-            log_file = config('DEFORUM_LOG_FILE',  default=os.path.join(root_path,'logs/app.log')),
+            log_file = config('DEFORUM_LOG_FILE',  default=os.path.join(root_path,'logs", "app.log')),
             log_max_bytes =  config('DEFORUM_LOG_FILE', cast=int, default=10485760),
             log_backup_count = config('DEFORUM_LOG_BACKUP_COUNT', cast=int, default=10485760)
         )
