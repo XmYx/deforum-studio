@@ -54,6 +54,7 @@ class DeforumCore(QMainWindow):
         super().__init__(parent)
         self.initMenu()
         self.params = {}
+        self.widgets = {}
 
     def initMenu(self):
         self.menuBar = self.menuBar()
@@ -140,6 +141,7 @@ class DeforumCore(QMainWindow):
         hbox.addWidget(QLabel(label))
         hbox.addWidget(spinBox)
         layout.addLayout(hbox)
+        self.widgets[key] = spinBox
         return spinBox
 
     def createDoubleSpinBox(self, label, layout, minimum, maximum, step, value, key):
@@ -156,6 +158,8 @@ class DeforumCore(QMainWindow):
         hbox.addWidget(QLabel(label))
         hbox.addWidget(spinBox)
         layout.addLayout(hbox)
+        self.widgets[key] = spinBox
+
         return spinBox
 
     def createTextBox(self, label, layout, value, key):
@@ -169,6 +173,8 @@ class DeforumCore(QMainWindow):
         # hbox.addWidget(QLabel(label))
         hbox.addWidget(textBox)
         layout.addLayout(hbox)
+        self.widgets[key] = textBox.text_box
+
         return textBox.text_box
 
     def createCheckBox(self, label, layout, default, key):
@@ -180,6 +186,8 @@ class DeforumCore(QMainWindow):
         checkBox.stateChanged.connect(self.onStateChanged)
         layout.addWidget(checkBox)
         self.params[key] = default  # Initialize the parameter dictionary
+        self.widgets[key] = checkBox
+
         return checkBox
 
     def createComboBox(self, label, layout, items, key):
@@ -193,6 +201,7 @@ class DeforumCore(QMainWindow):
         hbox.addWidget(comboBox)
         layout.addLayout(hbox)
         self.params[key] = comboBox.currentText()  # Initialize the parameter dictionary with the current text
+        self.widgets[key] = comboBox
         return comboBox
 
     def createPushButton(self, label, layout, function):
