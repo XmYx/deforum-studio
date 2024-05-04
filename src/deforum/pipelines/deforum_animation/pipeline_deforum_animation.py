@@ -2,6 +2,7 @@ import gc
 import json
 import math
 import os
+import re
 import secrets
 import shutil
 import time
@@ -365,22 +366,41 @@ class DeforumAnimationPipeline(DeforumBase):
                     return 0  # Default to 0 if conversion fails
 
             resume_timestring = self.gen.resume_timestring
-
-            print("GETTING VARS FROM", self.gen.outdir, self.gen.resume_from_timestring)
-
             if hasattr(self.gen, 'resume_from') and hasattr(self.gen, 'resume_from_frame'):
                 if self.gen.resume_from_frame:
                     resume_from = self.gen.resume_from
 
                     parent_dir = os.path.dirname(self.gen.resume_path)
-                    existing_versions = [d for d in os.listdir(parent_dir) if
-                                         d.startswith(os.path.basename(self.gen.resume_path) + "_v")]
-                    next_version = max(
-                        [int(v.split('_v')[-1]) for v in existing_versions]) + 1 if existing_versions else 1
+                    # existing_versions = [d for d in os.listdir(parent_dir) if
+                    #                      d.startswith(os.path.basename(self.gen.resume_path) + "_v")]
+                    # next_version = max(
+                    #     [int(v.split('_v')[-1]) for v in existing_versions]) + 1 if existing_versions else 1
+                    #
+                    # if existing_versions:
+                    #     new_outdir = self.gen.resume_path.replace(f"_v{existing_versions[-1].split('_v')[-1]}', f'_v{next_version}")
+                    # else:
+                    #
+                    #     new_outdir = os.path.join(parent_dir, f"{os.path.basename(self.gen.resume_path)}_v{next_version}")
+                    def strip_version_suffix(path):
+                        # Regex to remove the version suffix from the path
+                        return re.sub(r'_v\d+$', '', os.path.basename(path))
+                    stripped = strip_version_suffix(self.gen.resume_path)
+                    existing_versions = [d for d in os.listdir(parent_dir)
+                                         if os.path.isdir(os.path.join(parent_dir, d)) and
+                                         d.startswith(stripped + "_v")]
+                    # Compute the next version number
+                    if existing_versions:
+                        # Extract version numbers and find the maximum
+                        max_version = max(int(d.split('_v')[-1]) for d in existing_versions)
+                        next_version = max_version + 1
+                        new_outdir = self.gen.resume_path.replace(f"_v{max_version}", f"_v{next_version}")
+                    else:
+                        next_version = 1
+                        new_outdir = os.path.join(parent_dir,
+                                                  f"{os.path.basename(self.gen.resume_path)}_v{next_version}")
 
-                    new_outdir = os.path.join(parent_dir, f"{os.path.basename(self.gen.resume_path)}_v{next_version}")
+                    # Your subsequent code for using new_outdir
                     os.makedirs(new_outdir, exist_ok=True)
-
                     image_files = sorted(glob(os.path.join(self.gen.resume_path, '*.png')), key=numeric_key)
                     files_to_copy = image_files[:resume_from]
                     for file in files_to_copy:
@@ -407,9 +427,7 @@ class DeforumAnimationPipeline(DeforumBase):
             if self.gen.turbo_steps > 1:
                 self.gen.turbo_prev_image, self.gen.turbo_prev_frame_idx = prev_img, prev_frame
                 self.gen.turbo_next_image, self.gen.turbo_next_frame_idx = next_img, next_frame
-
             start_frame = next_frame + 1
-
             self.gen.image = next_img
             self.gen.init_image = next_img
             self.gen.prev_img = prev_img
