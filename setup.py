@@ -1,9 +1,7 @@
-
 import platform
 import re
 import sys
 from distutils.core import Command
-
 from setuptools import find_packages, setup
 
 python_version = '.'.join(map(str, sys.version_info[:2]))
@@ -93,7 +91,8 @@ _deps = [
     'diffusers>=0.27.2',
     'python-decouple',
     'imageio[ffmpeg]==2.34.1',
-    'xformers==0.0.26.post1'
+    'xformers==0.0.26.post1',
+    'loguru==0.7.2'
 ]
 
 # this is a lookup table with items like:
