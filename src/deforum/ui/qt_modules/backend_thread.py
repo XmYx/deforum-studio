@@ -56,7 +56,8 @@ class BackendThread(QThread):
             animation = models["deforum_pipe"](callback=datacallback, **self.params) if not use_settings_file else models["deforum_pipe"](callback=datacallback, settings_file=file_path)
             result = {"status":"Ready",
                       "timestring":animation.timestring,
-                      "resume_path":animation.outdir}
+                      "resume_path":animation.outdir,
+                      "resume_from":len(animation.images)}
             if hasattr(animation, 'video_path'):
                 result["video_path"] = animation.video_path
             self.finished.emit(result)

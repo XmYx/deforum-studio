@@ -42,7 +42,7 @@ from .animation_helpers import (
     DeforumAnimKeys,
     LooperAnimKeys,
     generate_interpolated_frames,
-    rife_interpolate_cls
+    rife_interpolate_cls, cls_subtitle_handler
 )
 
 from .parseq_adapter import ParseqAdapter
@@ -327,6 +327,10 @@ class DeforumAnimationPipeline(DeforumBase):
             self.shoot_fns.append(overlay_mask_cls)
 
         self.shoot_fns.append(post_gen_cls)
+
+        if hasattr(self.gen, "deforum_save_gen_info_as_srt"):
+            if self.gen.deforum_save_gen_info_as_srt:
+                self.shoot_fns.append(cls_subtitle_handler)
         if self.gen.frame_interpolation_engine is not None:
             if self.gen.max_frames > 3:
                 if self.gen.frame_interpolation_engine == "FILM":
@@ -377,16 +381,22 @@ class DeforumAnimationPipeline(DeforumBase):
                     os.makedirs(new_outdir, exist_ok=True)
 
                     # Determine which files to copy based on resume_from
-                    sorted_files = sorted(glob(os.path.join(self.gen.resume_path, '*.*')),
-                                          key=lambda x: os.path.getmtime(x))  # Adjust sorting key if necessary
-                    files_to_copy = sorted_files[:resume_from]  # Copy only up to the `resume_from` index
-
+                    image_files = sorted(
+                        glob(os.path.join(self.gen.resume_path, '*.png')),  # Adjust the pattern if necessary
+                        key=os.path.getmtime
+                    )
+                    files_to_copy = image_files[:resume_from]  # Copy only up to the `resume_from` index
+                    files_to_copy.reverse()
                     # Copy the filtered files to the new versioned directory
                     for file in files_to_copy:
                         shutil.copy(file, new_outdir)
 
                     # Update resume_path to the new versioned directory
                     self.gen.resume_path = new_outdir
+
+                    if self.gen.max_frames <= resume_from:
+                        self.gen.max_frames += 1
+
             image_files = sorted(
                 glob(os.path.join(self.gen.resume_path, '*.png')),  # Adjust the pattern if necessary
                 key=os.path.getmtime
@@ -394,6 +404,7 @@ class DeforumAnimationPipeline(DeforumBase):
 
             # Loading images into memory and paths into list
             self.images = [Image.open(img_path) for img_path in image_files]
+
             self.image_paths = image_files
             # determine last frame and frame to start on
             batch_name, prev_frame, next_frame, prev_img, next_img = get_resume_vars(
@@ -414,15 +425,16 @@ class DeforumAnimationPipeline(DeforumBase):
             # advance start_frame to next frame
             start_frame = next_frame + 1
 
-            self.gen.image = prev_img
-            self.gen.init_image = prev_img
+            self.gen.image = next_img
+            self.gen.init_image = next_img
             self.gen.prev_img = prev_img
-            self.gen.opencv_image = prev_img
+            self.gen.opencv_image = next_img
             self.gen.width, self.gen.height = prev_img.shape[1], prev_img.shape[0]
             self.gen.frame_idx = start_frame
             self.gen.use_init = True
 
         self.gen.image_paths = []
+
     def live_update_from_kwargs(self, **kwargs):
         try:
 
@@ -1133,3 +1145,7 @@ def get_next_prompt_and_blend(current_index, prompt_series, blend_type="exponent
     blend_value = blend_values[1]  # Blend value for the next frame after the current index
 
     return prompt_series.iloc[next_prompt_start], blend_value
+
+
+
+

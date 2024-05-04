@@ -37,7 +37,7 @@ def get_resume_vars(resume_path, timestring, cadence):
 
     last_frame = frame_count - (frame_count % cadence)
     prev_frame = last_frame - cadence
-    next_frame = last_frame - 1
+    next_frame = frame_count - 1
 
     prev_img_path = os.path.join(resume_path, f"{timestring}_{prev_frame:09}.png")
     next_img_path = os.path.join(resume_path, f"{timestring}_{next_frame:09}.png")

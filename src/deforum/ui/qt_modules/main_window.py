@@ -292,6 +292,28 @@ class MainWindow(DeforumCore):
         mainLayout.addLayout(controlsLayout)
 
         self.videoSubWindow.widget().setLayout(mainLayout)
+        self.videoSlider.valueChanged.connect(self.setResumeFrom)
+
+    def setResumeFrom(self, position):
+        # Assuming the frame rate is stored in self.frameRate
+        frame_rate = self.params.get('fps', 24)  # you'll need to set this appropriately
+        frame_number = int((position / 1000) * frame_rate)
+        self.params["resume_from"] = frame_number + 1
+        # Update the widget directly if necessary
+        if 'resume_from' in self.widgets:
+            self.widgets['resume_from'].setValue(frame_number)
+
+    # def setResumeFrom(self, to):
+    #     # Assuming position is in milliseconds and you want to convert it to seconds
+    #     seconds = to // 1000
+    #     self.params["resume_from"] = seconds
+    #     # Update the widget directly if necessary
+    #     if 'resume_from' in self.widgets:
+    #         self.widgets['resume_from'].setValue(seconds)
+    #
+    #     # self.params["resume_from"] = to
+    #     # self.widgets['resume_from'].setValue(to)
+
     def tileMdiSubWindows(self):
         """Resize and evenly distribute all subwindows in the MDI area."""
         # Optionally, set a uniform size for all subwindows
@@ -319,17 +341,28 @@ class MainWindow(DeforumCore):
 
     def updateDuration(self, duration):
         self.videoSlider.setMaximum(duration)
+        # Optionally, you might want to adjust the ticks interval based on the video duration
+        self.videoSlider.setTickInterval(duration // 100)  # For example, 100 ticks across the slider
 
     @pyqtSlot(dict)
     def playVideo(self, data):
-        # Play video in the QMediaPlayer
+        # Stop the player and reset its state before loading a new video
+        self.player.stop()
+        self.player.setSource(QUrl())  # Reset the source to clear buffers
+
         if 'video_path' in data:
-            self.player.setSource(QUrl.fromLocalFile(data['video_path']))
-            self.player.play()
-            self.videoSubWindow.show()  # Ensure the video subwindow is visible
+            try:
+                # Set new video source and attempt to play
+                self.player.setSource(QUrl.fromLocalFile(data['video_path']))
+                self.player.play()
+            except Exception as e:
+                print(f"Error playing video: {e}")
+                self.player.stop()  # Ensure player is stopped on error
+
         if 'timestring' in data:
             self.params['resume_timestring'] = data['timestring']
             self.params['resume_path'] = data['resume_path']
+            self.params['resume_from'] = data['resume_from']
             self.updateUIFromParams()
 
     def addDock(self, title, area):
@@ -351,6 +384,11 @@ class MainWindow(DeforumCore):
     def startBackendProcess(self):
         #params = {key: widget.value() for key, widget in self.params.items() if hasattr(widget, 'value')}
         # if not self.thread:
+
+        if self.params['resume_from_timestring']:
+            self.params['max_frames'] += 1
+            self.updateUIFromParams()
+
         self.thread = BackendThread(self.params)
         self.thread.imageGenerated.connect(self.updateImage)
         self.thread.finished.connect(self.playVideo)
@@ -415,10 +453,8 @@ class MainWindow(DeforumCore):
     def updateParam(self, key, value):
         super().updateParam(key, value)
         from deforum.shared_storage import models
-
         # Load the deforum pipeline if not already loaded
         if "deforum_pipe" in models:
-
             prom = self.params.get('prompts', 'cat sushi')
             key = self.params.get('keyframes', '0')
             if prom == "":
@@ -436,7 +472,7 @@ class MainWindow(DeforumCore):
             models["deforum_pipe"].live_update_from_kwargs(**self.params)
             print("UPDATED DEFORUM PARAMS")
     def updateUIFromParams(self):
-        for widget in self.findChildren(QWidget):
+        for k, widget in self.widgets.items():
             if hasattr(widget, 'accessibleName'):
                 key = widget.accessibleName()
                 if key in self.params:

@@ -20,6 +20,10 @@
       "widget_type": "checkbox",
       "default": false,
       "label": "Dry Run"},
+    "deforum_save_gen_info_as_srt": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Save SRT Subtitle"},
     "resume_from_timestring": {
       "widget_type": "checkbox",
       "default": false,
@@ -27,7 +31,7 @@
     "resume_from_frame": {
       "widget_type": "checkbox",
       "default": false,
-      "label": "Resume"},
+      "label": "Resume From Frame"},
     "resume_from": {
       "widget_type": "number",
       "default": 1,
