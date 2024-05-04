@@ -331,11 +331,11 @@ class ComfyDeforumGenerator:
                     output_clipvision=False,
                 )
             )
-            print(self.model.offload_device)
+            #print(self.model.offload_device)
             self.clip.patcher.offload_device = torch.device("cuda")
             self.vae.patcher.offload_device = torch.device("cuda")
-            print(self.clip.patcher.offload_device)
-            print(self.vae.patcher.offload_device)
+            #print(self.clip.patcher.offload_device)
+            #print(self.vae.patcher.offload_device)
             self.vae.first_stage_model.cuda()
 
             settings_node = NODE_CLASS_MAPPINGS["smZ Settings"]()
