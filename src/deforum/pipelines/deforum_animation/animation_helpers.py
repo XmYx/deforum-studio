@@ -1248,9 +1248,10 @@ def rife_interpolate_cls(cls: Any) -> None:
 def save_video_cls(cls):
     dir_path = os.path.join(root_path, 'output/video')
     os.makedirs(dir_path, exist_ok=True)
-
-    name = f'{cls.gen.batch_name}_{cls.gen.timestring}'
-
+    if cls.gen.timestring not in cls.gen.batch_name:
+        name = f'{cls.gen.batch_name}_{cls.gen.timestring}'
+    else:
+        name = f'{cls.gen.batch_name}'
     output_filename_base = os.path.join(dir_path, name)
     cls.gen.images = cls.images
 

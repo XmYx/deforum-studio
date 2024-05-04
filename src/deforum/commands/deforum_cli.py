@@ -4,6 +4,7 @@ import random
 import subprocess
 import sys
 
+from deforum.commands.deforum_run_unit_test import run_unit_test
 from deforum.utils.logging_config import logger
 
 def install_pyqt6():
@@ -31,7 +32,7 @@ def start_deforum_cli():
 
     parser = argparse.ArgumentParser(description="Load settings from a txt file and run the deforum process.")
     # Positional mode argument
-    parser.add_argument("mode", choices=['webui', 'animatediff', 'runpresets', 'api', 'setup', 'ui', 'runsingle', 'config'], default=None, nargs='?',
+    parser.add_argument("mode", choices=['webui', 'animatediff', 'runpresets', 'api', 'setup', 'ui', 'runsingle', 'config', 'unittest'], default=None, nargs='?',
                         help="Choose the mode to run.")
 
     parser.add_argument("--file", type=str, help="Path to the deforum settings file.")
@@ -229,7 +230,8 @@ def start_deforum_cli():
             # Construct the path to main.py
             main_script_path = os.path.join(deforum_directory, "commands", "deforum_config.py")
             subprocess.run([sys.executable, main_script_path])
-
+        elif args_main.mode == "unittest":
+            run_unit_test(options, extra_args)
     else:
         from deforum import DeforumAnimationPipeline
         deforum = DeforumAnimationPipeline.from_civitai()

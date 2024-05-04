@@ -510,7 +510,7 @@ class DeforumAnimationPipeline(DeforumBase):
         #     self.gen.width, self.gen.height = prev_img.shape[1], prev_img.shape[0]
         #     self.gen.frame_idx = start_frame
         #     self.gen.use_init = True
-
+        os.makedirs(self.gen.outdir, exist_ok=True)
         self.gen.image_paths = []
 
     def live_update_from_kwargs(self, **kwargs):
@@ -533,11 +533,13 @@ class DeforumAnimationPipeline(DeforumBase):
                     prompt_series[int(numexpr.evaluate(i))] = prompt
             prompt_series = prompt_series.ffill().bfill()
             self.gen.prompt_series = prompt_series
+            self.gen.max_frames -= 5
             logger.infe("[DEFORUM] Live Updated")
         except:
-            logger.info("[DEFORUM] Live Update Failed")
-        finally:
-            self.gen.max_frames -= 5
+            pass
+            # logger.info("[DEFORUM] Live Update Failed")
+
+
     def log_function_lists(self):
         if self.logging:
             setup_end = time.time()

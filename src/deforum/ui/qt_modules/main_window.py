@@ -408,14 +408,18 @@ class MainWindow(DeforumCore):
     def runNextJob(self):
         if self.job_queue:
             self.current_job = self.job_queue.pop(0)
-            self.current_job.markRunning()  # Mark the job as running
-            self.params.update(self.current_job.job_data)
-            self.updateUIFromParams()
-            self.thread = BackendThread(self.current_job.job_data)
-            self.thread.finished.connect(self.onJobFinished)
-            self.thread.imageGenerated.connect(self.updateImage)
-            self.thread.finished.connect(self.playVideo)
-            self.thread.start()
+            try:
+                self.current_job.markRunning()  # Mark the job as running
+                # self.params.update(self.current_job.job_data)
+                # self.updateUIFromParams()
+                self.thread = BackendThread(self.current_job.job_data)
+                self.thread.finished.connect(self.onJobFinished)
+                self.thread.imageGenerated.connect(self.updateImage)
+                self.thread.finished.connect(self.playVideo)
+                self.thread.start()
+            except:
+                self.current_job = None
+                self.startBatchProcess()
 
     @pyqtSlot(dict)
     def onJobFinished(self, result):
@@ -452,25 +456,28 @@ class MainWindow(DeforumCore):
             # self.timelineWidget.add_image_to_track(qpixmap)
     def updateParam(self, key, value):
         super().updateParam(key, value)
-        from deforum.shared_storage import models
-        # Load the deforum pipeline if not already loaded
-        if "deforum_pipe" in models:
-            prom = self.params.get('prompts', 'cat sushi')
-            key = self.params.get('keyframes', '0')
-            if prom == "":
-                prom = "Abstract art"
-            if key == "":
-                key = "0"
+        try:
+            from deforum.shared_storage import models
+            # Load the deforum pipeline if not already loaded
+            if "deforum_pipe" in models:
+                prom = self.params.get('prompts', 'cat sushi')
+                key = self.params.get('keyframes', '0')
+                if prom == "":
+                    prom = "Abstract art"
+                if key == "":
+                    key = "0"
 
-            if not isinstance(prom, dict):
-                new_prom = list(prom.split("\n"))
-                new_key = list(key.split("\n"))
-                self.params["animation_prompts"] = dict(zip(new_key, new_prom))
-            else:
-                self.params["animation_prompts"] = prom
+                if not isinstance(prom, dict):
+                    new_prom = list(prom.split("\n"))
+                    new_key = list(key.split("\n"))
+                    self.params["animation_prompts"] = dict(zip(new_key, new_prom))
+                else:
+                    self.params["animation_prompts"] = prom
 
-            models["deforum_pipe"].live_update_from_kwargs(**self.params)
-            print("UPDATED DEFORUM PARAMS")
+                models["deforum_pipe"].live_update_from_kwargs(**self.params)
+                print("UPDATED DEFORUM PARAMS")
+        except:
+            pass
     def updateUIFromParams(self):
         for k, widget in self.widgets.items():
             if hasattr(widget, 'accessibleName'):
