@@ -355,58 +355,45 @@ class DeforumAnimationPipeline(DeforumBase):
             self.gen.prev_img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
             self.gen.opencv_image = self.gen.prev_img
         start_frame = 0
-
-        # resume animation (requires at least two frames - see function)
         if self.gen.resume_from_timestring:
+            def numeric_key(filename):
+                # Extract the numeric part from the filename, assuming it follows the last underscore '_'
+                parts = os.path.splitext(filename)[0].split('_')
+                try:
+                    return int(parts[-1])  # Convert the last part to integer
+                except ValueError:
+                    return 0  # Default to 0 if conversion fails
+
             resume_timestring = self.gen.resume_timestring
 
             print("GETTING VARS FROM", self.gen.outdir, self.gen.resume_from_timestring)
-            # Load and sort images by creation order
+
             if hasattr(self.gen, 'resume_from') and hasattr(self.gen, 'resume_from_frame'):
                 if self.gen.resume_from_frame:
                     resume_from = self.gen.resume_from
 
-                    # Determine the next version number by examining existing directories
                     parent_dir = os.path.dirname(self.gen.resume_path)
                     existing_versions = [d for d in os.listdir(parent_dir) if
                                          d.startswith(os.path.basename(self.gen.resume_path) + "_v")]
-                    if existing_versions:
-                        latest_version = max([int(v.split('_v')[-1]) for v in existing_versions])
-                        next_version = latest_version + 1
-                    else:
-                        next_version = 1
+                    next_version = max(
+                        [int(v.split('_v')[-1]) for v in existing_versions]) + 1 if existing_versions else 1
 
-                    # Establish new versioned output directory
                     new_outdir = os.path.join(parent_dir, f"{os.path.basename(self.gen.resume_path)}_v{next_version}")
                     os.makedirs(new_outdir, exist_ok=True)
 
-                    # Determine which files to copy based on resume_from
-                    image_files = sorted(
-                        glob(os.path.join(self.gen.resume_path, '*.png')),  # Adjust the pattern if necessary
-                        key=os.path.getmtime
-                    )
-                    files_to_copy = image_files[:resume_from]  # Copy only up to the `resume_from` index
-                    files_to_copy.reverse()
-                    # Copy the filtered files to the new versioned directory
+                    image_files = sorted(glob(os.path.join(self.gen.resume_path, '*.png')), key=numeric_key)
+                    files_to_copy = image_files[:resume_from]
                     for file in files_to_copy:
                         shutil.copy(file, new_outdir)
 
-                    # Update resume_path to the new versioned directory
                     self.gen.resume_path = new_outdir
-
                     if self.gen.max_frames <= resume_from:
                         self.gen.max_frames += 1
 
-            image_files = sorted(
-                glob(os.path.join(self.gen.resume_path, '*.png')),  # Adjust the pattern if necessary
-                key=os.path.getmtime
-            )
-
-            # Loading images into memory and paths into list
+            image_files = sorted(glob(os.path.join(self.gen.resume_path, '*.png')), key=numeric_key)
             self.images = [Image.open(img_path) for img_path in image_files]
-
             self.image_paths = image_files
-            # determine last frame and frame to start on
+
             batch_name, prev_frame, next_frame, prev_img, next_img = get_resume_vars(
                 resume_path=self.gen.resume_path,
                 timestring=self.gen.resume_timestring,
@@ -417,12 +404,10 @@ class DeforumAnimationPipeline(DeforumBase):
             self.gen.batch_name = batch_name
             self.gen.outdir = os.path.join(root_path, f"output/deforum/{batch_name}")
 
-            # set up turbo step vars
             if self.gen.turbo_steps > 1:
                 self.gen.turbo_prev_image, self.gen.turbo_prev_frame_idx = prev_img, prev_frame
                 self.gen.turbo_next_image, self.gen.turbo_next_frame_idx = next_img, next_frame
 
-            # advance start_frame to next frame
             start_frame = next_frame + 1
 
             self.gen.image = next_img
@@ -432,6 +417,81 @@ class DeforumAnimationPipeline(DeforumBase):
             self.gen.width, self.gen.height = prev_img.shape[1], prev_img.shape[0]
             self.gen.frame_idx = start_frame
             self.gen.use_init = True
+        # resume animation (requires at least two frames - see function)
+        # if self.gen.resume_from_timestring:
+        #     resume_timestring = self.gen.resume_timestring
+        #
+        #     print("GETTING VARS FROM", self.gen.outdir, self.gen.resume_from_timestring)
+        #     # Load and sort images by creation order
+        #     if hasattr(self.gen, 'resume_from') and hasattr(self.gen, 'resume_from_frame'):
+        #         if self.gen.resume_from_frame:
+        #             resume_from = self.gen.resume_from
+        #
+        #             # Determine the next version number by examining existing directories
+        #             parent_dir = os.path.dirname(self.gen.resume_path)
+        #             existing_versions = [d for d in os.listdir(parent_dir) if
+        #                                  d.startswith(os.path.basename(self.gen.resume_path) + "_v")]
+        #             if existing_versions:
+        #                 latest_version = max([int(v.split('_v')[-1]) for v in existing_versions])
+        #                 next_version = latest_version + 1
+        #             else:
+        #                 next_version = 1
+        #
+        #             # Establish new versioned output directory
+        #             new_outdir = os.path.join(parent_dir, f"{os.path.basename(self.gen.resume_path)}_v{next_version}")
+        #             os.makedirs(new_outdir, exist_ok=True)
+        #
+        #             # Determine which files to copy based on resume_from
+        #             image_files = sorted(
+        #                 glob(os.path.join(self.gen.resume_path, '*.png')),  # Adjust the pattern if necessary
+        #                 key=os.path.getmtime
+        #             )
+        #             files_to_copy = image_files[:resume_from]  # Copy only up to the `resume_from` index
+        #             # Copy the filtered files to the new versioned directory
+        #             for file in files_to_copy:
+        #                 shutil.copy(file, new_outdir)
+        #
+        #             # Update resume_path to the new versioned directory
+        #             self.gen.resume_path = new_outdir
+        #
+        #             if self.gen.max_frames <= resume_from:
+        #                 self.gen.max_frames += 1
+        #
+        #     image_files = sorted(
+        #         glob(os.path.join(self.gen.resume_path, '*.png')),  # Adjust the pattern if necessary
+        #         key=os.path.getmtime
+        #     )
+        #
+        #     # Loading images into memory and paths into list
+        #     self.images = [Image.open(img_path) for img_path in image_files]
+        #
+        #     self.image_paths = image_files
+        #     # determine last frame and frame to start on
+        #     batch_name, prev_frame, next_frame, prev_img, next_img = get_resume_vars(
+        #         resume_path=self.gen.resume_path,
+        #         timestring=self.gen.resume_timestring,
+        #         cadence=self.gen.turbo_steps
+        #     )
+        #     batch_name = self.gen.resume_path.split('/')[-1]
+        #     self.gen.timestring = resume_timestring
+        #     self.gen.batch_name = batch_name
+        #     self.gen.outdir = os.path.join(root_path, f"output/deforum/{batch_name}")
+        #
+        #     # set up turbo step vars
+        #     if self.gen.turbo_steps > 1:
+        #         self.gen.turbo_prev_image, self.gen.turbo_prev_frame_idx = prev_img, prev_frame
+        #         self.gen.turbo_next_image, self.gen.turbo_next_frame_idx = next_img, next_frame
+        #
+        #     # advance start_frame to next frame
+        #     start_frame = next_frame + 1
+        #
+        #     self.gen.image = next_img
+        #     self.gen.init_image = next_img
+        #     self.gen.prev_img = prev_img
+        #     self.gen.opencv_image = next_img
+        #     self.gen.width, self.gen.height = prev_img.shape[1], prev_img.shape[0]
+        #     self.gen.frame_idx = start_frame
+        #     self.gen.use_init = True
 
         self.gen.image_paths = []
 
