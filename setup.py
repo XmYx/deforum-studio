@@ -198,7 +198,8 @@ extras["dev"] = deps_list('torch',
                           'python-decouple',
                           'imageio[ffmpeg]',
                           'xformers',
-                          'kornia'
+                          'kornia',
+                          'loguru'
                           )
 
 extras["cli"] = deps_list('torch',
