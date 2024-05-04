@@ -104,11 +104,11 @@ def load_custom_node(module_path, ignore=set()):
 def ensure_comfy(custom_path=None):
     curr_folder = os.getcwd()
     comfy_submodules = [
-        'https://github.com/XmYx/ComfyUI-AnimateDiff-Evolved',
+        # 'https://github.com/XmYx/ComfyUI-AnimateDiff-Evolved',
         'https://github.com/ltdrdata/ComfyUI-Inspire-Pack',
         'https://github.com/ltdrdata/ComfyUI-Impact-Pack',
         'https://github.com/shiimizu/ComfyUI_smZNodes',
-        'https://github.com/gameltb/ComfyUI_stable_fast'
+        # 'https://github.com/gameltb/ComfyUI_stable_fast'
     ]
     comfy_submodule_folders = [url.split("/")[-1] for url in comfy_submodules]
     comfy_path = custom_path or config.comfy_path
