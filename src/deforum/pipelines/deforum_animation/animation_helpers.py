@@ -40,6 +40,7 @@ from ...utils.image_utils import (load_image,
                                   get_mask_from_file, do_overlay_mask, save_image, maintain_colors,
                                   compose_mask_with_check)
 from ...utils.string_utils import check_is_number, prepare_prompt
+from ...utils.subtitle_handler import init_srt_file, format_animation_params, write_frame_subtitle
 from ...utils.video_frame_utils import (get_frame_name,
                                         get_next_frame)
 from ...utils.video_save_util import save_as_h264
@@ -1235,7 +1236,7 @@ def rife_interpolate_cls(cls: Any) -> None:
     print(f"Interpolated frame count: {len(new_images)}")
 
     # Replace the original images with the new, interpolated ones
-    cls.images = new_images
+    cls.gen.images = new_images
 
 
     # Optionally clear image paths if no longer needed
@@ -1247,11 +1248,12 @@ def rife_interpolate_cls(cls: Any) -> None:
 def save_video_cls(cls):
     dir_path = os.path.join(root_path, 'output/video')
     os.makedirs(dir_path, exist_ok=True)
-
-    name = f'{cls.gen.batch_name}_{cls.gen.timestring}'
-
+    if cls.gen.timestring not in cls.gen.batch_name:
+        name = f'{cls.gen.batch_name}_{cls.gen.timestring}'
+    else:
+        name = f'{cls.gen.batch_name}'
     output_filename_base = os.path.join(dir_path, name)
-
+    cls.gen.images = cls.images
 
     audio_path = None
     if hasattr(cls.gen, 'video_init_path'):
@@ -1259,7 +1261,7 @@ def save_video_cls(cls):
 
     fps = getattr(cls.gen, "fps", 24)  # Using getattr to simplify fetching attributes with defaults
     try:
-        save_as_h264(cls.images, output_filename_base + ".mp4", audio_path=audio_path, fps=fps)
+        save_as_h264(cls.gen.images, output_filename_base + ".mp4", audio_path=audio_path, fps=fps)
     except Exception as e:
         logger.error(f"save as h264 failed: {str(e)}")
     cls.gen.video_path = output_filename_base + ".mp4"
@@ -1279,6 +1281,16 @@ def calculate_frames_to_add(total_frames: int, interp_x: float) -> int:
     frames_to_add = (total_frames * interp_x - total_frames) / (total_frames - 1)
     return int(round(frames_to_add))
 
+def cls_subtitle_handler(cls):
+    if hasattr(cls.gen, "deforum_save_gen_info_as_srt"):
+        if cls.gen.deforum_save_gen_info_as_srt:
+            if cls.gen.frame_idx == 0 or not hasattr(cls.gen, 'srt_filename'):
+                cls.gen.srt_filename = os.path.join(cls.gen.outdir, f"{cls.gen.timestring}.srt")
+                cls.gen.srt_frame_duration = init_srt_file(cls.gen.srt_filename, cls.gen.fps)
+            params_to_print = ["Trans X", "Trans Y", "Trans Z", "Str Sch", "Subseed Str Sch"]
+            params_string = format_animation_params(cls.gen.keys, cls.gen.prompt_series, cls.gen.frame_idx, params_to_print)
+            write_frame_subtitle(cls.gen.srt_filename, cls.gen.frame_idx, cls.gen.srt_frame_duration,
+                                 f"F#: {cls.gen.frame_idx}; Cadence: false; Seed: {cls.gen.seed}; {params_string}")
 
 class DeforumAnimKeys():
     def __init__(self, anim_args, seed=-1, *args, **kwargs):
