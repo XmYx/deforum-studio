@@ -46,6 +46,8 @@ Deforum has the following CLI modes:
 - `deforum api`: FastAPI server
 - `deforum setup`: Install Stable-Fast optimizations
 - `deforum runsingle --file ~/deforum/presets/preset.txt`: Run single settings file
+- `deforum config`
+- `deforum unittest`: Run unit test
 
 ## Documentation
 Documentation for Deforum is currently a work in progress and will be included as part of this library in the future.
