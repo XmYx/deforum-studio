@@ -60,8 +60,6 @@ class DetachableTabWidget(QTabWidget):
             dock.setFloating(True)
             dock.show()
 
-            # self.removeTab(index)
-
 
 class AutoReattachDockWidget(QDockWidget):
     def __init__(self, title, parent=None, original_widget=None, tab_widget=None):
@@ -84,6 +82,9 @@ class MainWindow(DeforumCore):
         self.setupDynamicUI()
         self.currentTrack = None  # Store the currently selected track
         self.presets_folder = os.path.join(os.path.expanduser('~'), 'deforum', 'presets')
+        self.projects_folder = os.path.join(os.path.expanduser('~'), 'deforum', 'projects')
+        os.makedirs(self.presets_folder, exist_ok=True)
+        os.makedirs(self.projects_folder, exist_ok=True)
         self.loadPresetsDropdown()
         self.presetsDropdown.activated.connect(self.loadPresetsDropdown)
         self.setupVideoPlayer()
@@ -92,6 +93,59 @@ class MainWindow(DeforumCore):
         self.setupBatchControls()
         self.job_queue = []  # List to keep jobs to be processed
         self.current_job = None  # To keep track of the currently running job
+        self.setupMenu()
+        self.newProject()
+
+    def setupMenu(self):
+        menuBar = self.menuBar()
+
+        fileMenu = menuBar.addMenu('&File')
+
+        newProjectAction = QAction('&New Project', self)
+        newProjectAction.triggered.connect(self.newProject)
+        fileMenu.addAction(newProjectAction)
+
+        loadProjectAction = QAction('&Load Project', self)
+        loadProjectAction.triggered.connect(self.loadProject)
+        fileMenu.addAction(loadProjectAction)
+
+        saveProjectAction = QAction('&Save Project', self)
+        saveProjectAction.triggered.connect(self.saveProject)
+        fileMenu.addAction(saveProjectAction)
+
+    def newProject(self):
+        # Reset the current project
+        # self.params = {}  # Reset or set to default values
+        # self.job_queue = []  # Clear any existing jobs
+        # self.current_job = None
+        # self.jobQueueList.clear()
+        self.project = {
+            'params': {},  # Global parameters if any
+            'frames': {}  # Dictionary to store parameters per frame
+        }
+        # Reset other necessary parts of the UI and data
+
+    def loadProject(self):
+        # Load project settings and parameters from a file
+        fname = QFileDialog.getOpenFileName(self, 'Open Project File', self.projects_folder, 'Deforum Project Files (*.dproj)')
+        if fname[0]:
+            with open(fname[0], 'r') as file:
+                self.project = json.load(file)  # Load the entire project dictionary
+                if 'frames' in self.project and self.project['frames']:
+                    # Assuming frames are stored with an index key that starts at 0
+                    self.params = self.project['frames'].get('1', self.params)
+                # else:
+                #     self.params = self.project.get('params', {})
+                    self.updateUIFromParams()  # Update UI elements with loaded params
+
+    def saveProject(self):
+        # Save current settings and entire project data to a file
+        fname = QFileDialog.getSaveFileName(self, 'Save Project File', self.projects_folder, 'Deforum Project Files (*.dproj)')
+        if fname[0]:
+            if not fname[0].endswith('.dproj'):
+                fname = fname[0] + '.dproj'  # Ensure the file has the correct extension
+            with open(fname, 'w') as file:
+                json.dump(self.project, file, indent=4)  # Save the entire project dictionary
 
     def onJobDoubleClicked(self, item):
         widget = self.jobQueueList.itemWidget(item)
@@ -506,6 +560,27 @@ class MainWindow(DeforumCore):
             qpixmap = npArrayToQPixmap(np.array(img).astype(np.uint8))  # Convert to QPixmap
             self.previewLabel.setPixmap(qpixmap)
             self.previewLabel.setScaledContents(True)
+            if self.project is not None:
+                # Save parameters for this frame
+
+                # Save parameters for this frame
+                self.project['frames'][data['frame_idx']] = copy.deepcopy(self.params)
+
+                # If there are subsequent frame parameters saved, load them
+                if data['frame_idx'] + 1 in self.project['frames']:
+                    self.params = copy.deepcopy(self.project['frames'][data['frame_idx'] + 1])
+                # else:
+                #     # Reset to global defaults if no specific frame data exists
+                #     self.params = copy.deepcopy(self.project.get('params', {}))
+
+                    self.updateUIFromParams()  # Reflect parameter updates in UI
+
+                # self.project['frames'][data['frame_idx']] = copy.deepcopy(self.params)
+                #
+                # # Prepare params for the next frame
+                # if data['frame_idx'] + 1 in self.project['frames']:
+                #     self.params = copy.deepcopy(self.project['frames'][data['frame_idx'] + 1])
+                #     self.updateUIFromParams()
             # self.timelineWidget.add_image_to_track(qpixmap)
     def updateParam(self, key, value):
         super().updateParam(key, value)

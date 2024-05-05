@@ -131,7 +131,7 @@ class CustomTextBox(QWidget):
 class DeforumCore(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.initMenu()
+        # self.initMenu()
         self.params = {}
         self.widgets = {}
 
