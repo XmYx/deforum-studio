@@ -352,6 +352,12 @@ class ComfyDeforumGenerator:
             self.model = settings_node.run(self.model, **settings_dict)[0]
             self.clip = settings_node.run(self.clip, **settings_dict)[0]
 
+            try:
+                self.optimize_model()
+                self.optimize = True
+            except:
+                self.optimize = False
+                logger.info("Could not apply Stable-Fast Unet patch.")
 
             self.model_loaded = True
 
@@ -485,10 +491,6 @@ class ComfyDeforumGenerator:
             seed_resize_from_w = width
         if seed == -1:
             seed = secrets.randbelow(18446744073709551615)
-        if self.optimize:
-            self.optimize_model()
-            self.optimize = False
-
 
         if strength <= 0.05 or strength >= 1.0:
             strength = 1.0
