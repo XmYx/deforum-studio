@@ -115,7 +115,7 @@ def start_deforum_cli():
 
                     deforum(**extra_args, **options)
                 except Exception as e:
-                    logger.error(f"Error running settings file: {file_path}")
+                    logger.error(f"Error running settings file: {file_path}: {e}")
 
         elif args_main.mode == "api":
             from fastapi import FastAPI, WebSocket
