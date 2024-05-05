@@ -189,6 +189,7 @@ wandb
 
 output/
 models/
+src/ComfyUI/
 
 # settings files
 settings.txt
