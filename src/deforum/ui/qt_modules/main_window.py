@@ -11,150 +11,278 @@ from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 from PyQt6.QtWidgets import QApplication, QTabWidget, QWidget, QVBoxLayout, QDockWidget, QSlider, QLabel, QMdiArea, \
     QPushButton, QComboBox, QFileDialog, QSpinBox, QLineEdit, QCheckBox, QTextEdit, QHBoxLayout, QListWidget, \
-    QDoubleSpinBox, QListWidgetItem, QMessageBox, QScrollArea, QTabBar
+    QDoubleSpinBox, QListWidgetItem, QMessageBox, QScrollArea, QTabBar, QProgressBar, QSizePolicy
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, pyqtSlot, QUrl, QSize
 
 from deforum import logger
 from deforum.ui.qt_helpers.qt_image import npArrayToQPixmap
 from deforum.ui.qt_modules.backend_thread import BackendThread
-from deforum.ui.qt_modules.core import DeforumCore, CustomTextBox
-from deforum.ui.qt_modules.custom_ui import ResizableImageLabel, JobDetailPopup, JobQueueItem, AspectRatioMdiSubWindow
+from deforum.ui.qt_modules.core import DeforumCore
+from deforum.ui.qt_modules.custom_ui import ResizableImageLabel, JobDetailPopup, JobQueueItem, AspectRatioMdiSubWindow, \
+    DetachableTabWidget, AutoReattachDockWidget, CustomTextBox
 from deforum.ui.qt_modules.ref import TimeLineQDockWidget
-from deforum.ui.qt_modules.timeline import TimelineWidget
 
-
-# class DetachableTabWidget(QTabWidget):
-#     def __init__(self, parent=None):
-#         super().__init__(parent)
-#         self.setMovable(True)
-#         self.setTabBarAutoHide(False)
-#         self.tabBar().setMouseTracking(True)
-#         self.main_window = parent  # Assume parent is the main window
-#
-#     def addTabWithDetachButton(self, widget, title):
-#         super().addTab(widget, title)
-#         tab_index = self.indexOf(widget)
-#         detach_button = QPushButton("Detach")
-#         detach_button.setProperty('widget', widget)  # Store the widget directly
-#         detach_button.setProperty('title', title)  # Store the widget directly
-#         detach_button.clicked.connect(self.detach_as_dock)
-#         self.tabBar().setTabButton(tab_index, QTabBar.ButtonPosition.RightSide, detach_button)
-#
-#     def detach_as_dock(self):
-#         button = self.sender()
-#         if button:
-#             widget = button.property('widget')
-#             if widget is None:
-#                 return
-#
-#             index = self.indexOf(widget)  # Determine index at the time of click
-#             if index == -1:
-#                 return  # This should not happen, but just in case
-#
-#             scroll_area = QScrollArea()
-#             scroll_area.setWidget(widget)
-#             scroll_area.setWidgetResizable(True)
-#
-#             title = button.property('title')
-#             self.dock = AutoReattachDockWidget(title, self.main_window, widget, self)
-#             self.dock.setObjectName(title)
-#             self.dock.setWidget(scroll_area)
-#             self.dock.setFloating(True)
-#             self.dock.show()
-class DetachableTabWidget(QTabWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setMovable(True)
-        self.setTabBarAutoHide(False)
-        self.tabBar().setMouseTracking(True)
-        self.main_window = parent  # Assume parent is the main window
-        self.buttons = []
-        self.docks = []
-
-    def addTabWithDetachButton(self, widget, title):
-        super().addTab(widget, title)
-        tab_index = self.indexOf(widget)
-        detach_button = QPushButton("Detach")
-        detach_button.setProperty('widget', widget)  # Store the widget directly
-        detach_button.setProperty('title', title)  # Store the widget directly
-        detach_button.clicked.connect(self.detach_as_dock)
-        self.buttons.append(detach_button)
-        self.tabBar().setTabButton(tab_index, QTabBar.ButtonPosition.RightSide, detach_button)
-
-    def detach_as_dock(self):
-        button = self.sender()
-        if button:
-            widget = button.property('widget')
-            if widget is None:
-                return
-
-            index = self.indexOf(widget)  # Determine index at the time of click
-            if index == -1:
-                return  # This should not happen, but just in case
-
-            scroll_area = QScrollArea()
-            scroll_area.setWidget(widget)
-            scroll_area.setWidgetResizable(True)
-
-            title = button.property('title')
-            dock = AutoReattachDockWidget(title, self.main_window, widget, self)
-            widget.should_detach = True
-            dock.setObjectName(title)
-            dock.setWidget(scroll_area)
-            dock.setFloating(True)
-            dock.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
-            dock.show()
-            self.buttons.remove(button)
-            self.docks.append(dock)
-
-    def reattach_from_dock(self, dock_widget):
-        # Reattach dock_widget to the tab widget
-        if dock_widget and dock_widget.original_widget:
-            dock_widget.original_widget.should_detach = False
-            title = dock_widget.windowTitle()
-            self.addTabWithDetachButton(dock_widget.original_widget, title)
-            dock_widget.close()  # Close the dock widget
-
-
-class AutoReattachDockWidget(QDockWidget):
-    def __init__(self, title, parent=None, original_widget=None, tab_widget=None):
-        super().__init__(title, parent)
-        self.original_widget = original_widget
-        self.tab_widget = tab_widget
-        self.should_detach = False
-
-    def closeEvent(self, event):
-        if self.original_widget and self.tab_widget:
-            scroll_area = self.widget()
-            if isinstance(scroll_area, QScrollArea):
-                widget = scroll_area.takeWidget()
-                self.tab_widget.addTabWithDetachButton(widget, self.windowTitle())
-        super().closeEvent(event)
 class MainWindow(DeforumCore):
     def __init__(self):
         super().__init__()
-        self.player = QMediaPlayer()  # Create a media player object
-        self.setWindowTitle("Deforum Engine")
+        self.defaults()
+        self.setupWindowStyle()
+        self.setupToolbar()
+        self.setupMenu()
         self.setupDynamicUI()
-        self.currentTrack = None  # Store the currently selected track
-        self.presets_folder = os.path.join(os.path.expanduser('~'), 'deforum', 'presets')
-        self.projects_folder = os.path.join(os.path.expanduser('~'), 'deforum', 'projects')
-        os.makedirs(self.presets_folder, exist_ok=True)
-        os.makedirs(self.projects_folder, exist_ok=True)
-        self.loadPresetsDropdown()
-        self.presetsDropdown.activated.connect(self.loadPresetsDropdown)
+        self.setupPreviewArea()
+        self.setupTimeline()
+        self.setupBatchControls()
         self.setupVideoPlayer()
         self.tileMdiSubWindows()
         self.timelineDock.hide()
-        self.setupBatchControls()
-        self.job_queue = []  # List to keep jobs to be processed
-        self.current_job = None  # To keep track of the currently running job
-        self.setupMenu()
         self.newProject()
+        self.loadWindowState()
+
+    def defaults(self):
+        self.current_job = None  # To keep track of the currently running job
+        self.currentTrack = None  # Store the currently selected track
+        self.project_replay = False
+        self.job_queue = []  # List to keep jobs to be processed
+        self.presets_folder = os.path.join(os.path.expanduser('~'), 'deforum', 'presets')
+        self.projects_folder = os.path.join(os.path.expanduser('~'), 'deforum', 'projects')
         self.state_file = os.path.join(os.path.expanduser('~'), 'deforum', '.lastview')
         os.makedirs(os.path.dirname(self.state_file), exist_ok=True)
-        self.loadWindowState()
-        self.project_replay = False
+        os.makedirs(self.presets_folder, exist_ok=True)
+        os.makedirs(self.projects_folder, exist_ok=True)
+
+    def setupWindowStyle(self):
+        self.setWindowTitle("Deforum Engine")
+
+    def setupToolbar(self):
+        self.toolbar = self.addToolBar('Main Toolbar')
+        self.toolbar.setObjectName('main_toolbar')
+
+        self.renderButton = QAction('Render', self)
+        self.renderButton.triggered.connect(self.startBackendProcess)
+
+        self.stopRenderButton = QAction('Stop Render', self)
+        self.stopRenderButton.triggered.connect(self.stopBackendProcess)
+
+        # Add presets dropdown to the toolbar
+        self.presetsDropdown = QComboBox()
+        #self.presetsDropdown.currentIndexChanged.connect(self.loadPreset)
+        self.presetsDropdown.activated.connect(self.loadPresetsDropdown)
+        self.loadPresetsDropdown()
+
+        # Add actions to load and save presets
+        self.loadPresetAction = QAction('Load Preset', self)
+        self.loadPresetAction.triggered.connect(self.loadPreset)
+
+        self.tileSubWindowsAction = QAction('Tile Subwindows', self)
+        self.tileSubWindowsAction.triggered.connect(self.tileMdiSubWindows)
+
+        self.savePresetAction = QAction('Save Preset', self)
+        self.savePresetAction.triggered.connect(self.savePreset)
+
+        self.addJobButton = QAction('Add to Batch', self)
+        self.addJobButton.triggered.connect(self.addCurrentParamsAsJob)
+
+        self.toolbar.addAction(self.renderButton)
+        self.toolbar.addAction(self.stopRenderButton)
+        self.toolbar.addWidget(self.presetsDropdown)
+        self.toolbar.addAction(self.loadPresetAction)
+        self.toolbar.addAction(self.tileSubWindowsAction)
+        self.toolbar.addAction(self.savePresetAction)
+        self.toolbar.addAction(self.addJobButton)
+
+        # Adding the progress bar and status label
+        self.progressBar = QProgressBar()
+        self.statusLabel = QLabel("Ready")
+        self.statusLabel.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+
+        # Create a widget to hold the progress bar and label
+        statusWidget = QWidget()
+        statusLayout = QHBoxLayout()
+        statusLayout.addWidget(self.progressBar)
+        statusLayout.addWidget(self.statusLabel)
+        statusLayout.setContentsMargins(0, 0, 0, 0)  # Reduce margins to fit the toolbar style
+        statusWidget.setLayout(statusLayout)
+
+        # Adding the status widget to the toolbar
+        spacer = QWidget()  # This spacer pushes the status to the right
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.toolbar.addWidget(spacer)
+        self.toolbar.addWidget(statusWidget)
+
+    def setupMenu(self):
+        menuBar = self.menuBar()
+
+        fileMenu = menuBar.addMenu('&File')
+
+        newProjectAction = QAction('&New Project', self)
+        newProjectAction.triggered.connect(self.newProject)
+        fileMenu.addAction(newProjectAction)
+
+        loadProjectAction = QAction('&Load Project', self)
+        loadProjectAction.triggered.connect(self.loadProject)
+        fileMenu.addAction(loadProjectAction)
+
+        saveProjectAction = QAction('&Save Project', self)
+        saveProjectAction.triggered.connect(self.saveProject)
+        fileMenu.addAction(saveProjectAction)
+
+        convertProjectAction = QAction('&Convert Project', self)
+        convertProjectAction.triggered.connect(self.convertProjectToSingleSettingsFile)
+        fileMenu.addAction(convertProjectAction)
+
+    def setupDynamicUI(self):
+        # Initialize the tabbed control layout docked on the left
+        self.controlsDock = self.addDock("Controls", Qt.DockWidgetArea.LeftDockWidgetArea)
+        self.tabWidget = DetachableTabWidget(self)
+        self.tabWidget.setMinimumSize(QSize(0,0))
+        self.controlsDock.setWidget(self.tabWidget)
+
+        # Load UI configuration from JSON
+        curr_folder = os.path.dirname(os.path.abspath(__file__))
+        json_path = os.path.join(curr_folder, 'ui.json')
+        with open(json_path, 'r') as file:
+            config = json.load(file)
+
+        for category, settings in config.items():
+            tab = QWidget()  # This is the actual tab that will hold the layout
+            layout = QVBoxLayout()
+            tab.setLayout(layout)
+
+            for setting, params in settings.items():
+                if params['widget_type'] == 'number':
+                    self.createSpinBox(params['label'], layout, params['min'], params['max'], 1, params['default'], setting)
+                elif params['widget_type'] == 'float':
+                    self.createDoubleSpinBox(params['label'], layout, params['min'], params['max'], 0.01, params['default'], setting)
+
+                elif params['widget_type'] == 'dropdown':
+                    self.createComboBox(params['label'], layout, [str(param) for param in params['options']], setting)
+                elif params['widget_type'] == 'text input':
+                    self.createTextInput(params['label'], layout, params['default'], setting)
+                elif params['widget_type'] == 'text box':
+                    self.createTextBox(params['label'], layout, params['default'], setting)
+                elif params['widget_type'] == 'slider':
+                    self.createSlider(params['label'], layout, params['min'], params['max'], params['default'], setting)
+                elif params['widget_type'] == 'checkbox':
+                    self.createCheckBox(params['label'], layout, bool(params['default']), setting)
+                elif params['widget_type'] == 'file_input':
+                    # Add file input handler if needed
+                    pass
+            scroll = QScrollArea()  # Create a scroll area
+            scroll.setWidget(tab)
+            scroll.setWidgetResizable(True)  # Make the scroll area resizable
+
+            self.tabWidget.addTabWithDetachButton(scroll, category)  # Add the scroll area to the tab widget
+
+
+
+    def setupPreviewArea(self):
+        # Setting up an MDI area for previews
+        self.mdiArea = QMdiArea()
+        self.setCentralWidget(self.mdiArea)
+
+        self.previewLabel = ResizableImageLabel()
+        self.previewSubWindow = AspectRatioMdiSubWindow(self.previewLabel)
+        self.mdiArea.addSubWindow(self.previewSubWindow)
+        self.previewSubWindow.setWidget(self.previewLabel)
+        self.previewSubWindow.show()
+
+    def setupTimeline(self):
+        self.timelineDock = TimeLineQDockWidget(self)
+        self.timelineDock.setObjectName('timeline_dock')
+        # self.timelineDock = QDockWidget("Timeline", self)
+        self.timelineDock.setAllowedAreas(Qt.DockWidgetArea.BottomDockWidgetArea)
+        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.timelineDock)
+
+    def setupBatchControls(self):
+        self.batchControlTab = QWidget()
+        layout = QVBoxLayout()
+        self.batchControlTab.setLayout(layout)
+        self.jobQueueList = QListWidget()
+        self.jobQueueList.itemDoubleClicked.connect(self.onJobDoubleClicked)
+
+        # Buttons for batch control
+        loadFilesButton = QPushButton("Load Batch Files")
+        startButton = QPushButton("Start Batch")
+        cancelButton = QPushButton("Cancel Batch")
+
+        # Connect buttons to their respective slots (functions)
+        startButton.clicked.connect(self.startBatchProcess)
+        cancelButton.clicked.connect(self.stopBatchProcess)
+        loadFilesButton.clicked.connect(self.loadBatchFiles)
+        layout.addWidget(loadFilesButton)
+        layout.addWidget(startButton)
+        layout.addWidget(cancelButton)
+        layout.addWidget(self.jobQueueList)
+        # Add the batch control tab to the main tab widget
+        self.tabWidget.addTab(self.batchControlTab, "Batch Control")
+
+    def setupVideoPlayer(self):
+        self.player = QMediaPlayer()  # Create a media player object
+        self.videoSubWindow = self.mdiArea.addSubWindow(QWidget())
+        self.videoSubWindow.setWindowTitle("Video Player")
+        # Setting up the video player within its subwindow
+        self.videoWidget = QVideoWidget()
+        self.audioOutput = QAudioOutput()  # Create an audio output
+        self.player.setAudioOutput(self.audioOutput)  # Set audio output for the player
+        self.player.setVideoOutput(self.videoWidget)  # Set video output
+
+        # Adding playback controls
+        self.playButton = QPushButton("Play")
+        self.pauseButton = QPushButton("Pause")
+        self.stopButton = QPushButton("Stop")
+        self.volumeSlider = QSlider(Qt.Orientation.Horizontal)
+        self.volumeSlider.setMinimum(0)
+        self.volumeSlider.setMaximum(100)
+        self.volumeSlider.setValue(50)  # Default volume level at 50%
+        self.volumeSlider.setTickInterval(10)  # Optional: makes it easier to slide in intervals
+        self.audioOutput.setVolume(0.5)  # Set the initial volume to 50%
+
+        # Connect control buttons and slider
+        self.playButton.clicked.connect(self.player.play)
+        self.pauseButton.clicked.connect(self.player.pause)
+        self.stopButton.clicked.connect(self.player.stop)
+        self.volumeSlider.valueChanged.connect(lambda value: self.audioOutput.setVolume(value / 100))
+        self.videoSlider = QSlider(Qt.Orientation.Horizontal)
+        self.videoSlider.sliderMoved.connect(self.setPosition)
+        self.player.positionChanged.connect(self.updatePosition)
+        self.player.durationChanged.connect(self.updateDuration)
+        # Layout for the video player controls
+        controlsLayout = QHBoxLayout()
+        controlsLayout.addWidget(self.playButton)
+        controlsLayout.addWidget(self.pauseButton)
+        controlsLayout.addWidget(self.stopButton)
+        controlsLayout.addWidget(QLabel("Volume:"))
+        controlsLayout.addWidget(self.volumeSlider)
+
+        # Main layout for the video subwindow
+        mainLayout = QVBoxLayout()
+        mainLayout.addWidget(self.videoWidget)
+        mainLayout.addWidget(self.videoSlider)
+
+        mainLayout.addLayout(controlsLayout)
+
+        self.videoSubWindow.widget().setLayout(mainLayout)
+        self.videoSlider.valueChanged.connect(self.setResumeFrom)
+    def tileMdiSubWindows(self):
+        """Resize and evenly distribute all subwindows in the MDI area."""
+        # Optionally, set a uniform size for all subwindows
+        subwindows = self.mdiArea.subWindowList()
+        if not subwindows:
+            return
+
+        # Calculate the optimal size for subwindows based on the number of windows
+        areaSize = self.mdiArea.size()
+        numWindows = len(subwindows)
+        width = int(areaSize.width() / numWindows ** 0.5)
+        height = int(areaSize.height() / numWindows ** 0.5)
+
+        # Resize each subwindow (this step is optional)
+        for window in subwindows:
+            window.resize(width, height)
+
+        # Tile the subwindows
+        self.mdiArea.tileSubWindows()
     def closeEvent(self, event):
         self.saveWindowState()
         super().closeEvent(event)
@@ -224,38 +352,12 @@ class MainWindow(DeforumCore):
         except Exception as e:
             print(f"Failed to load state: {e}")
 
-    def setupMenu(self):
-        menuBar = self.menuBar()
-
-        fileMenu = menuBar.addMenu('&File')
-
-        newProjectAction = QAction('&New Project', self)
-        newProjectAction.triggered.connect(self.newProject)
-        fileMenu.addAction(newProjectAction)
-
-        loadProjectAction = QAction('&Load Project', self)
-        loadProjectAction.triggered.connect(self.loadProject)
-        fileMenu.addAction(loadProjectAction)
-
-        saveProjectAction = QAction('&Save Project', self)
-        saveProjectAction.triggered.connect(self.saveProject)
-        fileMenu.addAction(saveProjectAction)
-
-        convertProjectAction = QAction('&Convert Project', self)
-        convertProjectAction.triggered.connect(self.convertProjectToSingleSettingsFile)
-        fileMenu.addAction(convertProjectAction)
 
     def newProject(self):
-        # Reset the current project
-        # self.params = {}  # Reset or set to default values
-        # self.job_queue = []  # Clear any existing jobs
-        # self.current_job = None
-        # self.jobQueueList.clear()
         self.project = {
             'params': {},  # Global parameters if any
             'frames': {}  # Dictionary to store parameters per frame
         }
-        # Reset other necessary parts of the UI and data
 
     def loadProject(self):
         # Load project settings and parameters from a file
@@ -266,8 +368,6 @@ class MainWindow(DeforumCore):
                 if 'frames' in self.project and self.project['frames']:
                     # Assuming frames are stored with an index key that starts at 0
                     self.params = self.project['frames'].get('1', self.params)
-                # else:
-                #     self.params = self.project.get('params', {})
                     self.updateUIFromParams()  # Update UI elements with loaded params
 
     def saveProject(self):
@@ -337,29 +437,6 @@ class MainWindow(DeforumCore):
             popup.setWindowTitle("Job Details - " + widget.job_name)
             subWindow.show()
 
-    def setupBatchControls(self):
-        self.batchControlTab = QWidget()
-        layout = QVBoxLayout()
-        self.batchControlTab.setLayout(layout)
-        self.jobQueueList = QListWidget()
-        self.jobQueueList.itemDoubleClicked.connect(self.onJobDoubleClicked)
-
-        # Buttons for batch control
-        loadFilesButton = QPushButton("Load Batch Files")
-        startButton = QPushButton("Start Batch")
-        cancelButton = QPushButton("Cancel Batch")
-
-        # Connect buttons to their respective slots (functions)
-        startButton.clicked.connect(self.startBatchProcess)
-        cancelButton.clicked.connect(self.stopBatchProcess)
-        loadFilesButton.clicked.connect(self.loadBatchFiles)
-        layout.addWidget(loadFilesButton)
-        layout.addWidget(startButton)
-        layout.addWidget(cancelButton)
-        layout.addWidget(self.jobQueueList)
-
-        # Add the batch control tab to the main tab widget
-        self.tabWidget.addTab(self.batchControlTab, "Batch Control")
 
     def loadBatchFiles(self):
         file_dialog = QFileDialog(self)
@@ -380,12 +457,11 @@ class MainWindow(DeforumCore):
         except json.JSONDecodeError as e:
             print(f"Error loading {file_path}: {e}")
             QMessageBox.warning(self, "Loading Error", f"Failed to load {file_path}: {e}")
+
     def addCurrentParamsAsJob(self, job_name=None, job_params=None):
         if not job_name:
             job_name = f"{self.params.get('batch_name')}_{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
             job_params = self.params
-        # Adding current params as a new job
-        # job_description = json.dumps(self.params, indent=4)
 
         item = QListWidgetItem(self.jobQueueList)
         widget = JobQueueItem(job_name, job_params)
@@ -393,9 +469,8 @@ class MainWindow(DeforumCore):
         self.jobQueueList.addItem(item)
         self.jobQueueList.setItemWidget(item, widget)
         self.job_queue.append(widget)  # Append job widget to the queue
+
     def loadPresetsDropdown(self, restore=None):
-
-
         if not isinstance(restore, str):
             current_text = self.presetsDropdown.currentText()  # Remember current text
         else:
@@ -412,10 +487,9 @@ class MainWindow(DeforumCore):
             index = self.presetsDropdown.findText(current_text)
             self.presetsDropdown.setCurrentIndex(index)
 
-
-
     def loadPreset(self):
         selected_preset = self.presetsDropdown.currentText()
+        #self.loadPresetsDropdown(restore=selected_preset)
         preset_path = os.path.join(self.presets_folder, selected_preset)
         try:
             with open(preset_path, 'r') as file:
@@ -424,7 +498,6 @@ class MainWindow(DeforumCore):
                     if key in self.params:
                         self.params[key] = value
             self.updateUIFromParams()
-
         except:
             pass
 
@@ -433,161 +506,9 @@ class MainWindow(DeforumCore):
         if preset_name:
             preset_name = os.path.splitext(os.path.basename(preset_name))[0] + '.txt'
             preset_path = os.path.join(self.presets_folder, preset_name)
-
             with open(preset_path, 'w') as file:
                 json.dump(self.params, file, indent=4)
-
             self.loadPresetsDropdown(restore=preset_name)
-    def setupDynamicUI(self):
-        self.toolbar = self.addToolBar('Main Toolbar')
-        self.toolbar.setObjectName('main_toolbar')
-        self.renderButton = QAction('Render', self)
-        self.stopRenderButton = QAction('Stop Render', self)
-
-        self.toolbar.addAction(self.renderButton)
-        self.toolbar.addAction(self.stopRenderButton)
-        # Add presets dropdown to the toolbar
-        self.presetsDropdown = QComboBox()
-        self.presetsDropdown.currentIndexChanged.connect(self.loadPreset)
-        self.toolbar.addWidget(self.presetsDropdown)
-
-        # Add actions to load and save presets
-        self.loadPresetAction = QAction('Load Preset', self)
-        self.loadPresetAction.triggered.connect(self.loadPreset)
-        self.toolbar.addAction(self.loadPresetAction)
-        self.tileSubWindowsAction = QAction('Tile Subwindows', self)
-        self.tileSubWindowsAction.triggered.connect(self.tileMdiSubWindows)
-        self.toolbar.addAction(self.tileSubWindowsAction)
-        self.savePresetAction = QAction('Save Preset', self)
-        self.savePresetAction.triggered.connect(self.savePreset)
-        self.toolbar.addAction(self.savePresetAction)
-
-        self.addJobButton = QAction('Add to Batch', self)
-        self.addJobButton.triggered.connect(self.addCurrentParamsAsJob)
-        self.toolbar.addAction(self.addJobButton)
-
-        self.renderButton.triggered.connect(self.startBackendProcess)
-        self.stopRenderButton.triggered.connect(self.stopBackendProcess)
-        # Initialize the tabbed control layout docked on the left
-        self.controlsDock = self.addDock("Controls", Qt.DockWidgetArea.LeftDockWidgetArea)
-        self.tabWidget = DetachableTabWidget(self)
-        self.tabWidget.setMinimumSize(QSize(0,0))
-        self.controlsDock.setWidget(self.tabWidget)
-
-        # Load UI configuration from JSON
-        curr_folder = os.path.dirname(os.path.abspath(__file__))
-        json_path = os.path.join(curr_folder, 'ui.json')
-        with open(json_path, 'r') as file:
-            config = json.load(file)
-
-        for category, settings in config.items():
-            tab = QWidget()  # This is the actual tab that will hold the layout
-            layout = QVBoxLayout()
-            tab.setLayout(layout)
-
-            for setting, params in settings.items():
-                if params['widget_type'] == 'number':
-                    self.createSpinBox(params['label'], layout, params['min'], params['max'], 1, params['default'], setting)
-                elif params['widget_type'] == 'float':
-                    self.createDoubleSpinBox(params['label'], layout, params['min'], params['max'], 0.01, params['default'], setting)
-
-                elif params['widget_type'] == 'dropdown':
-                    self.createComboBox(params['label'], layout, [str(param) for param in params['options']], setting)
-                elif params['widget_type'] == 'text input':
-                    self.createTextInput(params['label'], layout, params['default'], setting)
-                elif params['widget_type'] == 'text box':
-                    self.createTextBox(params['label'], layout, params['default'], setting)
-                elif params['widget_type'] == 'slider':
-                    self.createSlider(params['label'], layout, params['min'], params['max'], params['default'], setting)
-                elif params['widget_type'] == 'checkbox':
-                    self.createCheckBox(params['label'], layout, bool(params['default']), setting)
-                elif params['widget_type'] == 'file_input':
-                    # Add file input handler if needed
-                    pass
-            scroll = QScrollArea()  # Create a scroll area
-            scroll.setWidget(tab)
-            scroll.setWidgetResizable(True)  # Make the scroll area resizable
-
-            self.tabWidget.addTabWithDetachButton(scroll, category)  # Add the scroll area to the tab widget
-            # self.tabWidget.addTab(tab, category)
-        # self.createPushButton('Render', layout, self.startBackendProcess)
-
-        # Create preview area
-        self.setupPreviewArea()
-
-        # self.timeline = TimelineWidget()
-        # self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.timeline)
-        # Create the timeline dock widget
-        self.timelineDock = TimeLineQDockWidget(self)
-        self.timelineDock.setObjectName('timeline_dock')
-        # self.timelineDock = QDockWidget("Timeline", self)
-        self.timelineDock.setAllowedAreas(Qt.DockWidgetArea.BottomDockWidgetArea)
-
-        # Create and set the timeline widget inside the dock
-        # self.timelineWidget = TimelineWidget()
-        # self.timelineDock.setWidget(self.timelineWidget)
-
-        # Add the dock widget to the main window
-        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.timelineDock)
-
-    def setupPreviewArea(self):
-        # Setting up an MDI area for previews
-        self.mdiArea = QMdiArea()
-        self.setCentralWidget(self.mdiArea)
-
-        self.previewLabel = ResizableImageLabel()
-        self.previewSubWindow = AspectRatioMdiSubWindow(self.previewLabel)
-        self.mdiArea.addSubWindow(self.previewSubWindow)
-        self.previewSubWindow.setWidget(self.previewLabel)
-        self.previewSubWindow.show()
-
-
-    def setupVideoPlayer(self):
-        self.videoSubWindow = self.mdiArea.addSubWindow(QWidget())
-        self.videoSubWindow.setWindowTitle("Video Player")
-        # Setting up the video player within its subwindow
-        self.videoWidget = QVideoWidget()
-        self.audioOutput = QAudioOutput()  # Create an audio output
-        self.player.setAudioOutput(self.audioOutput)  # Set audio output for the player
-        self.player.setVideoOutput(self.videoWidget)  # Set video output
-
-        # Adding playback controls
-        self.playButton = QPushButton("Play")
-        self.pauseButton = QPushButton("Pause")
-        self.stopButton = QPushButton("Stop")
-        self.volumeSlider = QSlider(Qt.Orientation.Horizontal)
-        self.volumeSlider.setMinimum(0)
-        self.volumeSlider.setMaximum(100)
-        self.volumeSlider.setValue(50)  # Default volume level at 50%
-        self.volumeSlider.setTickInterval(10)  # Optional: makes it easier to slide in intervals
-        self.audioOutput.setVolume(0.5)  # Set the initial volume to 50%
-
-        # Connect control buttons and slider
-        self.playButton.clicked.connect(self.player.play)
-        self.pauseButton.clicked.connect(self.player.pause)
-        self.stopButton.clicked.connect(self.player.stop)
-        self.volumeSlider.valueChanged.connect(lambda value: self.audioOutput.setVolume(value / 100))
-        self.videoSlider = QSlider(Qt.Orientation.Horizontal)
-        self.videoSlider.sliderMoved.connect(self.setPosition)
-        self.player.positionChanged.connect(self.updatePosition)
-        self.player.durationChanged.connect(self.updateDuration)
-        # Layout for the video player controls
-        controlsLayout = QHBoxLayout()
-        controlsLayout.addWidget(self.playButton)
-        controlsLayout.addWidget(self.pauseButton)
-        controlsLayout.addWidget(self.stopButton)
-        controlsLayout.addWidget(QLabel("Volume:"))
-        controlsLayout.addWidget(self.volumeSlider)
-
-        # Main layout for the video subwindow
-        mainLayout = QVBoxLayout()
-        mainLayout.addWidget(self.videoWidget)
-        mainLayout.addWidget(self.videoSlider)
-
-        mainLayout.addLayout(controlsLayout)
-
-        self.videoSubWindow.widget().setLayout(mainLayout)
-        self.videoSlider.valueChanged.connect(self.setResumeFrom)
 
     def setResumeFrom(self, position):
         # Assuming the frame rate is stored in self.frameRate
@@ -595,39 +516,12 @@ class MainWindow(DeforumCore):
         frame_number = int((position / 1000) * frame_rate)
         self.params["resume_from"] = frame_number + 1
         # Update the widget directly if necessary
-        if 'resume_from' in self.widgets:
-            self.widgets['resume_from'].setValue(frame_number)
+        # if 'resume_from' in self.widgets:
+        #     self.widgets['resume_from'].valueChanged.disconnect()
+        #     self.widgets['resume_from'].setValue(frame_number)
+        #     self.widgets['resume_from'].valueChanged.connect(lambda val, k='resume_from': self.updateParam(k, val))
 
-    # def setResumeFrom(self, to):
-    #     # Assuming position is in milliseconds and you want to convert it to seconds
-    #     seconds = to // 1000
-    #     self.params["resume_from"] = seconds
-    #     # Update the widget directly if necessary
-    #     if 'resume_from' in self.widgets:
-    #         self.widgets['resume_from'].setValue(seconds)
-    #
-    #     # self.params["resume_from"] = to
-    #     # self.widgets['resume_from'].setValue(to)
 
-    def tileMdiSubWindows(self):
-        """Resize and evenly distribute all subwindows in the MDI area."""
-        # Optionally, set a uniform size for all subwindows
-        subwindows = self.mdiArea.subWindowList()
-        if not subwindows:
-            return
-
-        # Calculate the optimal size for subwindows based on the number of windows
-        areaSize = self.mdiArea.size()
-        numWindows = len(subwindows)
-        width = int(areaSize.width() / numWindows ** 0.5)
-        height = int(areaSize.height() / numWindows ** 0.5)
-
-        # Resize each subwindow (this step is optional)
-        for window in subwindows:
-            window.resize(width, height)
-
-        # Tile the subwindows
-        self.mdiArea.tileSubWindows()
     def setPosition(self, position):
         self.player.setPosition(position)
 
@@ -641,10 +535,10 @@ class MainWindow(DeforumCore):
 
     @pyqtSlot(dict)
     def playVideo(self, data):
+        self.statusLabel.setText("Ready")
         # Stop the player and reset its state before loading a new video
         self.player.stop()
         self.player.setSource(QUrl())  # Reset the source to clear buffers
-
         if 'video_path' in data:
             try:
                 # Set new video source and attempt to play
@@ -653,46 +547,16 @@ class MainWindow(DeforumCore):
             except Exception as e:
                 print(f"Error playing video: {e}")
                 self.player.stop()  # Ensure player is stopped on error
-
         if 'timestring' in data:
-            self.params['resume_timestring'] = data['timestring']
-            self.params['resume_path'] = data['resume_path']
-            self.params['resume_from'] = data['resume_from']
-            self.updateUIFromParams()
+            self.updateWidgetValue('resume_timestring', data['timestring'])
+            self.updateWidgetValue('resume_path', data['resume_path'])
+            self.updateWidgetValue('resume_from', data['resume_from'])
 
-    # def addDock(self, title, area):
-    #     dock = QDockWidget(title, self)
-    #     dock.setMinimumSize(QSize(0, 0))  # Allow resizing to very small sizes
-    #     self.addDockWidget(area, dock)
-    #     return dock
-    def addDock(self, title, area):
-        dock = QDockWidget(title, self)
-        dock.setObjectName(title)
-        dock.setAllowedAreas(
-            Qt.DockWidgetArea.BottomDockWidgetArea | Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
-        dock.setFeatures(
-            QDockWidget.DockWidgetFeature.DockWidgetMovable | QDockWidget.DockWidgetFeature.DockWidgetFloatable)
-
-        # Assuming the main window's size is an appropriate reference for setting the dock's size
-        main_width = self.size().width()
-        dock.setMinimumSize(main_width // 2, 150)  # Set minimum size to half the main window's width
-
-        self.addDockWidget(area, dock)
-        return dock
-    def createSlider(self, label, layout, minimum, maximum, value, key):
-        # Creating a slider and adding it to the layout
-        slider = QSlider(Qt.Orientation.Horizontal)
-        slider.setMinimum(minimum)
-        slider.setMaximum(maximum)
-        slider.setValue(value)
-        slider.valueChanged.connect(lambda val, k=key: self.updateParam(k, val))
-        self.params[key] = value
-        layout.addWidget(QLabel(label))
-        layout.addWidget(slider)
 
     def startBackendProcess(self):
         #params = {key: widget.value() for key, widget in self.params.items() if hasattr(widget, 'value')}
         # if not self.thread:
+        self.statusLabel.setText("Rendering...")
 
         if self.params['resume_from_timestring']:
             self.params['max_frames'] += 1
@@ -703,6 +567,8 @@ class MainWindow(DeforumCore):
         self.thread.finished.connect(self.playVideo)
         self.thread.start()
     def stopBackendProcess(self):
+        self.statusLabel.setText("Stopped")
+
         try:
             from deforum.shared_storage import models
             models["deforum_pipe"].gen.max_frames = len(models["deforum_pipe"].images)
@@ -711,11 +577,16 @@ class MainWindow(DeforumCore):
 
 
     def startBatchProcess(self):
+        self.statusLabel.setText("Batch Rendering...")
+
         if not self.current_job and self.job_queue:
             self.runNextJob()
 
     def runNextJob(self):
         if self.job_queue:
+
+
+
             self.current_job = self.job_queue.pop(0)
             try:
                 self.current_job.markRunning()  # Mark the job as running
@@ -726,6 +597,8 @@ class MainWindow(DeforumCore):
                 self.thread.imageGenerated.connect(self.updateImage)
                 # self.thread.finished.connect(self.playVideo)
                 self.thread.start()
+                self.statusLabel.setText(f"Batch Rendering. Job: {self.current_job.job_data['batch_name']} {len(self.job_queue)} Items left")
+
             except:
                 self.current_job = None
                 self.startBatchProcess()
@@ -739,6 +612,8 @@ class MainWindow(DeforumCore):
             self.runNextJob()  # Run next job in the queue
         else:
             self.jobQueueList.clear()
+            self.statusLabel.setText(
+                f"Batch Render Complete")
 
     def stopBatchProcess(self):
         if self.current_job:
@@ -752,38 +627,36 @@ class MainWindow(DeforumCore):
         else:
             self.jobQueueList.clear()
         self.current_job = None
-
+        self.statusLabel.setText(
+            f"Batch Render Stopped")
 
     @pyqtSlot(dict)
     def updateImage(self, data):
         # Update the image on the label
+        # Update progress bar if max_frames is defined
+        if 'max_frames' in self.params and 'frame_idx' in data:
+            max_frames = self.params['max_frames']
+            frame_idx = data['frame_idx']
+            if max_frames > 0:
+                progress = (frame_idx + 1) / max_frames * 100
+                self.progressBar.setValue(int(progress))
+                max_frames = self.params['max_frames'] if not (self.params['resume_from_frame'] or self.params['resume_from_timestring']) else self.params['max_frames'] - self.params['resume_from']
+                frame_idx = data['frame_idx'] if not (self.params['resume_from_frame'] or self.params['resume_from_timestring']) else data['frame_idx'] - self.params['resume_from']
+                self.statusLabel.setText(
+                    f"Rendering frame {frame_idx} of {max_frames}")
+
         if 'image' in data:
             img = copy.deepcopy(data['image'])
             qpixmap = npArrayToQPixmap(np.array(img).astype(np.uint8))  # Convert to QPixmap
             self.previewLabel.setPixmap(qpixmap)
             self.previewLabel.setScaledContents(True)
             if self.project is not None and self.project_replay:
-                # Save parameters for this frame
-
-                # Save parameters for this frame
                 self.project['frames'][data['frame_idx']] = copy.deepcopy(self.params)
-
                 # If there are subsequent frame parameters saved, load them
                 if data['frame_idx'] + 1 in self.project['frames']:
                     self.params = copy.deepcopy(self.project['frames'][data['frame_idx'] + 1])
-                # else:
-                #     # Reset to global defaults if no specific frame data exists
-                #     self.params = copy.deepcopy(self.project.get('params', {}))
-
                     self.updateUIFromParams()  # Reflect parameter updates in UI
 
-                # self.project['frames'][data['frame_idx']] = copy.deepcopy(self.params)
-                #
-                # # Prepare params for the next frame
-                # if data['frame_idx'] + 1 in self.project['frames']:
-                #     self.params = copy.deepcopy(self.project['frames'][data['frame_idx'] + 1])
-                #     self.updateUIFromParams()
-            # self.timelineWidget.add_image_to_track(qpixmap)
     def updateParam(self, key, value):
         super().updateParam(key, value)
         try:
@@ -808,25 +681,3 @@ class MainWindow(DeforumCore):
                 print("UPDATED DEFORUM PARAMS")
         except:
             pass
-    def updateUIFromParams(self):
-        for k, widget in self.widgets.items():
-            if hasattr(widget, 'accessibleName'):
-                key = widget.accessibleName()
-                if key in self.params:
-                    value = self.params[key]
-                    if isinstance(widget, QSpinBox):
-                        widget.setValue(value)
-                    elif isinstance(widget, QComboBox):
-                        index = widget.findText(str(value))
-                        if index != -1:
-                            widget.setCurrentIndex(index)
-                    elif isinstance(widget, QLineEdit):
-
-
-                        widget.setText(str(value))
-                    elif isinstance(widget, QTextEdit):
-                        widget.setText(str(value))
-                    elif isinstance(widget, QSlider):
-                        widget.setValue(value)
-                    elif isinstance(widget, QCheckBox):
-                        widget.setChecked(value)
