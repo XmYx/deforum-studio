@@ -23,6 +23,44 @@ from deforum.ui.qt_modules.ref import TimeLineQDockWidget
 from deforum.ui.qt_modules.timeline import TimelineWidget
 
 
+# class DetachableTabWidget(QTabWidget):
+#     def __init__(self, parent=None):
+#         super().__init__(parent)
+#         self.setMovable(True)
+#         self.setTabBarAutoHide(False)
+#         self.tabBar().setMouseTracking(True)
+#         self.main_window = parent  # Assume parent is the main window
+#
+#     def addTabWithDetachButton(self, widget, title):
+#         super().addTab(widget, title)
+#         tab_index = self.indexOf(widget)
+#         detach_button = QPushButton("Detach")
+#         detach_button.setProperty('widget', widget)  # Store the widget directly
+#         detach_button.setProperty('title', title)  # Store the widget directly
+#         detach_button.clicked.connect(self.detach_as_dock)
+#         self.tabBar().setTabButton(tab_index, QTabBar.ButtonPosition.RightSide, detach_button)
+#
+#     def detach_as_dock(self):
+#         button = self.sender()
+#         if button:
+#             widget = button.property('widget')
+#             if widget is None:
+#                 return
+#
+#             index = self.indexOf(widget)  # Determine index at the time of click
+#             if index == -1:
+#                 return  # This should not happen, but just in case
+#
+#             scroll_area = QScrollArea()
+#             scroll_area.setWidget(widget)
+#             scroll_area.setWidgetResizable(True)
+#
+#             title = button.property('title')
+#             self.dock = AutoReattachDockWidget(title, self.main_window, widget, self)
+#             self.dock.setObjectName(title)
+#             self.dock.setWidget(scroll_area)
+#             self.dock.setFloating(True)
+#             self.dock.show()
 class DetachableTabWidget(QTabWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -30,13 +68,17 @@ class DetachableTabWidget(QTabWidget):
         self.setTabBarAutoHide(False)
         self.tabBar().setMouseTracking(True)
         self.main_window = parent  # Assume parent is the main window
+        self.buttons = []
+        self.docks = []
 
     def addTabWithDetachButton(self, widget, title):
         super().addTab(widget, title)
         tab_index = self.indexOf(widget)
         detach_button = QPushButton("Detach")
         detach_button.setProperty('widget', widget)  # Store the widget directly
+        detach_button.setProperty('title', title)  # Store the widget directly
         detach_button.clicked.connect(self.detach_as_dock)
+        self.buttons.append(detach_button)
         self.tabBar().setTabButton(tab_index, QTabBar.ButtonPosition.RightSide, detach_button)
 
     def detach_as_dock(self):
@@ -54,11 +96,24 @@ class DetachableTabWidget(QTabWidget):
             scroll_area.setWidget(widget)
             scroll_area.setWidgetResizable(True)
 
-            title = self.tabText(index)
+            title = button.property('title')
             dock = AutoReattachDockWidget(title, self.main_window, widget, self)
+            widget.should_detach = True
+            dock.setObjectName(title)
             dock.setWidget(scroll_area)
             dock.setFloating(True)
+            dock.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
             dock.show()
+            self.buttons.remove(button)
+            self.docks.append(dock)
+
+    def reattach_from_dock(self, dock_widget):
+        # Reattach dock_widget to the tab widget
+        if dock_widget and dock_widget.original_widget:
+            dock_widget.original_widget.should_detach = False
+            title = dock_widget.windowTitle()
+            self.addTabWithDetachButton(dock_widget.original_widget, title)
+            dock_widget.close()  # Close the dock widget
 
 
 class AutoReattachDockWidget(QDockWidget):
@@ -66,6 +121,7 @@ class AutoReattachDockWidget(QDockWidget):
         super().__init__(title, parent)
         self.original_widget = original_widget
         self.tab_widget = tab_widget
+        self.should_detach = False
 
     def closeEvent(self, event):
         if self.original_widget and self.tab_widget:
@@ -95,6 +151,66 @@ class MainWindow(DeforumCore):
         self.current_job = None  # To keep track of the currently running job
         self.setupMenu()
         self.newProject()
+        self.state_file = os.path.join(os.path.expanduser('~'), 'deforum', '.lastview')
+        os.makedirs(os.path.dirname(self.state_file), exist_ok=True)
+        self.loadWindowState()
+    def closeEvent(self, event):
+        self.saveWindowState()
+        super().closeEvent(event)
+
+    def saveWindowState(self):
+        with open(self.state_file, 'w') as f:
+            geometry_base64 = self.saveGeometry().toBase64().data().decode('utf-8')
+            state_base64 = self.saveState().toBase64().data().decode('utf-8')
+            f.write(geometry_base64 + '\n')
+            f.write(state_base64 + '\n')
+
+            for dock in self.findChildren(AutoReattachDockWidget):
+                dock_state = {
+                    'name': dock.objectName(),
+                    'should_detach':dock.should_detach,
+                    'floating': dock.isFloating(),
+                    'geometry': dock.saveGeometry().toBase64().data().decode('utf-8'),
+                    'visible': dock.isVisible(),
+                    'is_detached': dock.isFloating(),  # or any other logic you determine
+                    'dock_area': str(self.dockWidgetArea(dock)).split('.')[1]
+                }
+                json.dump(dock_state, f)
+                f.write('\n')
+
+    def loadWindowState(self):
+        try:
+            with open(self.state_file, 'r') as f:
+                self.restoreGeometry(bytes(f.readline().strip(), 'utf-8'))
+                self.restoreState(bytes(f.readline().strip(), 'utf-8'))
+
+                while True:
+                    line = f.readline().strip()
+                    if not line:
+                        break
+                    dock_state = json.loads(line)
+
+                    for button in self.tabWidget.buttons:
+                        if button.property('title') == dock_state['name']:
+                            button.click()
+
+                    dock = self.findChild(AutoReattachDockWidget, dock_state['name'])
+
+                    area_map = {
+                        "TopDockWidgetArea": Qt.DockWidgetArea.TopDockWidgetArea,
+                        "BottomDockWidgetArea": Qt.DockWidgetArea.BottomDockWidgetArea,
+                        "LeftDockWidgetArea": Qt.DockWidgetArea.LeftDockWidgetArea,
+                        "RightDockWidgetArea": Qt.DockWidgetArea.RightDockWidgetArea,
+                        "NoDockWidgetArea": Qt.DockWidgetArea.NoDockWidgetArea
+                    }
+                    if dock:
+                        dock.restoreGeometry(bytes(dock_state['geometry'], 'utf-8'))
+                        self.addDockWidget(area_map[dock_state['dock_area']], dock)
+                        dock.setFloating(False)
+        except FileNotFoundError:
+            print("No saved state to load.")
+        except Exception as e:
+            print(f"Failed to load state: {e}")
 
     def setupMenu(self):
         menuBar = self.menuBar()
@@ -112,6 +228,10 @@ class MainWindow(DeforumCore):
         saveProjectAction = QAction('&Save Project', self)
         saveProjectAction.triggered.connect(self.saveProject)
         fileMenu.addAction(saveProjectAction)
+
+        convertProjectAction = QAction('&Convert Project', self)
+        convertProjectAction.triggered.connect(self.convertProjectToSingleSettingsFile)
+        fileMenu.addAction(convertProjectAction)
 
     def newProject(self):
         # Reset the current project
@@ -146,6 +266,55 @@ class MainWindow(DeforumCore):
                 fname = fname[0] + '.dproj'  # Ensure the file has the correct extension
             with open(fname, 'w') as file:
                 json.dump(self.project, file, indent=4)  # Save the entire project dictionary
+
+    def convertProjectToSingleSettingsFile(self):
+        # Step 1: Load a .dproj project file
+        fname = QFileDialog.getOpenFileName(self, 'Open Project File', '', 'Deforum Project Files (*.dproj)')
+        if not fname[0]:
+            return
+
+        with open(fname[0], 'r') as file:
+            self.project = json.load(file)
+
+        if 'frames' not in self.project or not self.project['frames']:
+            QMessageBox.warning(self, "Error", "No frame data found in the project.")
+            return
+
+        # Step 2: Use Frame 1 as a base configuration
+        base_params = self.project['frames']['1'].copy()
+        max_frame_index = max(map(int, self.project['frames'].keys()))
+
+        # Initialize parameter consolidation
+        consolidated_params = {}
+        for param in base_params:
+            if isinstance(base_params[param], str) and ':' in base_params[param]:
+                consolidated_params[param] = {}
+
+        # Step 3: Collect and consolidate parameter values from all frames
+        for frame_index in range(1, max_frame_index + 1):
+            frame_key = str(frame_index)
+            if frame_key in self.project['frames']:
+                for param in consolidated_params:
+                    value = self.project['frames'][frame_key].get(param, "")
+                    if value and ':' in value:  # Check if value fits the pattern requiring consolidation
+                        # Extract value and append to the schedule
+                        try:
+                            schedule_part = value.split(':')[-1].strip()
+                            consolidated_params[param][frame_index - 1] = schedule_part
+                        except IndexError:
+                            continue
+
+        # Integrate consolidated parameters into base_params
+        for param, schedule in consolidated_params.items():
+            if schedule:
+                schedule_str = ", ".join(f"{k}: {v}" for k, v in schedule.items())
+                base_params[param] = schedule_str
+
+        # Step 4: Save the consolidated settings to a .txt file
+        fname = QFileDialog.getSaveFileName(self, 'Save Consolidated Settings File', '', 'Text Files (*.txt)')
+        if fname[0]:
+            with open(fname[0], 'w') as file:
+                json.dump(base_params, file, indent=4)
 
     def onJobDoubleClicked(self, item):
         widget = self.jobQueueList.itemWidget(item)
@@ -254,6 +423,7 @@ class MainWindow(DeforumCore):
             self.loadPresetsDropdown()
     def setupDynamicUI(self):
         self.toolbar = self.addToolBar('Main Toolbar')
+        self.toolbar.setObjectName('main_toolbar')
         self.renderButton = QAction('Render', self)
         self.stopRenderButton = QAction('Stop Render', self)
 
@@ -332,6 +502,7 @@ class MainWindow(DeforumCore):
         # self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.timeline)
         # Create the timeline dock widget
         self.timelineDock = TimeLineQDockWidget(self)
+        self.timelineDock.setObjectName('timeline_dock')
         # self.timelineDock = QDockWidget("Timeline", self)
         self.timelineDock.setAllowedAreas(Qt.DockWidgetArea.BottomDockWidgetArea)
 
@@ -472,9 +643,23 @@ class MainWindow(DeforumCore):
             self.params['resume_from'] = data['resume_from']
             self.updateUIFromParams()
 
+    # def addDock(self, title, area):
+    #     dock = QDockWidget(title, self)
+    #     dock.setMinimumSize(QSize(0, 0))  # Allow resizing to very small sizes
+    #     self.addDockWidget(area, dock)
+    #     return dock
     def addDock(self, title, area):
         dock = QDockWidget(title, self)
-        dock.setMinimumSize(QSize(0, 0))  # Allow resizing to very small sizes
+        dock.setObjectName(title)
+        dock.setAllowedAreas(
+            Qt.DockWidgetArea.BottomDockWidgetArea | Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
+        dock.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetMovable | QDockWidget.DockWidgetFeature.DockWidgetFloatable)
+
+        # Assuming the main window's size is an appropriate reference for setting the dock's size
+        main_width = self.size().width()
+        dock.setMinimumSize(main_width // 2, 150)  # Set minimum size to half the main window's width
+
         self.addDockWidget(area, dock)
         return dock
     def createSlider(self, label, layout, minimum, maximum, value, key):
