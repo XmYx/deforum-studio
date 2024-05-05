@@ -499,6 +499,10 @@ class ComfyDeforumGenerator:
         else:
             strength = 1 - strength if strength != 1.0 else strength
 
+        if self.optimize:
+            self.optimize_model()
+            self.optimize = False
+
         if subseed == -1:
             subseed = secrets.randbelow(18446744073709551615)
 
