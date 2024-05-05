@@ -7,7 +7,6 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../../src'))
 sys.path.insert(0, os.path.abspath('../../src/deforum/docutils'))
 project = 'deforum'
 copyright = '2024, deforum studio'
@@ -19,15 +18,14 @@ release = '0.9'
 
 extensions = [
     'sphinx.ext.autodoc',  # Handles Python-specific documentation features like automodule
-    'sphinx_deforumdoc',  # Handles Python-specific documentation features like automodule
+    # 'sphinx_deforumdoc',  # Handles Python-specific documentation features like automodule
     'sphinx.ext.viewcode',  # Optionally, adds links to source code
     'sphinx_rtd_theme',
     # Add other necessary extensions here
 ]
 templates_path = ['_templates']
-exclude_patterns = []
 
-
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
@@ -45,7 +43,7 @@ html_theme_options = {
     'style_nav_header_background': 'white',  # Customize the navigation header background color
     'collapse_navigation': True,
     'sticky_navigation': True,
-    'navigation_depth': 3,  # Adjust this as needed
+    'navigation_depth': 10,  # Adjust this as needed
     'includehidden': True,
     'titles_only': False
     # Add any other theme options you need

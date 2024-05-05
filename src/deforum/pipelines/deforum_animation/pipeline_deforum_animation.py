@@ -1,5 +1,10 @@
+"""
+The module implements an animation pipeline for Deforum which includes a setup, main loop, and cleanup. The pipeline is
+stateful due to maintaining the intermediate state throughout the process which may be CPU and memory-intensive.
+It enables the loading and processing of generator function responsible for animation creation. The pipeline supports
+optional logging of its internal activities for debugging and tracing purposes. Reset of the pipeline state is also supported.
+"""
 import gc
-import json
 import math
 import os
 import re
@@ -51,6 +56,7 @@ from .parseq_adapter import ParseqAdapter
 from .animation_params import auto_to_comfy
 from ..deforum_pipeline import DeforumBase
 from ... import ComfyDeforumGenerator
+from deforum.docutils.decorator import deforumdoc
 from ...models import DepthModel, RAFT
 from ...pipeline_utils import DeforumGenerationObject, pairwise_repl, isJson
 from ...utils.constants import root_path, config 
@@ -64,7 +70,6 @@ from ...utils.video_frame_utils import get_frame_name
 
 from deforum.utils.logging_config import logger
 
-
 class DeforumAnimationPipeline(DeforumBase):
     """
     Animation pipeline for Deforum.
@@ -74,9 +79,25 @@ class DeforumAnimationPipeline(DeforumBase):
     Uses a logger to record the metrics and timings of each step in the pipeline.
     """
     script_start_time = time.time()
-    def __init__(self, generator: Callable, logger: Optional[Callable] = None):
+
+    @deforumdoc
+    def __init__(self, generator: Callable, logger: Optional[Callable] = None) -> None:
         """
-        Initialize the DeforumAnimationPipeline.
+        Initializes the DeforumAnimationPipeline.
+
+        :param generator Callable: The generator function for producing animations.
+        :param logger Optional[Callable]: Optional logger function. If not provided, a default logger is created. Defaults to None.
+        :return: None.
+        :rtype: None
+
+        Example usage:
+
+        ``python
+        generator_func = callable_generator()
+        logger_func = callable_logger()
+
+        animation_pipeline = DeforumAnimationPipeline(generator=generator_func, logger=logger_func)
+        ``
 
         Args:
             generator (Callable): The generator function for producing animations.
@@ -103,16 +124,25 @@ class DeforumAnimationPipeline(DeforumBase):
         self.interrupt = False
         self.raft_model = None
 
-
+    @deforumdoc
     def __call__(self, settings_file: str = None, callback=None, *args, **kwargs) -> DeforumGenerationObject:
         """
         Execute the animation pipeline.
 
         Args:
-            settings_file (str, optional): Path to the settings file. Defaults to None.
+            :param settings_file Optional[str]: Optional path to the settings file. Defaults to None.
+            :param callback Optional[Callable]: Optional callback function to be executed during pipeline. Default to None.
+            :param kwargs dict: Additional arguments to be submitted to the pipeline.
+            :return: DeforumGenerationObject: The generated object after the pipeline execution.
             *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments.
+        Example usage:
+        ```python
+        settings = '/path/to/settings/file'
+        callback_func = callable_callback()
 
+        deforum_object = animation_pipeline(settings_file=settings, callback=callback_func)
+        ```
         Returns:
             DeforumGenerationObject: The generated object after the pipeline execution.
         """
@@ -268,6 +298,7 @@ class DeforumAnimationPipeline(DeforumBase):
             except:
                 self.gen.use_areas = False
 
+    @deforumdoc
     def setup(self, *args, **kwargs) -> None:
         """
         Set up the list of functions to be executed during the main loop of the animation pipeline.
@@ -513,7 +544,19 @@ class DeforumAnimationPipeline(DeforumBase):
         os.makedirs(self.gen.outdir, exist_ok=True)
         self.gen.image_paths = []
 
+    @deforumdoc
     def live_update_from_kwargs(self, **kwargs):
+        """
+        Updates the internal 'gen' object with the provided key-value arguments.
+
+        :param kwargs dict: Key-value arguments to update the 'gen' object.
+
+        Example usage:
+
+        ```python
+        animation_pipeline.live_update_from_kwargs(new_param1=value1, new_param2=value2)
+        ```
+        """
         try:
 
             self.gen.update_from_kwargs(**kwargs)
@@ -599,8 +642,20 @@ class DeforumAnimationPipeline(DeforumBase):
             else:
                 self.gen.frame_idx = self.gen.max_frames
 
-
+    @deforumdoc
     def reset(self, *args, **kwargs) -> None:
+        """
+        Cleans up the resources used by the pipeline by freeing GPU memory and deleting attributes.
+
+        :return: None.
+        :rtype: None
+
+        Example usage:
+
+        ```python
+        animation_pipeline.cleanup()
+        ```
+        """
         self.prep_fns.clear()
         self.shoot_fns.clear()
         self.post_fns.clear()
@@ -612,8 +667,8 @@ class DeforumAnimationPipeline(DeforumBase):
         torch.cuda.empty_cache()
         gc.collect()
 
-    def datacallback(self, data):
-        pass
+    def datacallback(self, data) -> None:
+        return None
 
     def generate_(self):
         assert self.gen.prompt is not None

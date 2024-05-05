@@ -7,15 +7,13 @@ Welcome to deforum's documentation!
 ===================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 10
    :caption: Contents:
    :glob:
 
    intro
    installation
-   usage
-   modules/*  # Assumed path to the modules' index if explicitly structured
-   api/index      # Assumed path to the API documentation index if explicitly structured
+   modules/deforum_index
    faq
    genindex
    modindex
