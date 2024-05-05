@@ -1,0 +1,47 @@
+# Use the specific NVIDIA CUDA image
+FROM nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04
+
+# Set a working directory
+WORKDIR /workdir
+
+# Install necessary packages for Git, Python, and X11 (GUI support)
+RUN apt-get update && \
+    apt-get install -y git python3-pip x11-apps libx11-dev qtbase5-dev pulseaudio libxcb-cursor0 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Clone the develop branch of the deforum repository
+RUN git clone --branch dev-miklos-0503 https://github.com/deforum-studio/deforum.git deforum
+
+# Change to the cloned directory
+WORKDIR /workdir/deforum
+
+# Install the project in editable mode with dev dependencies
+RUN pip install -e .[dev]
+
+# Install Python Qt6 for GUI applications
+RUN pip install PyQt6
+
+# Uninstall and reinstall OpenCV packages as needed
+RUN pip uninstall -y opencv-python opencv-python-headless
+RUN pip install opencv-python-headless --force-reinstall
+
+# Clone the ComfyUI repository with a specific commit
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git /workdir/deforum/src/ComfyUI
+WORKDIR /workdir/deforum/src/ComfyUI
+RUN git checkout daa92a8ff4d3e75a3b17bb1a6b6c508b27264ff5
+
+# Clone additional custom node repositories into the ComfyUI directory
+RUN git clone https://github.com/shiimizu/ComfyUI_smZNodes.git /workdir/deforum/src/ComfyUI/custom_nodes/smZNodes
+WORKDIR /workdir/deforum/src/ComfyUI/custom_nodes/smZNodes
+RUN git checkout a1627ce2ade31822694d82aa9600a4eff0f99d69
+
+RUN git clone https://github.com/ltdrdata/ComfyUI-Inspire-Pack.git /workdir/deforum/src/ComfyUI/custom_nodes/InspirePack
+WORKDIR /workdir/deforum/src/ComfyUI/custom_nodes/InspirePack
+RUN git checkout 9c5fa36a51786fe6d75546831e5ac15cee67e77b
+
+# Reset the working directory
+WORKDIR /workdir/deforum
+
+# Configure to run in interactive mode with GUI support
+CMD ["deforum", "ui"]

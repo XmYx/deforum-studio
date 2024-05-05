@@ -11,7 +11,7 @@ from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 from PyQt6.QtWidgets import QApplication, QTabWidget, QWidget, QVBoxLayout, QDockWidget, QSlider, QLabel, QMdiArea, \
     QPushButton, QComboBox, QFileDialog, QSpinBox, QLineEdit, QCheckBox, QTextEdit, QHBoxLayout, QListWidget, \
-    QDoubleSpinBox, QListWidgetItem, QMessageBox, QScrollArea
+    QDoubleSpinBox, QListWidgetItem, QMessageBox, QScrollArea, QTabBar
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, pyqtSlot, QUrl, QSize
 
 from deforum import logger
@@ -23,6 +23,59 @@ from deforum.ui.qt_modules.ref import TimeLineQDockWidget
 from deforum.ui.qt_modules.timeline import TimelineWidget
 
 
+class DetachableTabWidget(QTabWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setMovable(True)
+        self.setTabBarAutoHide(False)
+        self.tabBar().setMouseTracking(True)
+        self.main_window = parent  # Assume parent is the main window
+
+    def addTabWithDetachButton(self, widget, title):
+        super().addTab(widget, title)
+        tab_index = self.indexOf(widget)
+        detach_button = QPushButton("Detach")
+        detach_button.setProperty('widget', widget)  # Store the widget directly
+        detach_button.clicked.connect(self.detach_as_dock)
+        self.tabBar().setTabButton(tab_index, QTabBar.ButtonPosition.RightSide, detach_button)
+
+    def detach_as_dock(self):
+        button = self.sender()
+        if button:
+            widget = button.property('widget')
+            if widget is None:
+                return
+
+            index = self.indexOf(widget)  # Determine index at the time of click
+            if index == -1:
+                return  # This should not happen, but just in case
+
+            scroll_area = QScrollArea()
+            scroll_area.setWidget(widget)
+            scroll_area.setWidgetResizable(True)
+
+            title = self.tabText(index)
+            dock = AutoReattachDockWidget(title, self.main_window, widget, self)
+            dock.setWidget(scroll_area)
+            dock.setFloating(True)
+            dock.show()
+
+            # self.removeTab(index)
+
+
+class AutoReattachDockWidget(QDockWidget):
+    def __init__(self, title, parent=None, original_widget=None, tab_widget=None):
+        super().__init__(title, parent)
+        self.original_widget = original_widget
+        self.tab_widget = tab_widget
+
+    def closeEvent(self, event):
+        if self.original_widget and self.tab_widget:
+            scroll_area = self.widget()
+            if isinstance(scroll_area, QScrollArea):
+                widget = scroll_area.takeWidget()
+                self.tab_widget.addTabWithDetachButton(widget, self.windowTitle())
+        super().closeEvent(event)
 class MainWindow(DeforumCore):
     def __init__(self):
         super().__init__()
@@ -176,7 +229,7 @@ class MainWindow(DeforumCore):
         self.stopRenderButton.triggered.connect(self.stopBackendProcess)
         # Initialize the tabbed control layout docked on the left
         self.controlsDock = self.addDock("Controls", Qt.DockWidgetArea.LeftDockWidgetArea)
-        self.tabWidget = QTabWidget()
+        self.tabWidget = DetachableTabWidget(self)
         self.tabWidget.setMinimumSize(QSize(0,0))
         self.controlsDock.setWidget(self.tabWidget)
 
@@ -200,7 +253,7 @@ class MainWindow(DeforumCore):
                 elif params['widget_type'] == 'dropdown':
                     self.createComboBox(params['label'], layout, [str(param) for param in params['options']], setting)
                 elif params['widget_type'] == 'text input':
-                    self.createTextBox(params['label'], layout, params['default'], setting)
+                    self.createTextInput(params['label'], layout, params['default'], setting)
                 elif params['widget_type'] == 'text box':
                     self.createTextBox(params['label'], layout, params['default'], setting)
                 elif params['widget_type'] == 'slider':
@@ -214,7 +267,7 @@ class MainWindow(DeforumCore):
             scroll.setWidget(tab)
             scroll.setWidgetResizable(True)  # Make the scroll area resizable
 
-            self.tabWidget.addTab(scroll, category)  # Add the scroll area to the tab widget
+            self.tabWidget.addTabWithDetachButton(scroll, category)  # Add the scroll area to the tab widget
             # self.tabWidget.addTab(tab, category)
         # self.createPushButton('Render', layout, self.startBackendProcess)
 
@@ -292,6 +345,28 @@ class MainWindow(DeforumCore):
         mainLayout.addLayout(controlsLayout)
 
         self.videoSubWindow.widget().setLayout(mainLayout)
+        self.videoSlider.valueChanged.connect(self.setResumeFrom)
+
+    def setResumeFrom(self, position):
+        # Assuming the frame rate is stored in self.frameRate
+        frame_rate = self.params.get('fps', 24)  # you'll need to set this appropriately
+        frame_number = int((position / 1000) * frame_rate)
+        self.params["resume_from"] = frame_number + 1
+        # Update the widget directly if necessary
+        if 'resume_from' in self.widgets:
+            self.widgets['resume_from'].setValue(frame_number)
+
+    # def setResumeFrom(self, to):
+    #     # Assuming position is in milliseconds and you want to convert it to seconds
+    #     seconds = to // 1000
+    #     self.params["resume_from"] = seconds
+    #     # Update the widget directly if necessary
+    #     if 'resume_from' in self.widgets:
+    #         self.widgets['resume_from'].setValue(seconds)
+    #
+    #     # self.params["resume_from"] = to
+    #     # self.widgets['resume_from'].setValue(to)
+
     def tileMdiSubWindows(self):
         """Resize and evenly distribute all subwindows in the MDI area."""
         # Optionally, set a uniform size for all subwindows
@@ -319,13 +394,29 @@ class MainWindow(DeforumCore):
 
     def updateDuration(self, duration):
         self.videoSlider.setMaximum(duration)
+        # Optionally, you might want to adjust the ticks interval based on the video duration
+        self.videoSlider.setTickInterval(duration // 100)  # For example, 100 ticks across the slider
 
-    @pyqtSlot(str)
-    def playVideo(self, path):
-        # Play video in the QMediaPlayer
-        self.player.setSource(QUrl.fromLocalFile(path))
-        self.player.play()
-        self.videoSubWindow.show()  # Ensure the video subwindow is visible
+    @pyqtSlot(dict)
+    def playVideo(self, data):
+        # Stop the player and reset its state before loading a new video
+        self.player.stop()
+        self.player.setSource(QUrl())  # Reset the source to clear buffers
+
+        if 'video_path' in data:
+            try:
+                # Set new video source and attempt to play
+                self.player.setSource(QUrl.fromLocalFile(data['video_path']))
+                self.player.play()
+            except Exception as e:
+                print(f"Error playing video: {e}")
+                self.player.stop()  # Ensure player is stopped on error
+
+        if 'timestring' in data:
+            self.params['resume_timestring'] = data['timestring']
+            self.params['resume_path'] = data['resume_path']
+            self.params['resume_from'] = data['resume_from']
+            self.updateUIFromParams()
 
     def addDock(self, title, area):
         dock = QDockWidget(title, self)
@@ -346,6 +437,11 @@ class MainWindow(DeforumCore):
     def startBackendProcess(self):
         #params = {key: widget.value() for key, widget in self.params.items() if hasattr(widget, 'value')}
         # if not self.thread:
+
+        if self.params['resume_from_timestring']:
+            self.params['max_frames'] += 1
+            self.updateUIFromParams()
+
         self.thread = BackendThread(self.params)
         self.thread.imageGenerated.connect(self.updateImage)
         self.thread.finished.connect(self.playVideo)
@@ -365,14 +461,22 @@ class MainWindow(DeforumCore):
     def runNextJob(self):
         if self.job_queue:
             self.current_job = self.job_queue.pop(0)
-            self.current_job.markRunning()  # Mark the job as running
-            self.thread = BackendThread(self.current_job.job_data)
-            self.thread.finished.connect(self.onJobFinished)
-            self.thread.start()
+            try:
+                self.current_job.markRunning()  # Mark the job as running
+                # self.params.update(self.current_job.job_data)
+                # self.updateUIFromParams()
+                self.thread = BackendThread(self.current_job.job_data)
+                self.thread.finished.connect(self.onJobFinished)
+                self.thread.imageGenerated.connect(self.updateImage)
+                # self.thread.finished.connect(self.playVideo)
+                self.thread.start()
+            except:
+                self.current_job = None
+                self.startBatchProcess()
 
-    @pyqtSlot(str)
+    @pyqtSlot(dict)
     def onJobFinished(self, result):
-        print(f"Job completed with result: {result}")
+        #print(f"Job completed with result: {result}")
         if self.current_job:
             self.current_job.markComplete()  # Mark the job as complete
             self.current_job = None  # Reset current job
@@ -405,29 +509,30 @@ class MainWindow(DeforumCore):
             # self.timelineWidget.add_image_to_track(qpixmap)
     def updateParam(self, key, value):
         super().updateParam(key, value)
-        from deforum.shared_storage import models
+        try:
+            from deforum.shared_storage import models
+            # Load the deforum pipeline if not already loaded
+            if "deforum_pipe" in models:
+                prom = self.params.get('prompts', 'cat sushi')
+                key = self.params.get('keyframes', '0')
+                if prom == "":
+                    prom = "Abstract art"
+                if key == "":
+                    key = "0"
 
-        # Load the deforum pipeline if not already loaded
-        if "deforum_pipe" in models:
+                if not isinstance(prom, dict):
+                    new_prom = list(prom.split("\n"))
+                    new_key = list(key.split("\n"))
+                    self.params["animation_prompts"] = dict(zip(new_key, new_prom))
+                else:
+                    self.params["animation_prompts"] = prom
 
-            prom = self.params.get('prompts', 'cat sushi')
-            key = self.params.get('keyframes', '0')
-            if prom == "":
-                prom = "Abstract art"
-            if key == "":
-                key = "0"
-
-            if not isinstance(prom, dict):
-                new_prom = list(prom.split("\n"))
-                new_key = list(key.split("\n"))
-                self.params["animation_prompts"] = dict(zip(new_key, new_prom))
-            else:
-                self.params["animation_prompts"] = prom
-
-            models["deforum_pipe"].live_update_from_kwargs(**self.params)
-            print("UPDATED DEFORUM PARAMS")
+                models["deforum_pipe"].live_update_from_kwargs(**self.params)
+                print("UPDATED DEFORUM PARAMS")
+        except:
+            pass
     def updateUIFromParams(self):
-        for widget in self.findChildren(QWidget):
+        for k, widget in self.widgets.items():
             if hasattr(widget, 'accessibleName'):
                 key = widget.accessibleName()
                 if key in self.params:
@@ -439,6 +544,8 @@ class MainWindow(DeforumCore):
                         if index != -1:
                             widget.setCurrentIndex(index)
                     elif isinstance(widget, QLineEdit):
+
+
                         widget.setText(str(value))
                     elif isinstance(widget, QTextEdit):
                         widget.setText(str(value))

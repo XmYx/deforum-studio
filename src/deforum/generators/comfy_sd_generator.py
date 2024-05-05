@@ -491,10 +491,13 @@ class ComfyDeforumGenerator:
             seed_resize_from_w = width
         if seed == -1:
             seed = secrets.randbelow(18446744073709551615)
-        if strength <= 0.0 or strength >= 1.0:
+
+        if strength <= 0.05 or strength >= 1.0:
             strength = 1.0
-            reset_noise = True
-            init_image = None
+            # reset_noise = True
+            # init_image = None
+        else:
+            strength = 1 - strength if strength != 1.0 else strength
 
         if subseed == -1:
             subseed = secrets.randbelow(18446744073709551615)
@@ -624,9 +627,8 @@ class ComfyDeforumGenerator:
         # logger.info(f"seed/subseed/subseed_str={seed}/{subseed}/{subseed_strength}; strength={strength}; scale={scale}; sampler_name={sampler_name}; scheduler={scheduler};")
         if not hasattr(self, "sampler_node"):
             from nodes import NODE_CLASS_MAPPINGS
+            self.sampler_node = NODE_CLASS_MAPPINGS['KSampler //Inspire']()
 
-            self.sampler_node = NODE_CLASS_MAPPINGS["KSampler //Inspire"]()
-        strength = 1 - strength if strength != 1.0 else strength
         steps = round(strength * steps)
         # if subseed_strength > 0:
         #     subseed_strength = subseed_strength * 10

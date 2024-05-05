@@ -6,8 +6,11 @@ from PyQt6 import QtCore
 from PyQt6.QtCore import Qt, QRect
 from PyQt6.QtGui import QAction, QPalette
 from PyQt6.QtWidgets import QMainWindow, QMessageBox, QHBoxLayout, QSpinBox, QLabel, QDoubleSpinBox, QCheckBox, \
-    QComboBox, QPushButton, QFileDialog, QTextEdit, QWidget, QVBoxLayout, QApplication
-
+    QComboBox, QPushButton, QFileDialog, QTextEdit, QWidget, QVBoxLayout, QApplication, QLineEdit
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QLabel, QPushButton
+from PyQt6.QtCore import QRect, Qt
+from PyQt6.QtGui import QPalette, QColor
+import re
 
 class CustomTextBox(QWidget):
     def __init__(self, label, default):
@@ -15,45 +18,122 @@ class CustomTextBox(QWidget):
         self.layout = QVBoxLayout(self)
         self.text_box = QTextEdit(self)
         self.text_box.setText(default)
-        self.label = QLabel(label, self.text_box)
+        self.label = QLabel(label, self)
+        self.plus_button = QPushButton('+', self)
+        self.minus_button = QPushButton('-', self)
         self.setupUI()
         self.updateStyles()
+        self.connectSignals()
 
     def setupUI(self):
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)  # Make label ignore mouse events
+        self.label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.layout.addWidget(self.text_box)
+        self.plus_button.setFixedSize(20, 20)
+        self.minus_button.setFixedSize(20, 20)
+        self.plus_button.hide()
+        self.minus_button.hide()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        # Update label size and position on resize
         self.label.setGeometry(QRect(0, 0, self.text_box.width(), self.text_box.height()))
+        self.updateButtonPositions()
+
+    def updateButtonPositions(self):
+        # Place the buttons at the right inside the text box
+        base_y = self.text_box.height() - 25
+        self.plus_button.move(self.text_box.width() - 25, base_y - 20)
+        self.minus_button.move(self.text_box.width() - 25, base_y)
+
+    def connectSignals(self):
+        # self.text_box.textChanged.connect(self.updateLabelVisibility)
+        self.text_box.textChanged.connect(self.checkTextAndUpdateButtons)
+        self.plus_button.clicked.connect(lambda: self.adjustNumber(0.1))
+        self.minus_button.clicked.connect(lambda: self.adjustNumber(-0.1))
+
+    def checkTextAndUpdateButtons(self):
+        text = self.text_box.toPlainText()
+        pattern = re.compile(r'\(-?\d+(\.\d+)?\)')
+        if pattern.search(text):
+            self.plus_button.show()
+            self.minus_button.show()
+        else:
+            self.plus_button.hide()
+            self.minus_button.hide()
+
+    def adjustNumber(self, increment):
+        text = self.text_box.toPlainText()
+        pattern = re.compile(r'\((-?\d+(\.\d+)?)\)')
+        matches = pattern.search(text)
+        if matches:
+            number = float(matches.group(1)) + increment
+            new_text = pattern.sub(f'({number:.1f})', text)
+            self.text_box.setPlainText(new_text)
 
     def updateLabelVisibility(self):
-        # Hide label if there is text, otherwise show it
         if self.text_box.toPlainText():
             self.label.hide()
         else:
             self.label.show()
 
     def updateStyles(self):
-        # Adjust style based on the system's theme
         theme = QApplication.instance().palette().color(QPalette.ColorRole.Window).lightness()
-        if theme > 128:  # Light theme
+        if theme > 128:
             text_color = "black"
-            bg_label_color = "rgba(160, 160, 160, 50)"  # Light gray with some transparency
-        else:  # Dark theme
+            bg_label_color = "rgba(160, 160, 160, 50)"
+        else:
             text_color = "white"
-            bg_label_color = "rgba(200, 200, 200, 50)"  # Light white with some transparency
-
+            bg_label_color = "rgba(200, 200, 200, 50)"
         self.text_box.setStyleSheet(f"color: {text_color}; background-color: transparent;")
         self.label.setStyleSheet(f"color: {bg_label_color}; font-size: 24px; font-weight: bold;")
+
+
+# class CustomTextBox(QWidget):
+#     def __init__(self, label, default):
+#         super().__init__()
+#         self.layout = QVBoxLayout(self)
+#         self.text_box = QTextEdit(self)
+#         self.text_box.setText(default)
+#         self.label = QLabel(label, self.text_box)
+#         self.setupUI()
+#         self.updateStyles()
+#
+#     def setupUI(self):
+#         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+#         self.label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)  # Make label ignore mouse events
+#         self.layout.addWidget(self.text_box)
+#
+#     def resizeEvent(self, event):
+#         super().resizeEvent(event)
+#         # Update label size and position on resize
+#         self.label.setGeometry(QRect(0, 0, self.text_box.width(), self.text_box.height()))
+#
+#     def updateLabelVisibility(self):
+#         # Hide label if there is text, otherwise show it
+#         if self.text_box.toPlainText():
+#             self.label.hide()
+#         else:
+#             self.label.show()
+#
+#     def updateStyles(self):
+#         # Adjust style based on the system's theme
+#         theme = QApplication.instance().palette().color(QPalette.ColorRole.Window).lightness()
+#         if theme > 128:  # Light theme
+#             text_color = "black"
+#             bg_label_color = "rgba(160, 160, 160, 50)"  # Light gray with some transparency
+#         else:  # Dark theme
+#             text_color = "white"
+#             bg_label_color = "rgba(200, 200, 200, 50)"  # Light white with some transparency
+#
+#         self.text_box.setStyleSheet(f"color: {text_color}; background-color: transparent;")
+#         self.label.setStyleSheet(f"color: {bg_label_color}; font-size: 24px; font-weight: bold;")
 
 class DeforumCore(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.initMenu()
         self.params = {}
+        self.widgets = {}
 
     def initMenu(self):
         self.menuBar = self.menuBar()
@@ -140,6 +220,7 @@ class DeforumCore(QMainWindow):
         hbox.addWidget(QLabel(label))
         hbox.addWidget(spinBox)
         layout.addLayout(hbox)
+        self.widgets[key] = spinBox
         return spinBox
 
     def createDoubleSpinBox(self, label, layout, minimum, maximum, step, value, key):
@@ -156,6 +237,8 @@ class DeforumCore(QMainWindow):
         hbox.addWidget(QLabel(label))
         hbox.addWidget(spinBox)
         layout.addLayout(hbox)
+        self.widgets[key] = spinBox
+
         return spinBox
 
     def createTextBox(self, label, layout, value, key):
@@ -169,8 +252,23 @@ class DeforumCore(QMainWindow):
         # hbox.addWidget(QLabel(label))
         hbox.addWidget(textBox)
         layout.addLayout(hbox)
-        return textBox.text_box
+        self.widgets[key] = textBox.text_box
 
+        return textBox.text_box
+    def createTextInput(self, label, layout, value, key):
+        hbox = QHBoxLayout()
+        textBox = QLineEdit()
+        textBox.setText(value)
+        textBox.setAccessibleName(key)
+        # Connect the lambda directly without expecting arguments from the signal
+        textBox.textChanged.connect(lambda: self.updateParam(key, textBox.text()))
+        self.params[key] = value
+        hbox.addWidget(QLabel(label))
+        hbox.addWidget(textBox)
+        layout.addLayout(hbox)
+        self.widgets[key] = textBox
+
+        return textBox
     def createCheckBox(self, label, layout, default, key):
         checkBox = QCheckBox(label)
         checkBox.setAccessibleName(key)
@@ -180,6 +278,8 @@ class DeforumCore(QMainWindow):
         checkBox.stateChanged.connect(self.onStateChanged)
         layout.addWidget(checkBox)
         self.params[key] = default  # Initialize the parameter dictionary
+        self.widgets[key] = checkBox
+
         return checkBox
 
     def createComboBox(self, label, layout, items, key):
@@ -193,6 +293,7 @@ class DeforumCore(QMainWindow):
         hbox.addWidget(comboBox)
         layout.addLayout(hbox)
         self.params[key] = comboBox.currentText()  # Initialize the parameter dictionary with the current text
+        self.widgets[key] = comboBox
         return comboBox
 
     def createPushButton(self, label, layout, function):
@@ -204,23 +305,28 @@ class DeforumCore(QMainWindow):
     # Method to handle value changes from SpinBox and DoubleSpinBox
     def onSpinBoxValueChanged(self, value):
         widget = self.sender()
-        if widget:
-            key = widget.accessibleName()
-            self.updateParam(key, value)
+        if isinstance(widget, QWidget):
+
+            if widget:
+                key = widget.accessibleName()
+                self.updateParam(key, value)
 
     # Method to handle text changes from TextBox
     def onTextChanged(self):
         widget = self.sender()
-        if widget:
-            key = widget.accessibleName()
-            self.updateParam(key, widget.toPlainText())
+        if isinstance(widget, QWidget):
+
+            if widget:
+                key = widget.accessibleName()
+                self.updateParam(key, widget.toPlainText())
 
     # Method to handle state changes from CheckBox
     def onStateChanged(self, state):
         widget = self.sender()
-        if widget:
-            key = widget.accessibleName()
-            self.updateParam(key, widget.isChecked())
+        if isinstance(widget, QWidget):
+            if widget:
+                key = widget.accessibleName()
+                self.updateParam(key, widget.isChecked())
     def updateParam(self, key, value):
         self.params[key] = value
     def populatePresetsDropdown(self):

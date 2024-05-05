@@ -1,6 +1,6 @@
 import importlib
 import os
-
+from glob import glob
 
 from deforum.utils.model_download import (
     get_filename_from_url,
@@ -115,7 +115,14 @@ class DeforumBase:
 
         # assert modelid is not None, "Model ID should be a string."
         assert isinstance(model_id, str), "Model ID should be a string."
-
+        # Find the largest 'safetensors' file in cache_dir
+        safetensor_files = glob(os.path.join(cache_dir, '*safetensors*'))
+        if safetensor_files:
+            largest_file = max(safetensor_files, key=os.path.getsize)
+            filename = os.path.basename(largest_file)
+            logger.info(f"Using largest safetensor file found: {filename}")
+        else:
+            filename = None
         # try download model from civitai
         try:
             filename = download_from_civitai(
