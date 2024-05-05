@@ -20,8 +20,8 @@ cfg_guider = None
 
 
 def prepare_sampling(model, noise_shape, conds):
-    device = model.load_device
-    real_model = None
+    # device = model.load_device
+    # real_model = None
     # models, inference_memory = get_additional_models(conds, model.model_dtype())
     # comfy.model_management.load_models_gpu([model] + models, model.memory_required(
     #     [noise_shape[0] * 2] + list(noise_shape[1:])) + inference_memory)
