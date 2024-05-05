@@ -352,12 +352,6 @@ class ComfyDeforumGenerator:
             self.model = settings_node.run(self.model, **settings_dict)[0]
             self.clip = settings_node.run(self.clip, **settings_dict)[0]
 
-            try:
-                self.optimize_model()
-                self.optimize = True
-            except:
-                self.optimize = False
-                logger.info("Could not apply Stable-Fast Unet patch.")
 
             self.model_loaded = True
 
