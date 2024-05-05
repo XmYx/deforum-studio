@@ -11,7 +11,7 @@ Currently, the repository is in development, and the recommended installation me
 ### For Developers
 1. Clone the repository:
    ```bash
-   git clone https://github.com/deforum-studio/deforum
+   git clone --recursive https://github.com/deforum-studio/deforum
    cd deforum
    ```
 2. Create a virtual environment for `python==3.10`:
