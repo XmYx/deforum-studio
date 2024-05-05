@@ -1,9 +1,9 @@
 import re
 
-from PyQt6.QtCore import Qt, pyqtSignal, QPoint, QRect
-from PyQt6.QtGui import QPalette
-from PyQt6.QtWidgets import QMdiSubWindow, QApplication, QTextEdit, QMenu
-from PyQt6.QtWidgets import QTabWidget, QWidget, QVBoxLayout, QDockWidget, QLabel, QPushButton, QSpinBox, QLineEdit, \
+from qtpy.QtCore import Qt, Signal, QPoint, QRect
+from qtpy.QtGui import QPalette
+from qtpy.QtWidgets import QMdiSubWindow, QApplication, QTextEdit, QMenu
+from qtpy.QtWidgets import QTabWidget, QWidget, QVBoxLayout, QDockWidget, QLabel, QPushButton, QSpinBox, QLineEdit, \
     QCheckBox, QHBoxLayout, QDoubleSpinBox, QScrollArea, QTabBar
 
 
@@ -100,7 +100,7 @@ class AspectRatioMdiSubWindow(QMdiSubWindow):
         self.updateSize()  # Ensure the window size respects the new aspect ratio
         super(AspectRatioMdiSubWindow, self).resizeEvent(event)
 class ResizableImageLabel(QLabel):
-    pixmapChanged = pyqtSignal(float)  # Emit new aspect ratio
+    pixmapChanged = Signal(float)  # Emit new aspect ratio
 
     def __init__(self, parent=None):
         super(ResizableImageLabel, self).__init__(parent)

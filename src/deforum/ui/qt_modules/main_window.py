@@ -1,18 +1,16 @@
 import copy
 import datetime
-import os
-import sys
 import json
+import os
 
 import numpy as np
-
-from PyQt6.QtGui import QImage, QAction
-from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
-from PyQt6.QtMultimediaWidgets import QVideoWidget
-from PyQt6.QtWidgets import QApplication, QTabWidget, QWidget, QVBoxLayout, QDockWidget, QSlider, QLabel, QMdiArea, \
-    QPushButton, QComboBox, QFileDialog, QSpinBox, QLineEdit, QCheckBox, QTextEdit, QHBoxLayout, QListWidget, \
-    QDoubleSpinBox, QListWidgetItem, QMessageBox, QScrollArea, QTabBar, QProgressBar, QSizePolicy
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, pyqtSlot, QUrl, QSize
+from qtpy.QtCore import Qt, Slot, QUrl, QSize
+from qtpy.QtGui import QAction
+from qtpy.QtMultimedia import QMediaPlayer, QAudioOutput
+from qtpy.QtMultimediaWidgets import QVideoWidget
+from qtpy.QtWidgets import QWidget, QVBoxLayout, QSlider, QLabel, QMdiArea, \
+    QPushButton, QComboBox, QFileDialog, QHBoxLayout, QListWidget, \
+    QListWidgetItem, QMessageBox, QScrollArea, QProgressBar, QSizePolicy
 
 from deforum import logger
 from deforum.ui.qt_helpers.qt_image import npArrayToQPixmap
@@ -21,6 +19,7 @@ from deforum.ui.qt_modules.core import DeforumCore
 from deforum.ui.qt_modules.custom_ui import ResizableImageLabel, JobDetailPopup, JobQueueItem, AspectRatioMdiSubWindow, \
     DetachableTabWidget, AutoReattachDockWidget, CustomTextBox
 from deforum.ui.qt_modules.ref import TimeLineQDockWidget
+
 
 class MainWindow(DeforumCore):
     def __init__(self):
@@ -533,7 +532,7 @@ class MainWindow(DeforumCore):
         # Optionally, you might want to adjust the ticks interval based on the video duration
         self.videoSlider.setTickInterval(duration // 100)  # For example, 100 ticks across the slider
 
-    @pyqtSlot(dict)
+    @Slot(dict)
     def playVideo(self, data):
         self.statusLabel.setText("Ready")
         # Stop the player and reset its state before loading a new video
@@ -603,7 +602,7 @@ class MainWindow(DeforumCore):
                 self.current_job = None
                 self.startBatchProcess()
 
-    @pyqtSlot(dict)
+    @Slot(dict)
     def onJobFinished(self, result):
         #print(f"Job completed with result: {result}")
         if self.current_job:
@@ -630,7 +629,7 @@ class MainWindow(DeforumCore):
         self.statusLabel.setText(
             f"Batch Render Stopped")
 
-    @pyqtSlot(dict)
+    @Slot(dict)
     def updateImage(self, data):
         # Update the image on the label
         # Update progress bar if max_frames is defined

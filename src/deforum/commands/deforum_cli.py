@@ -7,9 +7,9 @@ import sys
 from deforum.commands.deforum_run_unit_test import run_unit_test
 from deforum.utils.logging_config import logger
 
-def install_pyqt6():
+def install_qtpy():
     try:
-        import PyQt6
+        import qtpy
     except:
         subprocess.run(
             [
@@ -25,6 +25,14 @@ def install_pyqt6():
                 "-m" "pip",
                 "install",
                 "pyqt6==6.5.0",
+            ]
+        )
+        subprocess.run(
+            [
+                "python3",
+                "-m" "pip",
+                "install",
+                "qtpy==2.4.1",
             ]
         )
 
@@ -165,7 +173,7 @@ def start_deforum_cli():
             from deforum.utils.install_sfast import install_sfast
             install_sfast()
         elif args_main.mode == "ui":
-            install_pyqt6()
+            install_qtpy()
 
             # Get the absolute path of the current file
             current_file_path = os.path.abspath(__file__)
@@ -201,7 +209,7 @@ def start_deforum_cli():
             #     )
             #     subprocess.run([sys.executable, main_script_path])
         elif args_main.mode == 'runsingle':
-            install_pyqt6()
+            install_qtpy()
 
             # Get the absolute path of the current file
             current_file_path = os.path.abspath(__file__)

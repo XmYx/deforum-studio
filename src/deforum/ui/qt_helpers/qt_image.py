@@ -1,4 +1,4 @@
-from PyQt6.QtGui import QPixmap, QImage
+from qtpy.QtGui import QPixmap, QImage
 
 
 def npArrayToQPixmap(arr):

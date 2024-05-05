@@ -1,17 +1,13 @@
 import json
 import os
-import threading
 
-from PyQt6 import QtCore
-from PyQt6.QtCore import Qt, QRect, QPoint
-from PyQt6.QtGui import QAction, QPalette
-from PyQt6.QtWidgets import QMainWindow, QMessageBox, QHBoxLayout, QSpinBox, QLabel, QDoubleSpinBox, QCheckBox, \
-    QComboBox, QPushButton, QFileDialog, QTextEdit, QWidget, QVBoxLayout, QApplication, QLineEdit, QMenu, QSlider, \
+from qtpy import QtCore
+from qtpy.QtCore import Qt
+from qtpy.QtGui import QAction
+from qtpy.QtWidgets import QMainWindow, QHBoxLayout, QSpinBox, QDoubleSpinBox, QCheckBox, \
+    QComboBox, QFileDialog, QLineEdit, QSlider, \
     QDockWidget
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QLabel, QPushButton
-from PyQt6.QtCore import QRect, Qt
-from PyQt6.QtGui import QPalette, QColor
-import re
+from qtpy.QtWidgets import QWidget, QTextEdit, QLabel, QPushButton
 
 from deforum.ui.qt_modules.custom_ui import CustomTextBox
 
