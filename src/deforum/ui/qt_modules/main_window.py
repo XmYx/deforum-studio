@@ -17,7 +17,7 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal, pyqtSlot, QUrl, QSize
 from deforum import logger
 from deforum.ui.qt_helpers.qt_image import npArrayToQPixmap
 from deforum.ui.qt_modules.backend_thread import BackendThread
-from deforum.ui.qt_modules.core import DeforumCore
+from deforum.ui.qt_modules.core import DeforumCore, CustomTextBox
 from deforum.ui.qt_modules.custom_ui import ResizableImageLabel, JobDetailPopup, JobQueueItem, AspectRatioMdiSubWindow
 from deforum.ui.qt_modules.ref import TimeLineQDockWidget
 from deforum.ui.qt_modules.timeline import TimelineWidget
@@ -154,6 +154,7 @@ class MainWindow(DeforumCore):
         self.state_file = os.path.join(os.path.expanduser('~'), 'deforum', '.lastview')
         os.makedirs(os.path.dirname(self.state_file), exist_ok=True)
         self.loadWindowState()
+        self.project_replay = False
     def closeEvent(self, event):
         self.saveWindowState()
         super().closeEvent(event)
@@ -177,6 +178,13 @@ class MainWindow(DeforumCore):
                 }
                 json.dump(dock_state, f)
                 f.write('\n')
+            for textbox in self.findChildren(CustomTextBox):
+                textbox_state = {
+                    'name': textbox.objectName(),
+                    'scale': textbox.scale
+                }
+                json.dump(textbox_state, f)
+                f.write('\n')
 
     def loadWindowState(self):
         try:
@@ -189,24 +197,28 @@ class MainWindow(DeforumCore):
                     if not line:
                         break
                     dock_state = json.loads(line)
+                    if 'scale' in dock_state:  # This identifies a CustomTextBox
+                        textbox = self.findChild(CustomTextBox, dock_state['name'])
+                        if textbox:
+                            textbox.scale = dock_state['scale']
+                    else:
+                        for button in self.tabWidget.buttons:
+                            if button.property('title') == dock_state['name']:
+                                button.click()
 
-                    for button in self.tabWidget.buttons:
-                        if button.property('title') == dock_state['name']:
-                            button.click()
+                        dock = self.findChild(AutoReattachDockWidget, dock_state['name'])
 
-                    dock = self.findChild(AutoReattachDockWidget, dock_state['name'])
-
-                    area_map = {
-                        "TopDockWidgetArea": Qt.DockWidgetArea.TopDockWidgetArea,
-                        "BottomDockWidgetArea": Qt.DockWidgetArea.BottomDockWidgetArea,
-                        "LeftDockWidgetArea": Qt.DockWidgetArea.LeftDockWidgetArea,
-                        "RightDockWidgetArea": Qt.DockWidgetArea.RightDockWidgetArea,
-                        "NoDockWidgetArea": Qt.DockWidgetArea.NoDockWidgetArea
-                    }
-                    if dock:
-                        dock.restoreGeometry(bytes(dock_state['geometry'], 'utf-8'))
-                        self.addDockWidget(area_map[dock_state['dock_area']], dock)
-                        dock.setFloating(False)
+                        area_map = {
+                            "TopDockWidgetArea": Qt.DockWidgetArea.TopDockWidgetArea,
+                            "BottomDockWidgetArea": Qt.DockWidgetArea.BottomDockWidgetArea,
+                            "LeftDockWidgetArea": Qt.DockWidgetArea.LeftDockWidgetArea,
+                            "RightDockWidgetArea": Qt.DockWidgetArea.RightDockWidgetArea,
+                            "NoDockWidgetArea": Qt.DockWidgetArea.NoDockWidgetArea
+                        }
+                        if dock:
+                            dock.restoreGeometry(bytes(dock_state['geometry'], 'utf-8'))
+                            self.addDockWidget(area_map[dock_state['dock_area']], dock)
+                            dock.setFloating(False)
         except FileNotFoundError:
             print("No saved state to load.")
         except Exception as e:
@@ -381,8 +393,13 @@ class MainWindow(DeforumCore):
         self.jobQueueList.addItem(item)
         self.jobQueueList.setItemWidget(item, widget)
         self.job_queue.append(widget)  # Append job widget to the queue
-    def loadPresetsDropdown(self):
-        current_text = self.presetsDropdown.currentText()  # Remember current text
+    def loadPresetsDropdown(self, restore=None):
+
+
+        if not isinstance(restore, str):
+            current_text = self.presetsDropdown.currentText()  # Remember current text
+        else:
+            current_text = restore
         if not os.path.exists(self.presets_folder):
             os.makedirs(self.presets_folder)
 
@@ -420,7 +437,7 @@ class MainWindow(DeforumCore):
             with open(preset_path, 'w') as file:
                 json.dump(self.params, file, indent=4)
 
-            self.loadPresetsDropdown()
+            self.loadPresetsDropdown(restore=preset_name)
     def setupDynamicUI(self):
         self.toolbar = self.addToolBar('Main Toolbar')
         self.toolbar.setObjectName('main_toolbar')
@@ -745,7 +762,7 @@ class MainWindow(DeforumCore):
             qpixmap = npArrayToQPixmap(np.array(img).astype(np.uint8))  # Convert to QPixmap
             self.previewLabel.setPixmap(qpixmap)
             self.previewLabel.setScaledContents(True)
-            if self.project is not None:
+            if self.project is not None and self.project_replay:
                 # Save parameters for this frame
 
                 # Save parameters for this frame

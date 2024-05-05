@@ -3,15 +3,89 @@ import os
 import threading
 
 from PyQt6 import QtCore
-from PyQt6.QtCore import Qt, QRect
+from PyQt6.QtCore import Qt, QRect, QPoint
 from PyQt6.QtGui import QAction, QPalette
 from PyQt6.QtWidgets import QMainWindow, QMessageBox, QHBoxLayout, QSpinBox, QLabel, QDoubleSpinBox, QCheckBox, \
-    QComboBox, QPushButton, QFileDialog, QTextEdit, QWidget, QVBoxLayout, QApplication, QLineEdit
+    QComboBox, QPushButton, QFileDialog, QTextEdit, QWidget, QVBoxLayout, QApplication, QLineEdit, QMenu
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QLabel, QPushButton
 from PyQt6.QtCore import QRect, Qt
 from PyQt6.QtGui import QPalette, QColor
 import re
 
+# class CustomTextBox(QWidget):
+#     def __init__(self, label, default):
+#         super().__init__()
+#         self.layout = QVBoxLayout(self)
+#         self.text_box = QTextEdit(self)
+#         self.text_box.setText(default)
+#         self.label = QLabel(label, self)
+#         self.plus_button = QPushButton('+', self)
+#         self.minus_button = QPushButton('-', self)
+#         self.setupUI()
+#         self.updateStyles()
+#         self.connectSignals()
+#
+#     def setupUI(self):
+#         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+#         self.label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+#         self.layout.addWidget(self.text_box)
+#         self.plus_button.setFixedSize(20, 20)
+#         self.minus_button.setFixedSize(20, 20)
+#         self.plus_button.hide()
+#         self.minus_button.hide()
+#
+#     def resizeEvent(self, event):
+#         super().resizeEvent(event)
+#         self.label.setGeometry(QRect(0, 0, self.text_box.width(), self.text_box.height()))
+#         self.updateButtonPositions()
+#
+#     def updateButtonPositions(self):
+#         # Place the buttons at the right inside the text box
+#         base_y = self.text_box.height() - 25
+#         self.plus_button.move(self.text_box.width() - 25, base_y - 20)
+#         self.minus_button.move(self.text_box.width() - 25, base_y)
+#
+#     def connectSignals(self):
+#         # self.text_box.textChanged.connect(self.updateLabelVisibility)
+#         self.text_box.textChanged.connect(self.checkTextAndUpdateButtons)
+#         self.plus_button.clicked.connect(lambda: self.adjustNumber(0.1))
+#         self.minus_button.clicked.connect(lambda: self.adjustNumber(-0.1))
+#
+#     def checkTextAndUpdateButtons(self):
+#         text = self.text_box.toPlainText()
+#         pattern = re.compile(r'\(-?\d+(\.\d+)?\)')
+#         if pattern.search(text):
+#             self.plus_button.show()
+#             self.minus_button.show()
+#         else:
+#             self.plus_button.hide()
+#             self.minus_button.hide()
+#
+#     def adjustNumber(self, increment):
+#         text = self.text_box.toPlainText()
+#         pattern = re.compile(r'\((-?\d+(\.\d+)?)\)')
+#         matches = pattern.search(text)
+#         if matches:
+#             number = float(matches.group(1)) + increment
+#             new_text = pattern.sub(f'({number:.1f})', text)
+#             self.text_box.setPlainText(new_text)
+#
+#     def updateLabelVisibility(self):
+#         if self.text_box.toPlainText():
+#             self.label.hide()
+#         else:
+#             self.label.show()
+#
+#     def updateStyles(self):
+#         theme = QApplication.instance().palette().color(QPalette.ColorRole.Window).lightness()
+#         if theme > 128:
+#             text_color = "black"
+#             bg_label_color = "rgba(160, 160, 160, 50)"
+#         else:
+#             text_color = "white"
+#             bg_label_color = "rgba(200, 200, 200, 50)"
+#         self.text_box.setStyleSheet(f"color: {text_color}; background-color: transparent;")
+#         self.label.setStyleSheet(f"color: {bg_label_color}; font-size: 24px; font-weight: bold;")
 class CustomTextBox(QWidget):
     def __init__(self, label, default):
         super().__init__()
@@ -21,6 +95,7 @@ class CustomTextBox(QWidget):
         self.label = QLabel(label, self)
         self.plus_button = QPushButton('+', self)
         self.minus_button = QPushButton('-', self)
+        self.scale = 0.1  # Default scale
         self.setupUI()
         self.updateStyles()
         self.connectSignals()
@@ -40,16 +115,28 @@ class CustomTextBox(QWidget):
         self.updateButtonPositions()
 
     def updateButtonPositions(self):
-        # Place the buttons at the right inside the text box
         base_y = self.text_box.height() - 25
         self.plus_button.move(self.text_box.width() - 25, base_y - 20)
         self.minus_button.move(self.text_box.width() - 25, base_y)
 
     def connectSignals(self):
-        # self.text_box.textChanged.connect(self.updateLabelVisibility)
         self.text_box.textChanged.connect(self.checkTextAndUpdateButtons)
-        self.plus_button.clicked.connect(lambda: self.adjustNumber(0.1))
-        self.minus_button.clicked.connect(lambda: self.adjustNumber(-0.1))
+        self.plus_button.clicked.connect(lambda: self.adjustNumber(self.scale))
+        self.minus_button.clicked.connect(lambda: self.adjustNumber(-self.scale))
+        self.plus_button.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.minus_button.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.plus_button.customContextMenuRequested.connect(lambda: self.showContextMenu(self.plus_button))
+        self.minus_button.customContextMenuRequested.connect(lambda: self.showContextMenu(self.minus_button))
+
+    def showContextMenu(self, button):
+        context_menu = QMenu(self)
+        for scale in [100, 10, 1, 0.1, 0.01, 0.001]:
+            action = context_menu.addAction(f'Scale: {scale}')
+            action.triggered.connect(lambda _, s=scale: self.setScale(s))
+        context_menu.exec(button.mapToGlobal(QPoint(0, 0)))
+
+    def setScale(self, scale):
+        self.scale = scale
 
     def checkTextAndUpdateButtons(self):
         text = self.text_box.toPlainText()
@@ -67,14 +154,8 @@ class CustomTextBox(QWidget):
         matches = pattern.search(text)
         if matches:
             number = float(matches.group(1)) + increment
-            new_text = pattern.sub(f'({number:.1f})', text)
+            new_text = pattern.sub(f'({number:.3f})', text)
             self.text_box.setPlainText(new_text)
-
-    def updateLabelVisibility(self):
-        if self.text_box.toPlainText():
-            self.label.hide()
-        else:
-            self.label.show()
 
     def updateStyles(self):
         theme = QApplication.instance().palette().color(QPalette.ColorRole.Window).lightness()
@@ -86,7 +167,6 @@ class CustomTextBox(QWidget):
             bg_label_color = "rgba(200, 200, 200, 50)"
         self.text_box.setStyleSheet(f"color: {text_color}; background-color: transparent;")
         self.label.setStyleSheet(f"color: {bg_label_color}; font-size: 24px; font-weight: bold;")
-
 
 # class CustomTextBox(QWidget):
 #     def __init__(self, label, default):
@@ -246,6 +326,7 @@ class DeforumCore(QMainWindow):
         textBox = CustomTextBox(label, value)
         textBox.text_box.setText(value)
         textBox.text_box.setAccessibleName(key)
+        textBox.setObjectName(key)
         # Connect the lambda directly without expecting arguments from the signal
         textBox.text_box.textChanged.connect(lambda: self.updateParam(key, textBox.text_box.toPlainText()))
         self.params[key] = value
