@@ -11,7 +11,7 @@ from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 from PyQt6.QtWidgets import QApplication, QTabWidget, QWidget, QVBoxLayout, QDockWidget, QSlider, QLabel, QMdiArea, \
     QPushButton, QComboBox, QFileDialog, QSpinBox, QLineEdit, QCheckBox, QTextEdit, QHBoxLayout, QListWidget, \
-    QDoubleSpinBox, QListWidgetItem, QMessageBox, QScrollArea
+    QDoubleSpinBox, QListWidgetItem, QMessageBox, QScrollArea, QTabBar
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, pyqtSlot, QUrl, QSize
 
 from deforum import logger
@@ -23,6 +23,59 @@ from deforum.ui.qt_modules.ref import TimeLineQDockWidget
 from deforum.ui.qt_modules.timeline import TimelineWidget
 
 
+class DetachableTabWidget(QTabWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setMovable(True)
+        self.setTabBarAutoHide(False)
+        self.tabBar().setMouseTracking(True)
+        self.main_window = parent  # Assume parent is the main window
+
+    def addTabWithDetachButton(self, widget, title):
+        super().addTab(widget, title)
+        tab_index = self.indexOf(widget)
+        detach_button = QPushButton("Detach")
+        detach_button.setProperty('widget', widget)  # Store the widget directly
+        detach_button.clicked.connect(self.detach_as_dock)
+        self.tabBar().setTabButton(tab_index, QTabBar.ButtonPosition.RightSide, detach_button)
+
+    def detach_as_dock(self):
+        button = self.sender()
+        if button:
+            widget = button.property('widget')
+            if widget is None:
+                return
+
+            index = self.indexOf(widget)  # Determine index at the time of click
+            if index == -1:
+                return  # This should not happen, but just in case
+
+            scroll_area = QScrollArea()
+            scroll_area.setWidget(widget)
+            scroll_area.setWidgetResizable(True)
+
+            title = self.tabText(index)
+            dock = AutoReattachDockWidget(title, self.main_window, widget, self)
+            dock.setWidget(scroll_area)
+            dock.setFloating(True)
+            dock.show()
+
+            # self.removeTab(index)
+
+
+class AutoReattachDockWidget(QDockWidget):
+    def __init__(self, title, parent=None, original_widget=None, tab_widget=None):
+        super().__init__(title, parent)
+        self.original_widget = original_widget
+        self.tab_widget = tab_widget
+
+    def closeEvent(self, event):
+        if self.original_widget and self.tab_widget:
+            scroll_area = self.widget()
+            if isinstance(scroll_area, QScrollArea):
+                widget = scroll_area.takeWidget()
+                self.tab_widget.addTabWithDetachButton(widget, self.windowTitle())
+        super().closeEvent(event)
 class MainWindow(DeforumCore):
     def __init__(self):
         super().__init__()
@@ -176,7 +229,7 @@ class MainWindow(DeforumCore):
         self.stopRenderButton.triggered.connect(self.stopBackendProcess)
         # Initialize the tabbed control layout docked on the left
         self.controlsDock = self.addDock("Controls", Qt.DockWidgetArea.LeftDockWidgetArea)
-        self.tabWidget = QTabWidget()
+        self.tabWidget = DetachableTabWidget(self)
         self.tabWidget.setMinimumSize(QSize(0,0))
         self.controlsDock.setWidget(self.tabWidget)
 
@@ -200,7 +253,7 @@ class MainWindow(DeforumCore):
                 elif params['widget_type'] == 'dropdown':
                     self.createComboBox(params['label'], layout, [str(param) for param in params['options']], setting)
                 elif params['widget_type'] == 'text input':
-                    self.createTextBox(params['label'], layout, params['default'], setting)
+                    self.createTextInput(params['label'], layout, params['default'], setting)
                 elif params['widget_type'] == 'text box':
                     self.createTextBox(params['label'], layout, params['default'], setting)
                 elif params['widget_type'] == 'slider':
@@ -214,7 +267,7 @@ class MainWindow(DeforumCore):
             scroll.setWidget(tab)
             scroll.setWidgetResizable(True)  # Make the scroll area resizable
 
-            self.tabWidget.addTab(scroll, category)  # Add the scroll area to the tab widget
+            self.tabWidget.addTabWithDetachButton(scroll, category)  # Add the scroll area to the tab widget
             # self.tabWidget.addTab(tab, category)
         # self.createPushButton('Render', layout, self.startBackendProcess)
 
@@ -415,7 +468,7 @@ class MainWindow(DeforumCore):
                 self.thread = BackendThread(self.current_job.job_data)
                 self.thread.finished.connect(self.onJobFinished)
                 self.thread.imageGenerated.connect(self.updateImage)
-                self.thread.finished.connect(self.playVideo)
+                # self.thread.finished.connect(self.playVideo)
                 self.thread.start()
             except:
                 self.current_job = None
@@ -491,6 +544,8 @@ class MainWindow(DeforumCore):
                         if index != -1:
                             widget.setCurrentIndex(index)
                     elif isinstance(widget, QLineEdit):
+
+
                         widget.setText(str(value))
                     elif isinstance(widget, QTextEdit):
                         widget.setText(str(value))

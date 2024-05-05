@@ -41,13 +41,13 @@
     },
     "resume_timestring": {
       "label": "Resume Timestring",
-      "widget_type": "text box",
+      "widget_type": "text input",
       "default": "",
       "accessible_name": ""
     },
     "resume_path": {
       "label": "Resume Path",
-      "widget_type": "text box",
+      "widget_type": "text input",
       "default": "",
       "accessible_name": ""
     },
@@ -122,13 +122,13 @@
       "accessible_name": "Seed Behavior"
     },
     "subseed_schedule": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "0: (-1)",
       "label": "Subseed Schedule",
       "accessible_name": "Subseed Schedule"
     },
     "subseed_strength_schedule": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "0: (0.1)",
       "label": "Subseed Strength Schedule",
       "accessible_name": "Subseed Strength Schedule"
@@ -186,7 +186,7 @@
       "widget_type": "number",
       "default": 362,
       "min": 1,
-      "max": 1000,
+      "max": 6553600,
       "label": "Max Frames",
       "accessible_name": "Maximum Number of Animation Frames"
     },
@@ -197,71 +197,81 @@
       "max": 4096,
       "label": "FPS:"
     },
-    "translation_x": {
-      "widget_type": "text input",
+    "angle": {
+      "widget_type": "text box",
       "default": "0: (0)",
-      "label": "Translation X",
+      "label": "Angle"
+    },
+    "zoom": {
+      "widget_type": "text box",
+      "default": "0: (1)",
+      "label": "Zoom"
+    },
+    "translation_x": {
+      "widget_type": "text box",
+      "default": "0: (0)",
+      "label": "Translation X\n(Horizontal)",
       "accessible_name": "X-axis Translation Formula"
     },
     "translation_y": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "0: (0)",
-      "label": "Translation Y",
+      "label": "Translation Y\n(Vertical)",
       "accessible_name": "Y-axis Translation Formula"
     },
     "translation_z": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "0: (0)",
-      "label": "Translation Z",
+      "label": "Translation Z\n(Traversial)",
       "accessible_name": "Z-axis Translation Formula"
     },
     "rotation_3d_x": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "0: (0)",
-      "label": "Rotation X",
+      "label": "Rotation X\n(Tilt)",
       "accessible_name": "X-axis Rotation Formula"
     },
     "rotation_3d_y": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "0: (0)",
-      "label": "Rotation Y",
+      "label": "Rotation Y\n(Pan)",
       "accessible_name": "Y-axis Rotation Formula"
     },
     "rotation_3d_z": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "0: (0)",
-      "label": "Rotation Z",
+      "label": "Rotation Z\n(Dutch)",
       "accessible_name": "Z-axis Rotation Formula"
     }
 
   },
   "Diffusion Schedules": {
     "steps_schedule": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "0: (20)",
       "label": "Steps Schedule",
       "accessible_name": "Steps Schedule"
     },
     "strength_schedule": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "0: (0.65)",
       "label": "Strength Schedule",
       "accessible_name": "Strength Schedule"
     },
     "noise_schedule": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "0: (0.02)",
       "label": "Noise Schedule",
       "accessible_name": "Noise Schedule"
     },
     "cfg_scale_schedule": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "0: (5.0)",
       "label": "CFG Scale Schedule",
       "accessible_name": "CFG Scale Schedule"
     },
     "parseq_manifest": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "",
       "label": "ParSeq Manifest",
       "accessible_name": "ParSeq"
@@ -283,7 +293,7 @@
       "label": "Cadence Type"
     },
     "cadence_flow_factor_schedule": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "0: (1)",
       "label": "Cadence Flow Factor",
       "accessible_name": "Cadence Flow Factor"
@@ -330,7 +340,7 @@
       "label": "Extract To Frame"
     },
     "hybrid_flow_factor_schedule": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "0:(1)",
       "label": "Hybrid Flow Factor"
     },

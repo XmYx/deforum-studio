@@ -232,6 +232,7 @@ class DeforumGenerationObject(DeforumDataObject):
         self.turbo_next_image, self.turbo_next_frame_idx = None, 0
         self.contrast = 1.0
         self.hybrid_use_full_video = True
+        self.hybrid_use_first_frame_as_init_image = False
         self.turbo_steps = self.diffusion_cadence
         self.img = None
         self.opencv_image = None
