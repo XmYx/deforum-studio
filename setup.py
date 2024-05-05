@@ -92,7 +92,8 @@ _deps = [
     'python-decouple',
     'imageio[ffmpeg]==2.34.1',
     'xformers==0.0.26.post1',
-    'loguru==0.7.2'
+    'loguru==0.7.2',
+    'kornia==0.7.2',
 ]
 
 # this is a lookup table with items like:
