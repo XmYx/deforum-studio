@@ -5,6 +5,7 @@ import subprocess
 import sys
 
 from deforum.commands.deforum_run_unit_test import run_unit_test
+from deforum.docutils.decorator import deforumdoc
 from deforum.utils.logging_config import logger
 
 def install_qtpy():
@@ -35,9 +36,19 @@ def install_qtpy():
                 "qtpy==2.4.1",
             ]
         )
-
+@deforumdoc
 def start_deforum_cli():
+    """
+    Starts the CLI for DeForUM with various operational modes based on user input.
 
+    Parses command-line arguments to determine the operational mode of DeForUM, which can include
+    web-based interfaces, animation processing, or running predefined presets. Depending on the selected
+    mode, different components of the DeForUM suite are invoked.
+
+    Raises:
+        subprocess.CalledProcessError: If a subprocess for setting up the environment fails.
+        ValueError: If an invalid option is passed to the command line arguments.
+    """
     parser = argparse.ArgumentParser(description="Load settings from a txt file and run the deforum process.")
     # Positional mode argument
     parser.add_argument("mode", choices=['webui', 'animatediff', 'runpresets', 'api', 'setup', 'ui', 'runsingle', 'config', 'unittest'], default=None, nargs='?',
@@ -188,26 +199,6 @@ def start_deforum_cli():
             # try:
             # Execute main.py
             subprocess.run([sys.executable, main_script_path])
-            # except:
-            #
-            #     subprocess.run(
-            #         [
-            #             "python3",
-            #             "-m" "pip",
-            #             "uninstall",
-            #             "PyQt6-Qt6",
-            #             "-y"
-            #         ]
-            #     )
-            #     subprocess.run(
-            #         [
-            #             "python3",
-            #             "-m" "pip",
-            #             "install",
-            #             "PyQt6-Qt6==6.5.0",
-            #         ]
-            #     )
-            #     subprocess.run([sys.executable, main_script_path])
         elif args_main.mode == 'runsingle':
             install_qtpy()
 

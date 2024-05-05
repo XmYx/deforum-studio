@@ -201,3 +201,7 @@ deforum_configs/
 
 # webui
 src/deforum/webui/*.txt
+
+docs/build/
+docs/source/modules
+deforum.*.rst
