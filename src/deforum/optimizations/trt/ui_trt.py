@@ -22,7 +22,7 @@ from deforum.utils.logging_config import logger
 # from modules.ui_common import refresh_symbol
 # from modules.ui_components import ToolButton
 
-#logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.INFO)
 
 
 def get_version_from_model(sd_model):
@@ -186,21 +186,21 @@ def export_unet_to_trt(
     return "## Exported Successfully \n"
 
 
-#pipe = DeforumAnimationPipeline.from_civitai()
+# pipe = DeforumAnimationPipeline.from_civitai()
 
 
-#model = load_a_unet_here (normal model object of ModelPatcher is fine)
+# model = load_a_unet_here (normal model object of ModelPatcher is fine)
 
 from deforum.generators.comfy_utils import ensure_comfy
 ensure_comfy('src/ComfyUI')
 import comfy
-model, _, _, _ = comfy.sd.load_checkpoint_guess_config(config.root_path+"/models/checkpoints/SSD-1B.safetensors", output_vae=True,
-                                                                                    output_clip=True,
-                                                                                    embedding_directory="models/embeddings",
-                                                                                    output_clipvision=False,
-                                                                                    )
-
-
+model, _, _, _ = comfy.sd.load_checkpoint_guess_config(
+    os.path.join(config.model_dir, "/checkpoints/SSD-1B.safetensors"),
+    output_vae=True,
+    output_clip=True,
+    embedding_directory="models/embeddings",
+    output_clipvision=False,
+)
 
 
 export_unet_to_trt(model)
@@ -252,11 +252,6 @@ def apply_trt_model(self, x, t, c_concat=None, c_crossattn=None, control=None, t
     nvtx.range_pop()
 
     return out
-
-
-
-
-
 
 
 # def export_lora_to_trt(lora_name, force_export):

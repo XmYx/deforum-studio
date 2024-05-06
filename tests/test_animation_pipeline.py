@@ -1,4 +1,3 @@
-import os
 import time
 
 from deforum import DeforumAnimationPipeline
