@@ -2,8 +2,11 @@ import gc
 import json
 import math
 import os
+import re
 import secrets
+import shutil
 import time
+from glob import glob
 from typing import Callable, Optional
 
 import PIL.Image
@@ -39,7 +42,8 @@ from .animation_helpers import (
     save_video_cls,
     DeforumAnimKeys,
     LooperAnimKeys,
-    generate_interpolated_frames
+    generate_interpolated_frames,
+    rife_interpolate_cls, cls_subtitle_handler
 )
 
 from .parseq_adapter import ParseqAdapter
@@ -53,6 +57,7 @@ from ...utils.constants import config
 from ...utils.deforum_hybrid_animation import hybrid_generation
 from ...utils.deforum_logger_util import Logger
 from ...utils.image_utils import load_image_with_mask, prepare_mask, check_mask_for_errors, load_image
+from ...utils.resume_vars import get_resume_vars
 from ...utils.sdxl_styles import STYLE_NAMES, apply_style
 from ...utils.string_utils import split_weighted_subprompts, check_is_number
 from ...utils.video_frame_utils import get_frame_name
@@ -118,7 +123,7 @@ class DeforumAnimationPipeline(DeforumBase):
 
         self.log_function_lists()
 
-        self.pbar = tqdm(total=self.gen.max_frames, desc="Processing", position=0, leave=True)
+        self.pbar = tqdm(total=self.gen.max_frames - self.gen.frame_idx, desc="Processing", position=0, leave=True)
 
         self.run_prep_fn_list()
 
@@ -324,9 +329,15 @@ class DeforumAnimationPipeline(DeforumBase):
 
         self.shoot_fns.append(post_gen_cls)
 
-        if self.gen.max_frames > 3:
-            if self.gen.frame_interpolation_engine == "FILM":
-                self.post_fns.append(film_interpolate_cls)
+        if hasattr(self.gen, "deforum_save_gen_info_as_srt"):
+            if self.gen.deforum_save_gen_info_as_srt:
+                self.shoot_fns.append(cls_subtitle_handler)
+        if self.gen.frame_interpolation_engine is not None:
+            if self.gen.max_frames > 3:
+                if self.gen.frame_interpolation_engine == "FILM":
+                    self.post_fns.append(film_interpolate_cls)
+                elif 'rife' in self.gen.frame_interpolation_engine.lower():
+                    self.post_fns.append(rife_interpolate_cls)
         if self.gen.max_frames > 1 and not self.gen.skip_video_creation:
             self.post_fns.append(save_video_cls)
 
@@ -344,7 +355,164 @@ class DeforumAnimationPipeline(DeforumBase):
 
             self.gen.prev_img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
             self.gen.opencv_image = self.gen.prev_img
+        start_frame = 0
+        if self.gen.resume_from_timestring:
+            def numeric_key(filename):
+                # Extract the numeric part from the filename, assuming it follows the last underscore '_'
+                parts = os.path.splitext(filename)[0].split('_')
+                try:
+                    return int(parts[-1])  # Convert the last part to integer
+                except ValueError:
+                    return 0  # Default to 0 if conversion fails
+
+            resume_timestring = self.gen.resume_timestring
+            if hasattr(self.gen, 'resume_from') and hasattr(self.gen, 'resume_from_frame'):
+                if self.gen.resume_from_frame:
+                    resume_from = self.gen.resume_from
+
+                    parent_dir = os.path.dirname(self.gen.resume_path)
+                    # existing_versions = [d for d in os.listdir(parent_dir) if
+                    #                      d.startswith(os.path.basename(self.gen.resume_path) + "_v")]
+                    # next_version = max(
+                    #     [int(v.split('_v')[-1]) for v in existing_versions]) + 1 if existing_versions else 1
+                    #
+                    # if existing_versions:
+                    #     new_outdir = self.gen.resume_path.replace(f"_v{existing_versions[-1].split('_v')[-1]}', f'_v{next_version}")
+                    # else:
+                    #
+                    #     new_outdir = os.path.join(parent_dir, f"{os.path.basename(self.gen.resume_path)}_v{next_version}")
+                    def strip_version_suffix(path):
+                        # Regex to remove the version suffix from the path
+                        return re.sub(r'_v\d+$', '', os.path.basename(path))
+                    stripped = strip_version_suffix(self.gen.resume_path)
+                    existing_versions = [d for d in os.listdir(parent_dir)
+                                         if os.path.isdir(os.path.join(parent_dir, d)) and
+                                         d.startswith(stripped + "_v")]
+                    # Compute the next version number
+                    if existing_versions:
+                        # Extract version numbers and find the maximum
+                        max_version = max(int(d.split('_v')[-1]) for d in existing_versions)
+                        next_version = max_version + 1
+                        new_outdir = self.gen.resume_path.replace(f"_v{max_version}", f"_v{next_version}")
+                    else:
+                        next_version = 1
+                        new_outdir = os.path.join(parent_dir,
+                                                  f"{os.path.basename(self.gen.resume_path)}_v{next_version}")
+
+                    # Your subsequent code for using new_outdir
+                    os.makedirs(new_outdir, exist_ok=True)
+                    image_files = sorted(glob(os.path.join(self.gen.resume_path, '*.png')), key=numeric_key)
+                    files_to_copy = image_files[:resume_from]
+                    for file in files_to_copy:
+                        shutil.copy(file, new_outdir)
+
+                    self.gen.resume_path = new_outdir
+                    if self.gen.max_frames <= resume_from:
+                        self.gen.max_frames += 1
+
+            image_files = sorted(glob(os.path.join(self.gen.resume_path, '*.png')), key=numeric_key)
+            self.images = [Image.open(img_path) for img_path in image_files]
+            self.image_paths = image_files
+
+            batch_name, prev_frame, next_frame, prev_img, next_img = get_resume_vars(
+                resume_path=self.gen.resume_path,
+                timestring=self.gen.resume_timestring,
+                cadence=self.gen.turbo_steps
+            )
+            batch_name = self.gen.resume_path.split('/')[-1]
+            self.gen.timestring = resume_timestring
+            self.gen.batch_name = batch_name
+            self.gen.outdir = os.path.join(root_path, f"output/deforum/{batch_name}")
+
+            if self.gen.turbo_steps > 1:
+                self.gen.turbo_prev_image, self.gen.turbo_prev_frame_idx = prev_img, prev_frame
+                self.gen.turbo_next_image, self.gen.turbo_next_frame_idx = next_img, next_frame
+            start_frame = next_frame + 1
+            self.gen.image = next_img
+            self.gen.init_image = next_img
+            self.gen.prev_img = prev_img
+            self.gen.opencv_image = next_img
+            self.gen.width, self.gen.height = prev_img.shape[1], prev_img.shape[0]
+            self.gen.frame_idx = start_frame
+            self.gen.use_init = True
+        # resume animation (requires at least two frames - see function)
+        # if self.gen.resume_from_timestring:
+        #     resume_timestring = self.gen.resume_timestring
+        #
+        #     print("GETTING VARS FROM", self.gen.outdir, self.gen.resume_from_timestring)
+        #     # Load and sort images by creation order
+        #     if hasattr(self.gen, 'resume_from') and hasattr(self.gen, 'resume_from_frame'):
+        #         if self.gen.resume_from_frame:
+        #             resume_from = self.gen.resume_from
+        #
+        #             # Determine the next version number by examining existing directories
+        #             parent_dir = os.path.dirname(self.gen.resume_path)
+        #             existing_versions = [d for d in os.listdir(parent_dir) if
+        #                                  d.startswith(os.path.basename(self.gen.resume_path) + "_v")]
+        #             if existing_versions:
+        #                 latest_version = max([int(v.split('_v')[-1]) for v in existing_versions])
+        #                 next_version = latest_version + 1
+        #             else:
+        #                 next_version = 1
+        #
+        #             # Establish new versioned output directory
+        #             new_outdir = os.path.join(parent_dir, f"{os.path.basename(self.gen.resume_path)}_v{next_version}")
+        #             os.makedirs(new_outdir, exist_ok=True)
+        #
+        #             # Determine which files to copy based on resume_from
+        #             image_files = sorted(
+        #                 glob(os.path.join(self.gen.resume_path, '*.png')),  # Adjust the pattern if necessary
+        #                 key=os.path.getmtime
+        #             )
+        #             files_to_copy = image_files[:resume_from]  # Copy only up to the `resume_from` index
+        #             # Copy the filtered files to the new versioned directory
+        #             for file in files_to_copy:
+        #                 shutil.copy(file, new_outdir)
+        #
+        #             # Update resume_path to the new versioned directory
+        #             self.gen.resume_path = new_outdir
+        #
+        #             if self.gen.max_frames <= resume_from:
+        #                 self.gen.max_frames += 1
+        #
+        #     image_files = sorted(
+        #         glob(os.path.join(self.gen.resume_path, '*.png')),  # Adjust the pattern if necessary
+        #         key=os.path.getmtime
+        #     )
+        #
+        #     # Loading images into memory and paths into list
+        #     self.images = [Image.open(img_path) for img_path in image_files]
+        #
+        #     self.image_paths = image_files
+        #     # determine last frame and frame to start on
+        #     batch_name, prev_frame, next_frame, prev_img, next_img = get_resume_vars(
+        #         resume_path=self.gen.resume_path,
+        #         timestring=self.gen.resume_timestring,
+        #         cadence=self.gen.turbo_steps
+        #     )
+        #     batch_name = self.gen.resume_path.split('/')[-1]
+        #     self.gen.timestring = resume_timestring
+        #     self.gen.batch_name = batch_name
+        #     self.gen.outdir = os.path.join(root_path, f"output/deforum/{batch_name}")
+        #
+        #     # set up turbo step vars
+        #     if self.gen.turbo_steps > 1:
+        #         self.gen.turbo_prev_image, self.gen.turbo_prev_frame_idx = prev_img, prev_frame
+        #         self.gen.turbo_next_image, self.gen.turbo_next_frame_idx = next_img, next_frame
+        #
+        #     # advance start_frame to next frame
+        #     start_frame = next_frame + 1
+        #
+        #     self.gen.image = next_img
+        #     self.gen.init_image = next_img
+        #     self.gen.prev_img = prev_img
+        #     self.gen.opencv_image = next_img
+        #     self.gen.width, self.gen.height = prev_img.shape[1], prev_img.shape[0]
+        #     self.gen.frame_idx = start_frame
+        #     self.gen.use_init = True
+        os.makedirs(self.gen.outdir, exist_ok=True)
         self.gen.image_paths = []
+
     def live_update_from_kwargs(self, **kwargs):
         try:
 
@@ -365,11 +533,13 @@ class DeforumAnimationPipeline(DeforumBase):
                     prompt_series[int(numexpr.evaluate(i))] = prompt
             prompt_series = prompt_series.ffill().bfill()
             self.gen.prompt_series = prompt_series
+            self.gen.max_frames -= 5
             logger.infe("[DEFORUM] Live Updated")
         except:
-            logger.info("[DEFORUM] Live Update Failed")
-        finally:
-            self.gen.max_frames -= 5
+            pass
+            # logger.info("[DEFORUM] Live Update Failed")
+
+
     def log_function_lists(self):
         if self.logging:
             setup_end = time.time()
@@ -470,8 +640,8 @@ class DeforumAnimationPipeline(DeforumBase):
             if not isinstance(img, PIL.Image.Image):
                 img = Image.fromarray(cv2.cvtColor(self.gen.opencv_image.astype(np.uint8), cv2.COLOR_BGR2RGB))
 
-        # if self.gen.use_init and self.gen.init_image:
-        #     img = self.gen.init_image
+        if self.gen.use_init and self.gen.init_image:
+            img = self.gen.init_image
 
         self.gen.strength = 1.0 if img is None else 1 - self.gen.strength
 
@@ -510,7 +680,12 @@ class DeforumAnimationPipeline(DeforumBase):
             gen_args["subseed_strength"] = self.gen.subseed_strength
             gen_args["seed_resize_from_h"] = self.gen.seed_resize_from_h
             gen_args["seed_resize_from_w"] = self.gen.seed_resize_from_w
-
+        if hasattr(self.gen, 'animation_prompts_positive'):
+            gen_args["prompt"] = gen_args["prompt"] + self.gen.animation_prompts_positive
+            if next_prompt:
+                gen_args['next_prompt'] = next_prompt + self.gen.animation_prompts_positive
+        if hasattr(self.gen, 'animation_prompts_negative'):
+            gen_args["negative_prompt"] = gen_args["negative_prompt"] + self.gen.animation_prompts_negative
         processed = self.generator(**gen_args)
         return processed
 
@@ -551,11 +726,7 @@ class DeforumAnimationPipeline(DeforumBase):
         if self.gen.prev_img is not None:
             # TODO: cleanup init_sample remains later
             img = cv2.cvtColor(self.gen.prev_img, cv2.COLOR_BGR2RGB)
-
-
-
             init_image = img
-
         gen_args = {
             "prompt": prompt,
             "negative_prompt": negative_prompt,
@@ -590,10 +761,42 @@ class DeforumAnimationPipeline(DeforumBase):
             gen_args["subseed_strength"] = self.gen.subseed_strength
             gen_args["seed_resize_from_h"] = self.gen.seed_resize_from_h
             gen_args["seed_resize_from_w"] = self.gen.seed_resize_from_w
+        if hasattr(self.gen, 'animation_prompts_positive'):
+            gen_args["prompt"] = gen_args["prompt"] + self.gen.animation_prompts_positive
+            if next_prompt:
+                gen_args['next_prompt'] = next_prompt + self.gen.animation_prompts_positive
+        if hasattr(self.gen, 'animation_prompts_negative'):
+            gen_args["negative_prompt"] = gen_args["negative_prompt"] + self.gen.animation_prompts_negative
+        def calculate_blend_factor(frame_idx, cycle_length=100):
+            """Calculate the blending factor for the frame index within a cycle of length `cycle_length`.
+            The factor linearly increases from 0 to 1 and then resets."""
+            phase = frame_idx % cycle_length
+            return phase / (cycle_length - 1)
+        if not self.gen.dry_run:
+            processed = self.generator(**gen_args)
+        else:
+            # Get the path to the default image or use the previous image
+            if self.gen.prev_img is None:
+                default_image_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'ui',
+                                                  'deforum.png')
+                default_image = Image.open(default_image_path).resize((self.gen.width, self.gen.height),
+                                                                      resample=Image.Resampling.LANCZOS)
+            else:
+                default_image = Image.fromarray(cv2.cvtColor(self.gen.prev_img, cv2.COLOR_BGR2RGB))
 
-        processed = self.generator(**gen_args)
-        if self.gen.first_frame is None:
-            self.gen.first_frame = processed
+            # Calculate blend factor
+            blend_factor = 0.01
+
+            # Determine the original image to blend with
+            if self.gen.first_frame is None:
+                self.gen.first_frame = default_image
+
+            # Blend images
+            processed = Image.blend(default_image, self.gen.first_frame, blend_factor)
+
+            # Update first_frame at the end of each cycle
+            if (self.gen.frame_idx + 1) % 200 == 0:  # Reset first frame after each full cycle
+                self.gen.first_frame = processed
 
         return processed
         # assert self.gen.prompt is not None
@@ -1022,3 +1225,7 @@ def get_next_prompt_and_blend(current_index, prompt_series, blend_type="exponent
     blend_value = blend_values[1]  # Blend value for the next frame after the current index
 
     return prompt_series.iloc[next_prompt_start], blend_value
+
+
+
+

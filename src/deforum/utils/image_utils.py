@@ -3,6 +3,7 @@ import os
 import re
 import socket
 import time
+from threading import Thread
 
 import PIL.Image
 import cv2
@@ -504,25 +505,47 @@ def get_output_folder(output_path, batch_folder):
 import os
 from multiprocessing import Process
 
-def save_image_subprocess(image, path):
-    # Save the image at the specified path
-    image.save(path)
+
+def save_image_thread(image, path):
+    # Save the image directly
+    image.save(path, "PNG")
 
 def save_image(image, image_type, filename, args, video_args, root):
     if video_args.store_frames_in_ram:
-        return
-        # You can uncomment the following lines if you need to cache the frames instead of saving them directly
-        # root.frames_cache.append(
-        #     {'path': os.path.join(args.outdir, filename), 'image': image, 'image_type': image_type})
+        # Storing in RAM as an alternative
+        root.frames_cache.append({
+            'path': os.path.join(args.outdir, filename),
+            'image': image,
+            'image_type': image_type
+        })
     else:
         # Construct the full path where the image will be saved
         full_path = os.path.join(args.outdir, filename)
 
-        # Create a new process for saving the image
-        process = Process(target=save_image_subprocess, args=(image, full_path))
+        # Create a new thread for saving the image
+        thread = Thread(target=save_image_thread, args=(image, full_path))
 
-        # Start the process
-        process.start()
+        # Start the thread
+        thread.start()
+# def save_image_subprocess(image, path):
+#     # Save the image at the specified path
+#     image.save(path)
+#
+# def save_image(image, image_type, filename, args, video_args, root):
+#     if video_args.store_frames_in_ram:
+#         return
+#         # You can uncomment the following lines if you need to cache the frames instead of saving them directly
+#         # root.frames_cache.append(
+#         #     {'path': os.path.join(args.outdir, filename), 'image': image, 'image_type': image_type})
+#     else:
+#         # Construct the full path where the image will be saved
+#         full_path = os.path.join(args.outdir, filename)
+#
+#         # Create a new process for saving the image
+#         process = Process(target=save_image_subprocess, args=(image, full_path))
+#
+#         # Start the process
+#         process.start()
 
 
 def reset_frames_cache(root):

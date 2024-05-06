@@ -22,6 +22,7 @@ from ...generators.deforum_flow_generator import (get_flow_for_hybrid_motion_pre
                                                   abs_flow_to_rel_flow,
                                                   rel_flow_to_abs_flow, get_flow_from_images)
 from ...generators.deforum_noise_generator import add_noise
+from ...models.RIFE.rife_model import RIFEInterpolator
 from ...pipeline_utils import next_seed
 from ...utils import py3d_tools as p3d
 from ...utils.constants import config
@@ -39,6 +40,7 @@ from ...utils.image_utils import (load_image,
                                   get_mask_from_file, do_overlay_mask, save_image, maintain_colors,
                                   compose_mask_with_check)
 from ...utils.string_utils import check_is_number, prepare_prompt
+from ...utils.subtitle_handler import init_srt_file, format_animation_params, write_frame_subtitle
 from ...utils.video_frame_utils import (get_frame_name,
                                         get_next_frame)
 from ...utils.video_save_util import save_as_h264
@@ -299,7 +301,10 @@ def affine_persp_motion(cls: Any) -> None:
     Returns:
         None: Modifies the class instance attributes in place.
     """
-    if cls.gen.hybrid_motion_use_prev_img:
+    if cls.gen.frame_idx < 1:
+        logger.info("Skipping optical flow motion for first frame.")
+        return
+    if cls.gen.hybrid_motion_use_prev_img and cls.gen.prev_img is not None:
         matrix = get_matrix_for_hybrid_motion_prev(cls.gen.frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
                                                    cls.gen.prev_img,
                                                    cls.gen.hybrid_motion)
@@ -646,15 +651,12 @@ def diffusion_redo(cls: Any) -> None:
 def main_generate_with_cls(cls: Any) -> None:
     """
     Executes the main generation process for the given class instance.
-
     Args:
         cls: The class instance containing generation parameters and other attributes.
-
     Returns:
         None: Modifies the class instance attributes in place.
     """
     cls.gen.image = cls.generate()
-
     return
 
 
@@ -1186,20 +1188,72 @@ def film_interpolate_cls(cls: Any) -> None:
 
     film_in_between_frames_count = calculate_frames_to_add(len(cls.images), cls.gen.frame_interpolation_x_amount)
 
-    interpolated = interpolator([Image.open(path) for path in cls.gen.image_paths], film_in_between_frames_count)
+    interpolated = interpolator(cls.images, film_in_between_frames_count)
     cls.images = interpolated
     cls.gen.image_paths = []
+    return
+
+
+def rife_interpolate_cls(cls: Any) -> None:
+    """
+    Performs frame interpolation on a sequence of images stored in cls.images using a custom RIFEInterpolator class.
+    The interpolated images will replace the original sequence in cls.images.
+
+    Args:
+        cls: An instance of a class containing:
+             - images: a list of PIL Image objects to interpolate.
+             - frame_interpolation_x_amount: the number of frames to interpolate between each pair of images.
+
+    Returns:
+        None: Modifies the cls.images attribute in place.
+    """
+
+    # Initialize the interpolator
+    interpolator = RIFEInterpolator()
+
+    # Prepare an empty list to hold all the interpolated images
+    new_images = []
+    new_images.append(Image.fromarray(cls.images[0]))
+    # Iterate through pairs of consecutive images in cls.images
+    for i in range(len(cls.images) - 1):
+        img1 = cls.images[i]
+        img2 = cls.images[i + 1]
+
+        # Interpolate between each pair
+        interpolated_frames = interpolator.interpolate(np.array(img1), np.array(img2),
+                                                       interp_amount=cls.gen.frame_interpolation_x_amount + 1)
+        # Append all interpolated frames including the first of the pair but excluding the last one
+        # The last frame of each segment should not be added to avoid duplication except for the final segment
+        for i in interpolated_frames[:-1]:
+
+            new_images.append(i)
+
+    # After the loop, add the last frame of the last interpolated segment to complete the sequence
+    if interpolated_frames:
+        new_images.append(interpolated_frames[-1])  # Add the final image of the last interpolation batch
+
+    # Print the number of interpolated frames for debugging
+    print(f"Interpolated frame count: {len(new_images)}")
+
+    # Replace the original images with the new, interpolated ones
+    cls.gen.images = new_images
+
+
+    # Optionally clear image paths if no longer needed
+    if hasattr(cls, 'gen') and hasattr(cls.gen, 'image_paths'):
+        cls.gen.image_paths = []
     return
 
 
 def save_video_cls(cls):
     dir_path = os.path.join(config.output_dir, 'video')
     os.makedirs(dir_path, exist_ok=True)
-
-    name = f'{cls.gen.batch_name}_{cls.gen.timestring}'
-
+    if cls.gen.timestring not in cls.gen.batch_name:
+        name = f'{cls.gen.batch_name}_{cls.gen.timestring}'
+    else:
+        name = f'{cls.gen.batch_name}'
     output_filename_base = os.path.join(dir_path, name)
-
+    cls.gen.images = cls.images
 
     audio_path = None
     if hasattr(cls.gen, 'video_init_path'):
@@ -1207,7 +1261,7 @@ def save_video_cls(cls):
 
     fps = getattr(cls.gen, "fps", 24)  # Using getattr to simplify fetching attributes with defaults
     try:
-        save_as_h264(cls.images, output_filename_base + ".mp4", audio_path=audio_path, fps=fps)
+        save_as_h264(cls.gen.images, output_filename_base + ".mp4", audio_path=audio_path, fps=fps)
     except Exception as e:
         logger.error(f"save as h264 failed: {str(e)}")
     cls.gen.video_path = output_filename_base + ".mp4"
@@ -1227,6 +1281,16 @@ def calculate_frames_to_add(total_frames: int, interp_x: float) -> int:
     frames_to_add = (total_frames * interp_x - total_frames) / (total_frames - 1)
     return int(round(frames_to_add))
 
+def cls_subtitle_handler(cls):
+    if hasattr(cls.gen, "deforum_save_gen_info_as_srt"):
+        if cls.gen.deforum_save_gen_info_as_srt:
+            if cls.gen.frame_idx == 0 or not hasattr(cls.gen, 'srt_filename'):
+                cls.gen.srt_filename = os.path.join(cls.gen.outdir, f"{cls.gen.timestring}.srt")
+                cls.gen.srt_frame_duration = init_srt_file(cls.gen.srt_filename, cls.gen.fps)
+            params_to_print = ["Trans X", "Trans Y", "Trans Z", "Str Sch", "Subseed Str Sch"]
+            params_string = format_animation_params(cls.gen.keys, cls.gen.prompt_series, cls.gen.frame_idx, params_to_print)
+            write_frame_subtitle(cls.gen.srt_filename, cls.gen.frame_idx, cls.gen.srt_frame_duration,
+                                 f"F#: {cls.gen.frame_idx}; Cadence: false; Seed: {cls.gen.seed}; {params_string}")
 
 class DeforumAnimKeys():
     def __init__(self, anim_args, seed=-1, *args, **kwargs):

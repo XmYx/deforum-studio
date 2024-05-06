@@ -180,7 +180,7 @@ def get_matrix_for_hybrid_motion(frame_idx, dimensions, inputfiles, hybrid_motio
     #logger.info(f"Calculating {hybrid_motion} RANSAC matrix for frames {frame_idx} to {frame_idx + 1}")
     img1 = cv2.cvtColor(get_resized_image_from_filename(str(inputfiles[frame_idx]), dimensions), cv2.COLOR_BGR2GRAY)
     img2 = cv2.cvtColor(get_resized_image_from_filename(str(inputfiles[frame_idx + 1]), dimensions), cv2.COLOR_BGR2GRAY)
-    M = get_transformation_matrix_from_images(img1, img2, hybrid_motion)
+    M = get_transformation_matrix_from_images(img1.astype(np.uint8), img2.astype(np.uint8), hybrid_motion)
     return M
 
 

@@ -1,9 +1,7 @@
-
 import platform
 import re
 import sys
 from distutils.core import Command
-
 from setuptools import find_packages, setup
 
 python_version = '.'.join(map(str, sys.version_info[:2]))
@@ -100,7 +98,8 @@ _deps = [
     'zstandard==0.22.0',
     'polygraphy==0.49.9',
     'kornia==0.7.2',
-    'wheel==0.43.0'
+    'wheel==0.43.0',
+    'loguru==0.7.2',
 ]
 
 # this is a lookup table with items like:
@@ -205,6 +204,8 @@ extras["dev"] = deps_list('torch',
                           'python-decouple',
                           'imageio[ffmpeg]',
                           'xformers',
+                          'loguru',
+                          'kornia',
                           'tensorrt',
                           'onnx_graphsurgeon',
                           'zstandard',
