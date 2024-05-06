@@ -359,6 +359,16 @@ class ComfyDeforumGenerator:
             settings_dict["t_max"] = 0.0
             self.model = settings_node.run(self.model, **settings_dict)[0]
             self.clip = settings_node.run(self.clip, **settings_dict)[0]
+
+
+            try:
+                self.optimize_model()
+                self.optimize = True
+            except:
+                self.optimize = False
+                logger.info("Could not apply Stable-Fast Unet patch.")
+
+
             self.model_loaded = True
 
             # from ..optimizations.deforum_comfy_trt.deforum_trt_comfyunet import TrtUnet
@@ -491,10 +501,6 @@ class ComfyDeforumGenerator:
             seed_resize_from_w = 1024
         if seed == -1:
             seed = secrets.randbelow(18446744073709551615)
-        if self.optimize:
-            self.optimize_model()
-            self.optimize = False
-
 
         if strength <= 0.05 or strength >= 1.0:
             strength = 1.0
@@ -502,6 +508,10 @@ class ComfyDeforumGenerator:
             # init_image = None
         else:
             strength = 1 - strength if strength != 1.0 else strength
+
+        if self.optimize:
+            self.optimize_model()
+            self.optimize = False
 
         if subseed == -1:
             subseed = secrets.randbelow(18446744073709551615)

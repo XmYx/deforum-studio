@@ -114,7 +114,7 @@ def ensure_comfy(custom_path=None):
         ('https://github.com/ltdrdata/ComfyUI-Inspire-Pack', '9c5fa36a51786fe6d75546831e5ac15cee67e77b'),
         ('https://github.com/ltdrdata/ComfyUI-Impact-Pack', '48d9ce7528f83074b6db7a7b15ef7e88c7134aa5'),
         ('https://github.com/shiimizu/ComfyUI_smZNodes', 'a1627ce2ade31822694d82aa9600a4eff0f99d69'),
-        # ('https://github.com/gameltb/ComfyUI_stable_fast', 'commit_id_5')
+        ('https://github.com/gameltb/ComfyUI_stable_fast', 'c0327e6f076bd8a36e3c29f3594025c76cf9beae')
     ]
     comfy_path = custom_path or config.comfy_path
     comfy_submodule_folder = os.path.join(comfy_path, 'custom_nodes')
