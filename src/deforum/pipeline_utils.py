@@ -195,7 +195,8 @@ class DeforumGenerationObject(DeforumDataObject):
         self.raw_batch_name = self.batch_name
         # self.batch_name = substitute_placeholders(deforum.args.batch_name, current_arg_list,
         #                                                  full_base_folder_path)
-        self.outdir = os.path.join(full_base_folder_path, f"{self.batch_name}_{self.timestring}")
+       
+        self.outdir = os.path.join(full_base_folder_path, self.batch_name)
         os.makedirs(self.outdir, exist_ok=True)
 
         # Handle seed initialization

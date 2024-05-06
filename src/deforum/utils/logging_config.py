@@ -9,7 +9,7 @@ def setup_logging(conf : LogConfig  = config):
     logger.setLevel(conf.log_level)
 
     # Optionally add file handler:
-    if conf.log_to_file is not None:
+    if conf.log_to_file and conf.log_file is not None:
         os.makedirs(os.path.dirname(conf.log_file), exist_ok=True)
         file_handler = logging.handlers.RotatingFileHandler(conf.log_file, maxBytes=conf.log_max_bytes, backupCount=conf.log_backup_count)
         file_handler.setFormatter(formatter)

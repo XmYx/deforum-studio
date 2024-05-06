@@ -32,7 +32,7 @@ def start_deforum_cli():
 
     parser = argparse.ArgumentParser(description="Load settings from a txt file and run the deforum process.")
     # Positional mode argument
-    parser.add_argument("mode", choices=['webui', 'animatediff', 'runpresets', 'api', 'setup', 'ui', 'runsingle', 'config'], default=None, nargs='?',
+    parser.add_argument("mode", choices=['webui', 'animatediff', 'runpresets', 'api', 'setup', 'ui', 'runsingle', 'config', 'version'], default=None, nargs='?',
                         help="Choose the mode to run.")
 
     parser.add_argument("--file", type=str, help="Path to the deforum settings file.")
@@ -74,6 +74,10 @@ def start_deforum_cli():
             options[key] = value
 
     if args_main.mode:
+
+        if args_main.mode == "version":
+            import deforum
+            print(deforum.__version__)
         
         if args_main.mode == "webui":
             import streamlit.web.cli as stcli
@@ -213,7 +217,7 @@ def start_deforum_cli():
             # Assuming 'deforum' is in the parent directory of the current file
             deforum_directory = os.path.dirname(parent_directory)
             # Construct the path to main.py
-            print(extra_args["settings_file"])
+            logger.info(f"Using settings file: {extra_args['settings_file']}")
 
             main_script_path = os.path.join(deforum_directory, "ui", "process_only.py")
             # try:
@@ -234,17 +238,9 @@ def start_deforum_cli():
 
     else:
         from deforum import DeforumAnimationPipeline
-
-        modelid = str(options.get("modelid", "125703"))
-        deforum = DeforumAnimationPipeline.from_civitai(modelid)
+        deforum = DeforumAnimationPipeline.from_civitai()
         deforum.generator.optimize = False
-
-        options["batch_name"] = options.get("batch_name", f"deforum-{time.strftime('%Y%m%d%H%M%S')}")
         expected_output_dir = os.path.join(config.output_dir, options["batch_name"])
-        logger.info(f"Output directory: {expected_output_dir}")
-
+        logger.info(f"Output directory DEBUG: {expected_output_dir}")
         gen = deforum(**extra_args, **options)
-
         logger.info(f"Output video: {gen.video_path} ")
-
-
