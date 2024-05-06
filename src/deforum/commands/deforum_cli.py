@@ -243,7 +243,5 @@ def start_deforum_cli():
         from deforum import DeforumAnimationPipeline
         deforum = DeforumAnimationPipeline.from_civitai()
         deforum.generator.optimize = False
-        expected_output_dir = os.path.join(config.output_dir, options["batch_name"])
-        logger.info(f"Output directory DEBUG: {expected_output_dir}")
         gen = deforum(**extra_args, **options)
         logger.info(f"Output video: {gen.video_path} ")

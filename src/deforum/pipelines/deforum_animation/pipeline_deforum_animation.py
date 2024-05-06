@@ -422,7 +422,7 @@ class DeforumAnimationPipeline(DeforumBase):
             batch_name = self.gen.resume_path.split('/')[-1]
             self.gen.timestring = resume_timestring
             self.gen.batch_name = batch_name
-            self.gen.outdir = os.path.join(root_path, f"output/deforum/{batch_name}")
+            self.gen.outdir = os.path.join(config.root_path, f"output/deforum/{batch_name}")
 
             if self.gen.turbo_steps > 1:
                 self.gen.turbo_prev_image, self.gen.turbo_prev_frame_idx = prev_img, prev_frame

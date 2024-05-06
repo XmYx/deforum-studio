@@ -11,7 +11,7 @@ def get_os():
 class LogConfig:
     log_level: str
     log_to_file: bool
-    log_file: str
+    log_dir: str
     log_max_bytes: int
     log_backup_count: int
 
@@ -56,7 +56,7 @@ class AppConfig(LogConfig):
             projectm_docker_image = config('PROJECTM_DOCKER_IMAGE', default="rewbs/projectm-cli:0.0.4"),
             log_level = config('DEFORUM_LOG_LEVEL', default='DEBUG'),
             log_to_file = config('DEFORUM_LOG_TO_FILE', default=False, cast=bool),
-            log_file = config('DEFORUM_LOG_FILE',  default=os.path.join(root_path,'logs", "app.log')),
+            log_dir = config('DEFORUM_LOG_DIR',  default=os.path.join(root_path,'logs')),
             log_max_bytes =  config('DEFORUM_LOG_FILE', cast=int, default=10485760),
             log_backup_count = config('DEFORUM_LOG_BACKUP_COUNT', cast=int, default=10485760)
         )
