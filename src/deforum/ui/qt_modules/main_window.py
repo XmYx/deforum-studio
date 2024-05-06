@@ -3,6 +3,7 @@ import datetime
 import json
 import os
 
+import imageio.v2 as imageio
 import numpy as np
 from qtpy.QtCore import Qt, Slot, QUrl, QSize
 from qtpy.QtGui import QAction
@@ -19,6 +20,7 @@ from deforum.ui.qt_modules.core import DeforumCore
 from deforum.ui.qt_modules.custom_ui import ResizableImageLabel, JobDetailPopup, JobQueueItem, AspectRatioMdiSubWindow, \
     DetachableTabWidget, AutoReattachDockWidget, CustomTextBox
 from deforum.ui.qt_modules.ref import TimeLineQDockWidget
+from deforum.utils.constants import root_path
 
 
 class MainWindow(DeforumCore):
@@ -90,6 +92,15 @@ class MainWindow(DeforumCore):
         self.toolbar.addAction(self.savePresetAction)
         self.toolbar.addAction(self.addJobButton)
 
+        self.renderDropdown = QComboBox()
+        self.toolbar.addWidget(self.renderDropdown)
+
+        self.loadRenderButton = QPushButton("Load Render")
+        self.loadRenderButton.clicked.connect(self.loadSelectedRender)
+        self.toolbar.addWidget(self.loadRenderButton)
+
+        self.updateRenderDropdown()  # Populate the dropdown
+
         # Adding the progress bar and status label
         self.progressBar = QProgressBar()
         self.statusLabel = QLabel("Ready")
@@ -109,6 +120,64 @@ class MainWindow(DeforumCore):
         self.toolbar.addWidget(spacer)
         self.toolbar.addWidget(statusWidget)
 
+    def updateRenderDropdown(self):
+        root_dir = os.path.join(root_path, 'output', 'deforum')
+        if not os.path.exists(root_dir):
+            os.makedirs(root_dir)
+
+        folders = sorted(next(os.walk(root_dir))[1]) # List directories only
+        self.renderDropdown.clear()
+        self.renderDropdown.addItems(folders)
+
+    def loadSelectedRender(self):
+        selected_folder = self.renderDropdown.currentText()
+        root_dir = os.path.join(root_path, 'output', 'deforum', selected_folder)
+        image_files = [os.path.join(root_dir, f) for f in os.listdir(root_dir) if f.endswith('.png')]
+        image_files.sort()  # Ensure the files are sorted correctly
+
+        # Optionally create a temporary video file from images
+        video_path = self.createTempVideo(image_files)
+        self.playVideo({'video_path': video_path})
+
+        # Check for a settings file and load it
+        settings_file = os.path.join(root_dir, 'settings.txt')
+        if os.path.exists(settings_file):
+            with open(settings_file, 'r') as file:
+                settings = json.load(file)
+                self.applySettings(settings)
+        # Set additional parameters for resuming project
+        self.params['resume_path'] = root_dir
+        if '_' in selected_folder:
+            self.params['resume_timestring'] = selected_folder.split('_')[-1]
+        else:
+            self.params['resume_timestring'] = 'unknown'
+        self.params['resume_from'] = len(image_files) - 1
+        # Assuming applySettings updates UI from self.params:
+        self.updateUIFromParams()
+
+    def createTempVideo(self, image_files):
+        video_path = os.path.join(root_path, 'output', 'deforum', 'temp_video.mp4')
+        writer = imageio.get_writer(video_path, fps=24, codec='libx264', quality=9,
+                                    pixelformat='yuv420p')  # High quality
+
+        for image_file in image_files:
+            image = imageio.imread(image_file)
+            writer.append_data(image)
+
+        writer.close()
+        return video_path
+
+    def applySettings(self, settings):
+        # Apply the settings loaded from the text file
+        for key, value in settings.items():
+            if key in self.params:
+                self.params[key] = value
+        self.updateUIFromParams()  # Reflect updates
+
+    def playVideo(self, data):
+        if 'video_path' in data:
+            self.player.setSource(QUrl.fromLocalFile(data['video_path']))
+            self.player.play()
     def setupMenu(self):
         menuBar = self.menuBar()
 
@@ -377,13 +446,50 @@ class MainWindow(DeforumCore):
                 fname = fname[0] + '.dproj'  # Ensure the file has the correct extension
             with open(fname, 'w') as file:
                 json.dump(self.project, file, indent=4)  # Save the entire project dictionary
+    def saveCurrentProjectAsSettingsFile(self):
+        if self.project and 'frames' in self.project:
+            # Step 2: Use Frame 1 as a base configuration
+
+            print(self.project['frames'])
+
+            base_params = self.project['frames']['1'].copy()
+            max_frame_index = max(map(int, self.project['frames'].keys()))
+            # Initialize parameter consolidation
+            consolidated_params = {}
+            for param in base_params:
+                if isinstance(base_params[param], str) and ':' in base_params[param]:
+                    consolidated_params[param] = {}
+
+            # Step 3: Collect and consolidate parameter values from all frames
+            for frame_index in range(1, max_frame_index + 1):
+                frame_key = str(frame_index)
+                if frame_key in self.project['frames']:
+                    for param in consolidated_params:
+                        value = self.project['frames'][frame_key].get(param, "")
+                        if value and ':' in value:  # Check if value fits the pattern requiring consolidation
+                            # Extract value and append to the schedule
+                            try:
+                                schedule_part = value.split(':')[-1].strip()
+                                consolidated_params[param][frame_index - 1] = schedule_part
+                            except IndexError:
+                                continue
+
+            # Integrate consolidated parameters into base_params
+            for param, schedule in consolidated_params.items():
+                if schedule:
+                    schedule_str = ", ".join(f"{k}: {v}" for k, v in schedule.items())
+                    base_params[param] = schedule_str
+
+            # Step 4: Save the consolidated settings to a .txt file
+            file_path = os.path.join(self.params["resume_path"], "settings.txt")
+            with open(file_path, 'w') as file:
+                json.dump(base_params, file, indent=4)
 
     def convertProjectToSingleSettingsFile(self):
         # Step 1: Load a .dproj project file
         fname = QFileDialog.getOpenFileName(self, 'Open Project File', '', 'Deforum Project Files (*.dproj)')
         if not fname[0]:
             return
-
         with open(fname[0], 'r') as file:
             self.project = json.load(file)
 
@@ -477,7 +583,7 @@ class MainWindow(DeforumCore):
         if not os.path.exists(self.presets_folder):
             os.makedirs(self.presets_folder)
 
-        preset_files = [f for f in os.listdir(self.presets_folder) if f.endswith('.txt')]
+        preset_files = sorted([f for f in os.listdir(self.presets_folder) if f.endswith('.txt')])
         self.presetsDropdown.clear()
         self.presetsDropdown.addItems(preset_files)
 
@@ -551,6 +657,8 @@ class MainWindow(DeforumCore):
             self.updateWidgetValue('resume_path', data['resume_path'])
             self.updateWidgetValue('resume_from', data['resume_from'])
 
+            self.saveCurrentProjectAsSettingsFile()
+            self.updateRenderDropdown()
 
     def startBackendProcess(self):
         #params = {key: widget.value() for key, widget in self.params.items() if hasattr(widget, 'value')}
@@ -649,12 +757,13 @@ class MainWindow(DeforumCore):
             qpixmap = npArrayToQPixmap(np.array(img).astype(np.uint8))  # Convert to QPixmap
             self.previewLabel.setPixmap(qpixmap)
             self.previewLabel.setScaledContents(True)
-            if self.project is not None and self.project_replay:
-                self.project['frames'][data['frame_idx']] = copy.deepcopy(self.params)
+            if self.project is not None:
+                self.project['frames'][str(data['frame_idx'])] = copy.deepcopy(self.params)
                 # If there are subsequent frame parameters saved, load them
-                if data['frame_idx'] + 1 in self.project['frames']:
-                    self.params = copy.deepcopy(self.project['frames'][data['frame_idx'] + 1])
-                    self.updateUIFromParams()  # Reflect parameter updates in UI
+                if self.project_replay:
+                    if data['frame_idx'] + 1 in self.project['frames']:
+                        self.params = copy.deepcopy(self.project['frames'][str(data['frame_idx'] + 1)])
+                        self.updateUIFromParams()  # Reflect parameter updates in UI
 
     def updateParam(self, key, value):
         super().updateParam(key, value)

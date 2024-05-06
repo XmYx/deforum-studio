@@ -278,7 +278,7 @@ class ComfyDeforumGenerator:
         seed_resize_from_w=None,
         reset_noise=False,
     ):
-        shape = [4, height // 8, width // 8]
+        # shape = [4, height // 8, width // 8]
         # if self.rng is None or reset_noise:
         #     self.rng = ImageRNGNoise(shape=shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
         #                              seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
@@ -349,10 +349,16 @@ class ComfyDeforumGenerator:
             settings_dict["disable_nan_check"] = True
             settings_dict["upcast_sampling"] = False
             settings_dict["batch_cond_uncond"] = True
+            settings_dict["sgm_noise_multiplier"] = False
+            settings_dict["enable_emphasis"] = True
+            settings_dict["ENSD"] = 0
+            settings_dict["s_noise"] = 1.0
+            settings_dict["eta"] = 1.0
+            settings_dict["s_churn"] = 0.0
+            settings_dict["t_min"] = 0.0
+            settings_dict["t_max"] = 0.0
             self.model = settings_node.run(self.model, **settings_dict)[0]
             self.clip = settings_node.run(self.clip, **settings_dict)[0]
-
-
             self.model_loaded = True
 
             # from ..optimizations.deforum_comfy_trt.deforum_trt_comfyunet import TrtUnet
@@ -480,9 +486,9 @@ class ComfyDeforumGenerator:
             self.load_model()
             # self.load_lora_from_civitai('413566', 1.0, 1.0)
         if seed_resize_from_h == 0:
-            seed_resize_from_h = height
+            seed_resize_from_h = 1024
         if seed_resize_from_w == 0:
-            seed_resize_from_w = width
+            seed_resize_from_w = 1024
         if seed == -1:
             seed = secrets.randbelow(18446744073709551615)
         if self.optimize:
@@ -635,7 +641,7 @@ class ComfyDeforumGenerator:
             sample_fn = self.sampler_node.sample
         elif hasattr(self.sampler_node, "doit"):
             sample_fn = self.sampler_node.doit
-
+        logger.info(f"SEED:{seed}, STPS:{steps}, CFG:{scale}, SMPL:{sampler_name}, SCHD:{scheduler}, STR:{strength}, SUB:{subseed}, SUBSTR:{subseed_strength}")
         sample = sample_fn(
             self.model,
             seed,
