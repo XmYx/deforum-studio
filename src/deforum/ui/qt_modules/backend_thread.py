@@ -63,7 +63,7 @@ class BackendThread(QThread):
             result = {"status":"Ready",
                       "timestring":animation.timestring,
                       "resume_path":animation.outdir,
-                      "resume_from":len(animation.images)}
+                      "resume_from":animation.image_count}
             if hasattr(animation, 'video_path'):
                 result["video_path"] = animation.video_path
             self.finished.emit(result)

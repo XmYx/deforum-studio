@@ -793,6 +793,7 @@ def post_gen_cls(cls: Any) -> None:
         # cls.logger(f"                                   [ next seed generated ]", True)
 
     # cls.logger(f"                                   [ EXITING POST GEN CLS ]", True)
+    cls.gen.image_count = len(cls.images)
     return
 
 
@@ -1236,7 +1237,7 @@ def rife_interpolate_cls(cls: Any) -> None:
     print(f"Interpolated frame count: {len(new_images)}")
 
     # Replace the original images with the new, interpolated ones
-    cls.gen.images = new_images
+    cls.images = new_images
 
 
     # Optionally clear image paths if no longer needed
@@ -1253,7 +1254,7 @@ def save_video_cls(cls):
     else:
         name = f'{cls.gen.batch_name}'
     output_filename_base = os.path.join(dir_path, name)
-    cls.gen.images = cls.images
+    #cls.gen.images = cls.images
 
     audio_path = None
     if hasattr(cls.gen, 'video_init_path'):
@@ -1261,7 +1262,7 @@ def save_video_cls(cls):
 
     fps = getattr(cls.gen, "fps", 24)  # Using getattr to simplify fetching attributes with defaults
     try:
-        save_as_h264(cls.gen.images, output_filename_base + ".mp4", audio_path=audio_path, fps=fps)
+        save_as_h264(cls.images, output_filename_base + ".mp4", audio_path=audio_path, fps=fps)
     except Exception as e:
         logger.error(f"save as h264 failed: {str(e)}")
     cls.gen.video_path = output_filename_base + ".mp4"
