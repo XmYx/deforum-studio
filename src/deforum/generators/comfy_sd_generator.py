@@ -1,3 +1,4 @@
+import math
 import os
 import re
 import secrets
@@ -5,6 +6,7 @@ import secrets
 import numpy as np
 import torch
 from PIL import Image
+
 
 from .comfy_utils import ensure_comfy
 from .rng_noise_generator import ImageRNGNoise, slerp
@@ -109,7 +111,7 @@ class HIJackCFGGuider:
             denoise_mask,
             disable_pbar,
         )
-        return self.model_patcher.model.process_latent_out(samples.to(torch.float32))
+        return self.model_patcher.model.process_latent_out(samples.to(torch.float16))
 
     def sample(
         self,
@@ -144,7 +146,7 @@ class HIJackCFGGuider:
         sigmas = sigmas.to(device)
 
         output = self.inner_sample(
-            noise, latent_image, device, sampler, sigmas, denoise_mask, None, True, seed
+            noise, latent_image, device, sampler, sigmas, denoise_mask, None, False, seed
         )
 
         return output
@@ -229,6 +231,11 @@ class ComfyDeforumGenerator:
         self.rng = None
         self.optimized = False
 
+        import comfy.model_management
+        comfy.model_management.VAE_DTYPE = torch.float16
+
+
+
     def optimize_model(self):
         from nodes import NODE_CLASS_MAPPINGS
 
@@ -253,7 +260,7 @@ class ComfyDeforumGenerator:
         # subseed_strength = 0.6
 
         with torch.inference_mode():
-            latent = latent.to(torch.float32)
+            latent = latent.to(torch.float16)
             latent = vae.encode_tiled(latent[:, :, :, :3])
             latent = latent.to("cuda")
         # if self.rng is None or reset_noise:
@@ -278,12 +285,12 @@ class ComfyDeforumGenerator:
         seed_resize_from_w=None,
         reset_noise=False,
     ):
-        # shape = [4, height // 8, width // 8]
-        # if self.rng is None or reset_noise:
-        #     self.rng = ImageRNGNoise(shape=shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
-        #                              seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
-        # noise = self.rng.next()
-        noise = torch.zeros([1, 4, height // 8, width // 8])
+        shape = [4, height // 8, width // 8]
+        if self.rng is None or reset_noise:
+            self.rng = ImageRNGNoise(shape=shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
+                                     seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
+        noise = self.rng.first()
+
         return {"samples": noise.to("cuda")}
 
     def get_conds(self, clip, prompt, width, height, target_width, target_height):
@@ -316,6 +323,34 @@ class ComfyDeforumGenerator:
         #     tokens = clip.tokenize(prompt)
         #     cond, pooled = clip.encode_from_tokens(tokens, return_pooled=True)
         #     return [[cond, {"pooled_output": pooled}]]
+    def load_onediff_model(self):
+        import comfy.sd
+        from nodes import NODE_CLASS_MAPPINGS
+
+        model, self.clip, vae, self.clipvision = (
+            comfy.sd.load_checkpoint_guess_config(
+                self.model_path,
+                output_vae=True,
+                output_clip=True,
+                embedding_directory="models/embeddings",
+                output_clipvision=False,
+            )
+        )
+        # checkpoint_loader = NODE_CLASS_MAPPINGS["OneDiffCheckpointLoaderSimple"]()
+        # self.model, self.clip, self.vae = checkpoint_loader.onediff_load_checkpoint(
+        #     self.model_path,
+        #     vae_speedup="enable",
+        #     output_vae=True,
+        #     output_clip=True,
+        #     custom_booster=None
+        # )
+        from custom_nodes.onediff_comfy_nodes._nodes import BasicBoosterExecutor
+        from custom_nodes.onediff_comfy_nodes.modules import BoosterScheduler
+        custom_booster = BoosterScheduler(BasicBoosterExecutor())
+        self.model = custom_booster(model, ckpt_name=self.model_path)
+        self.vae = BoosterScheduler(BasicBoosterExecutor())(vae, ckpt_name=self.model_path)
+        self.model.weight_inplace_update = True
+        self.model_loaded = True
 
     def load_model(self):
         if self.vae is None:
@@ -359,14 +394,28 @@ class ComfyDeforumGenerator:
             settings_dict["t_max"] = 0.0
             self.model = settings_node.run(self.model, **settings_dict)[0]
             self.clip = settings_node.run(self.clip, **settings_dict)[0]
+            self.onediff_avail = False
 
 
             try:
-                self.optimize_model()
-                self.optimize = True
+                from custom_nodes.onediff_comfy_nodes._nodes import BasicBoosterExecutor
+                from custom_nodes.onediff_comfy_nodes.modules import BoosterScheduler
+                from custom_nodes.onediff_comfy_nodes.modules.oneflow.booster_quantization import \
+                    OnelineQuantizationBoosterExecutor
+                custom_booster = BoosterScheduler(OnelineQuantizationBoosterExecutor())
+                self.model = custom_booster(self.model, ckpt_name=self.model_path)
+                self.vae = BoosterScheduler(OnelineQuantizationBoosterExecutor())(self.vae, ckpt_name=self.model_path)
+                self.model.weight_inplace_update = True
+                self.onediff_avail = True
             except:
-                self.optimize = False
-                logger.info("Could not apply Stable-Fast Unet patch.")
+                logger.info("ONEDIFF NOT AVAILABLE IN YOUR BUILD (YET")
+            if not self.onediff_avail:
+              try:
+                  self.optimize_model()
+                  self.optimize = True
+              except:
+                  self.optimize = False
+                  logger.info("Could not apply Stable-Fast Unet patch.")
 
 
             self.model_loaded = True
@@ -493,7 +542,7 @@ class ComfyDeforumGenerator:
     ):
 
         if not self.model_loaded:
-            self.load_model()
+            self.load_onediff_model()
             # self.load_lora_from_civitai('413566', 1.0, 1.0)
         if seed_resize_from_h == 0:
             seed_resize_from_h = 1024
@@ -518,7 +567,7 @@ class ComfyDeforumGenerator:
 
         if cnet_image is not None:
             cnet_image = torch.from_numpy(
-                np.array(cnet_image).astype(np.float32) / 255.0
+                np.array(cnet_image).astype(np.float16) / 255.0
             ).unsqueeze(0)
 
         if init_image is None or reset_noise:
@@ -623,6 +672,8 @@ class ComfyDeforumGenerator:
         if next_prompt is not None and enable_prompt_blend:
             if next_prompt != prompt and next_prompt != "":
                 if 0.0 < prompt_blend < 1.0:
+                    logger.info(f"[DEFORUM PROMPT BLEND] {prompt_blend},\n\n{prompt}\n{next_prompt}")
+
                     next_cond = self.get_conds(
                         self.clip,
                         next_prompt,
@@ -700,7 +751,7 @@ class ComfyDeforumGenerator:
 
     def decode_sample(self, vae, sample):
         with torch.inference_mode():
-            sample = sample.to(torch.float32)
+            sample = sample.to(torch.float16)
             decoded = vae.decode(sample).detach()
 
         return decoded
@@ -904,7 +955,7 @@ def sample_with_subseed(
         base_noise = (
             torch.randn(
                 (1, 4, height, width),
-                dtype=torch.float32,
+                dtype=torch.float16,
                 device="cpu",
                 generator=generator,
             )
@@ -916,7 +967,7 @@ def sample_with_subseed(
         generator = torch.manual_seed(variation_seed)
         variation_noise = torch.randn(
             (batch_size, 4, height, width),
-            dtype=torch.float32,
+            dtype=torch.float16,
             device="cpu",
             generator=generator,
         ).cpu()
@@ -983,3 +1034,117 @@ def sample_with_subseed(
         last_step=end_at_step,
         force_full_denoise=force_full_denoise,
     )
+
+
+
+def prepare_noise(latent_image, seed, noise_inds=None, noise_device="cpu", incremental_seed_mode="comfy", variation_seed=None, variation_strength=None):
+    """
+    creates random noise given a latent image and a seed.
+    optional arg skip can be used to skip and discard x number of noise generations for a given seed
+    """
+    logger.info("This is surely our latent preparation and is way cooler \n\n\n\n")
+    latent_size = latent_image.size()
+    latent_size_1batch = [1, latent_size[1], latent_size[2], latent_size[3]]
+
+    if variation_strength is not None and variation_strength > 0 or incremental_seed_mode.startswith("variation str inc"):
+        if noise_device == "cpu":
+            variation_generator = torch.manual_seed(variation_seed)
+        else:
+            torch.cuda.manual_seed(variation_seed)
+            variation_generator = None
+
+        variation_latent = torch.randn(latent_size_1batch, dtype=latent_image.dtype, layout=latent_image.layout,
+                                       generator=variation_generator, device=noise_device)
+    else:
+        variation_latent = None
+
+    def apply_variation(input_latent, strength_up=None):
+        if variation_latent is None:
+            return input_latent
+        else:
+            strength = variation_strength
+
+            if strength_up is not None:
+                strength += strength_up
+
+            variation_noise = variation_latent.expand(input_latent.size()[0], -1, -1, -1)
+            mixed_noise = (1 - strength) * input_latent + strength * variation_noise
+
+            # NOTE: Since the variance of the Gaussian noise in mixed_noise has changed, it must be corrected through scaling.
+            scale_factor = math.sqrt((1 - strength) ** 2 + strength ** 2)
+            corrected_noise = mixed_noise / scale_factor
+
+            return corrected_noise
+
+    # method: incremental seed batch noise
+    if noise_inds is None and incremental_seed_mode == "incremental":
+        batch_cnt = latent_size[0]
+
+        latents = None
+        for i in range(batch_cnt):
+            if noise_device == "cpu":
+                generator = torch.manual_seed(seed+i)
+            else:
+                torch.cuda.manual_seed(seed+i)
+                generator = None
+
+            latent = torch.randn(latent_size_1batch, dtype=latent_image.dtype, layout=latent_image.layout,
+                                 generator=generator, device=noise_device)
+
+            latent = apply_variation(latent)
+
+            if latents is None:
+                latents = latent
+            else:
+                latents = torch.cat((latents, latent), dim=0)
+
+        return latents
+
+    # method: incremental variation batch noise
+    elif noise_inds is None and incremental_seed_mode.startswith("variation str inc"):
+        batch_cnt = latent_size[0]
+
+        latents = None
+        for i in range(batch_cnt):
+            if noise_device == "cpu":
+                generator = torch.manual_seed(seed)
+            else:
+                torch.cuda.manual_seed(seed)
+                generator = None
+
+            latent = torch.randn(latent_size_1batch, dtype=latent_image.dtype, layout=latent_image.layout,
+                                 generator=generator, device=noise_device)
+
+            step = float(incremental_seed_mode[18:])
+            latent = apply_variation(latent, step*i)
+
+            if latents is None:
+                latents = latent
+            else:
+                latents = torch.cat((latents, latent), dim=0)
+
+        return latents
+
+    # method: comfy batch noise
+    if noise_device == "cpu":
+        generator = torch.manual_seed(seed)
+    else:
+        torch.cuda.manual_seed(seed)
+        generator = None
+
+    if noise_inds is None:
+        latents = torch.randn(latent_image.size(), dtype=latent_image.dtype, layout=latent_image.layout,
+                              generator=generator, device=noise_device)
+        latents = apply_variation(latents)
+        return latents
+
+    unique_inds, inverse = np.unique(noise_inds, return_inverse=True)
+    noises = []
+    for i in range(unique_inds[-1] + 1):
+        noise = torch.randn([1] + list(latent_image.size())[1:], dtype=latent_image.dtype, layout=latent_image.layout,
+                            generator=generator, device=noise_device)
+        if i in unique_inds:
+            noises.append(noise)
+    noises = [noises[i] for i in inverse]
+    noises = torch.cat(noises, axis=0)
+    return noises

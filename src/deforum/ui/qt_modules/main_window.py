@@ -450,8 +450,6 @@ class MainWindow(DeforumCore):
         if self.project and 'frames' in self.project:
             # Step 2: Use Frame 1 as a base configuration
 
-            print(self.project['frames'])
-
             base_params = self.project['frames']['1'].copy()
             max_frame_index = max(map(int, self.project['frames'].keys()))
             # Initialize parameter consolidation
@@ -784,8 +782,9 @@ class MainWindow(DeforumCore):
                     self.params["animation_prompts"] = dict(zip(new_key, new_prom))
                 else:
                     self.params["animation_prompts"] = prom
-
-                models["deforum_pipe"].live_update_from_kwargs(**self.params)
-                print("UPDATED DEFORUM PARAMS")
+                p = copy.deepcopy(self.params)
+                _ = p.pop('max_frames')
+                models["deforum_pipe"].live_update_from_kwargs(**p)
+                # print("UPDATED DEFORUM PARAMS")
         except:
             pass

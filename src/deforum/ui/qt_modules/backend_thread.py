@@ -1,7 +1,13 @@
 from qtpy.QtCore import Signal, QThread
 
 from deforum import logger
-loaded_model_id = ""
+from deforum.shared_storage import models
+
+if "deforum_pipe" not in models:
+    from deforum import DeforumAnimationPipeline
+    models["deforum_pipe"] = DeforumAnimationPipeline.from_civitai(model_id="125703")
+
+loaded_model_id = "125703"
 
 class BackendThread(QThread):
     imageGenerated = Signal(object)  # Signal to emit the image data
@@ -57,7 +63,7 @@ class BackendThread(QThread):
             result = {"status":"Ready",
                       "timestring":animation.timestring,
                       "resume_path":animation.outdir,
-                      "resume_from":len(animation.images)}
+                      "resume_from":animation.image_count}
             if hasattr(animation, 'video_path'):
                 result["video_path"] = animation.video_path
             self.finished.emit(result)

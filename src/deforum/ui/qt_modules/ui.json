@@ -318,6 +318,7 @@
       "default": "",
       "label": "Init Video Path"
     },
+
     "extract_nth_frame": {
       "widget_type": "number",
       "default": 1,
@@ -412,6 +413,15 @@
       "label": "Mask File URL",
       "accessible_name": "URL of the Mask File"
     },
+    "video_mask_path": {
+      "widget_type": "text input",
+      "default": "",
+      "label": "Mask Video Path"
+    },
+    "use_mask_video": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Use Mask Video"},
     "overlay_mask": {
       "widget_type": "checkbox",
       "options": [true, false],

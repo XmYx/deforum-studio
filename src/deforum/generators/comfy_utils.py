@@ -111,7 +111,7 @@ def ensure_comfy(custom_path=None):
     curr_folder = os.getcwd()
     comfy_submodules = [
         # ('https://github.com/XmYx/ComfyUI-AnimateDiff-Evolved', 'commit_id_1'),
-        ('https://github.com/ltdrdata/ComfyUI-Inspire-Pack', '9c5fa36a51786fe6d75546831e5ac15cee67e77b'),
+        ('https://github.com/XmYx/ComfyUI-Inspire-Pack', 'd40389f93d6f42b44e0e2f02190a216762d028d8'),
         ('https://github.com/ltdrdata/ComfyUI-Impact-Pack', '48d9ce7528f83074b6db7a7b15ef7e88c7134aa5'),
         ('https://github.com/shiimizu/ComfyUI_smZNodes', 'a1627ce2ade31822694d82aa9600a4eff0f99d69'),
         ('https://github.com/gameltb/ComfyUI_stable_fast', 'c0327e6f076bd8a36e3c29f3594025c76cf9beae')
@@ -238,8 +238,8 @@ mock_args = CLIArgs(
     fp8_e5m2_text_enc=False,
     fp16_text_enc=True,
     fp32_text_enc=False,
-    fp16_vae=False,
-    bf16_vae=True,
+    fp16_vae=True,
+    bf16_vae=False,
     fp32_vae=False,
     force_fp32=False,
     force_fp16=False,

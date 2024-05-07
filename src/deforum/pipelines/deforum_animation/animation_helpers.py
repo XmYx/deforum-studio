@@ -794,6 +794,7 @@ def post_gen_cls(cls: Any) -> None:
         # cls.logger(f"                                   [ next seed generated ]", True)
 
     # cls.logger(f"                                   [ EXITING POST GEN CLS ]", True)
+    cls.gen.image_count = len(cls.images)
     return
 
 
@@ -1196,8 +1197,9 @@ def film_interpolate_cls(cls: Any) -> None:
     cls.gen.image_paths = []
     return
 
+rife_interpolator = None
 
-def rife_interpolate_cls(cls: Any) -> None:
+def rife_interpolate_cls(cls):
     """
     Performs frame interpolation on a sequence of images stored in cls.images using a custom RIFEInterpolator class.
     The interpolated images will replace the original sequence in cls.images.
@@ -1210,43 +1212,87 @@ def rife_interpolate_cls(cls: Any) -> None:
     Returns:
         None: Modifies the cls.images attribute in place.
     """
+    # global rife_interpolator
+    # if rife_interpolator is None:
+    #     from deforum.models.vfi_rife import RIFE_VFI
+    #     rife_interpolator = RIFE_VFI()
+    #
+    # def pil2tensor(image):
+    #     return torch.from_numpy(np.array(image).astype(np.float32) / 255.0).unsqueeze(0)
+    #
+    # def tensor2pil(image):
+    #     return Image.fromarray(np.clip(255. * image.cpu().numpy(), 0, 255).astype(np.uint8))
+    #
+    # new_images = []
+    # print(len(cls.images))
+    # for i in range(len(cls.images) - 1):
+    #     img1 = pil2tensor(cls.images[i])
+    #     img2 = pil2tensor(cls.images[i + 1])
+    #
+    #     # Interpolate between each pair
+    #     interpolated_frames = rife_interpolator.vfi(
+    #         ckpt_name = "rife49.pth",
+    #         frames =torch.stack([img1[0], img2[0]], dim=0),
+    #         clear_cache_after_n_frames=10,
+    #         multiplier= cls.gen.frame_interpolation_x_amount,
+    #         fast_mode=False,
+    #         ensemble=False,
+    #         scale_factor=1.0)[0]
+    #
+    #     for frame in interpolated_frames[:-1]:  # Exclude the last interpolated frame in the current pair
+    #         new_images.append(tensor2pil(frame))
+    #
+    # # Append the last frame from the last interpolated sequence
+    # if interpolated_frames is not None:
+    #     new_images.append(tensor2pil(interpolated_frames[-1]))
+    #
+    # print(f"Interpolated frame count: {len(new_images)}")
+    # # Replace the original images with the new, interpolated ones
+    # cls.images = new_images
+    # # Optionally clear image paths if no longer needed
+    # if hasattr(cls, 'gen') and hasattr(cls.gen, 'image_paths'):
+    #     cls.gen.image_paths = []
 
-    # Initialize the interpolator
-    interpolator = RIFEInterpolator()
+    global rife_interpolator
+    if rife_interpolator is None:
+        from deforum.models.vfi_rife import RIFE_VFI
+        rife_interpolator = RIFE_VFI()
 
-    # Prepare an empty list to hold all the interpolated images
+    def pil2tensor(image):
+        return torch.from_numpy(np.array(image).astype(np.float32) / 255.0).unsqueeze(0)
+
+    def tensor2pil(image):
+        return Image.fromarray(np.clip(255. * image.cpu().numpy(), 0, 255).astype(np.uint8))
+    print(len(cls.images))
     new_images = []
-    new_images.append(Image.fromarray(cls.images[0]))
-    # Iterate through pairs of consecutive images in cls.images
-    for i in range(len(cls.images) - 1):
-        img1 = cls.images[i]
-        img2 = cls.images[i + 1]
 
-        # Interpolate between each pair
-        interpolated_frames = interpolator.interpolate(np.array(img1), np.array(img2),
-                                                       interp_amount=cls.gen.frame_interpolation_x_amount + 1)
-        # Append all interpolated frames including the first of the pair but excluding the last one
-        # The last frame of each segment should not be added to avoid duplication except for the final segment
-        for i in interpolated_frames[:-1]:
+    if isinstance(cls.images[0], np.ndarray):
+        first_image = Image.fromarray(cls.images[0])
+    else:
+        first_image = cls.images[0]
+    if isinstance(first_image, Image.Image):
+        new_images.append(first_image)
+    input_list = [pil2tensor(i)[0] for i in cls.images]
+    input_tensor = torch.stack(input_list, dim=0)
 
-            new_images.append(i)
+    interpolated_frames = rife_interpolator.vfi(
+        ckpt_name="rife49.pth",
+        frames=input_tensor,
+        clear_cache_after_n_frames=10,
+        multiplier=cls.gen.frame_interpolation_x_amount,
+        fast_mode=False,
+        ensemble=False,
+        scale_factor=1.0)[0]
 
-    # After the loop, add the last frame of the last interpolated segment to complete the sequence
-    if interpolated_frames:
-        new_images.append(interpolated_frames[-1])  # Add the final image of the last interpolation batch
+    for frame in interpolated_frames:  # add interpolated frames, excluding the last
+        new_images.append(tensor2pil(frame))
+    # new_images.append(cls.images[-1])
 
-    # Print the number of interpolated frames for debugging
     print(f"Interpolated frame count: {len(new_images)}")
+    cls.images = new_images
 
-    # Replace the original images with the new, interpolated ones
-    cls.gen.images = new_images
-
-
-    # Optionally clear image paths if no longer needed
     if hasattr(cls, 'gen') and hasattr(cls.gen, 'image_paths'):
         cls.gen.image_paths = []
-    return
-
 
 def save_video_cls(cls):
     dir_path = os.path.join(config.output_dir, 'video')
@@ -1256,7 +1302,7 @@ def save_video_cls(cls):
     else:
         name = f'{cls.gen.batch_name}'
     output_filename_base = os.path.join(dir_path, name)
-    cls.gen.images = cls.images
+    #cls.gen.images = cls.images
 
     audio_path = None
     if hasattr(cls.gen, 'video_init_path'):
@@ -1264,7 +1310,7 @@ def save_video_cls(cls):
 
     fps = getattr(cls.gen, "fps", 24)  # Using getattr to simplify fetching attributes with defaults
     try:
-        save_as_h264(cls.gen.images, output_filename_base + ".mp4", audio_path=audio_path, fps=fps)
+        save_as_h264(cls.images, output_filename_base + ".mp4", audio_path=audio_path, fps=fps)
     except Exception as e:
         logger.error(f"save as h264 failed: {str(e)}")
     cls.gen.video_path = output_filename_base + ".mp4"

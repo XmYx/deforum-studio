@@ -61,6 +61,8 @@ class ModelManager:
         return trt_filename, trt_path
 
     def update(self):
+        if not TRT_MODEL_DIR:
+            assert "Error, TRT_MODEL_DIR env var not set"
         trt_engines = [
             trt_file
             for trt_file in os.listdir(TRT_MODEL_DIR)
