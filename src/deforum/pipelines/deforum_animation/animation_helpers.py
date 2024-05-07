@@ -354,6 +354,19 @@ def optical_flow_motion(cls: Any) -> None:
 
     return
 
+def apply_temporal_flow_cls(cls):
+
+    # def apply_flow(self, image, flow_image, flow_method, flow_factor, deforum_frame_data={}):
+    # global deforum_models
+
+    if not hasattr(cls, 'raft'):
+        from deforum.models import RAFT
+        cls.raft_model = RAFT()
+
+    if cls.gen.prev_img is not None:
+        flow = get_flow_from_images(np.array(cls.gen.image), np.array(cls.gen.prev_img), 'RAFT', cls.raft_model)
+        cls.gen.prev_img = image_transform_optical_flow(np.array(cls.gen.prev_img), flow, cls.gen.cadence_flow_factor)
+    return
 
 def color_match_cls(cls: Any) -> None:
     """

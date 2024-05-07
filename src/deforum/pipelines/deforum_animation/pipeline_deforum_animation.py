@@ -48,7 +48,7 @@ from .animation_helpers import (
     DeforumAnimKeys,
     LooperAnimKeys,
     generate_interpolated_frames,
-    rife_interpolate_cls, cls_subtitle_handler
+    rife_interpolate_cls, cls_subtitle_handler, apply_temporal_flow_cls
 )
 
 from .parseq_adapter import ParseqAdapter
@@ -312,7 +312,7 @@ class DeforumAnimationPipeline(DeforumBase):
         self.shoot_fns.append(get_generation_params)
 
         self.gen.turbo_steps = self.gen.get('diffusion_cadence', 1)
-        if self.gen.turbo_steps > 1:
+        if self.gen.turbo_steps > 1 and self.gen.optical_flow_cadence is not 'None':
             self.shoot_fns.append(generate_interpolated_frames)
         if self.gen.color_coherence == 'Video Input' and hybrid_available:
             self.shoot_fns.append(color_match_video_input)
@@ -359,6 +359,9 @@ class DeforumAnimationPipeline(DeforumBase):
             self.shoot_fns.append(overlay_mask_cls)
 
         self.shoot_fns.append(post_gen_cls)
+        if hasattr(self.gen, 'enable_temporal_flow'):
+            if self.gen.enable_temporal_flow and self.gen.turbo_steps == 1:
+                self.shoot_fns.append(apply_temporal_flow_cls)
 
         if hasattr(self.gen, "deforum_save_gen_info_as_srt"):
             if self.gen.deforum_save_gen_info_as_srt:
