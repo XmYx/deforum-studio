@@ -11,7 +11,7 @@ import torch
 import torchsde
 
 from deforum.generators.rng_noise_generator import randn_local
-from deforum.utils.constants import config
+from deforum.utils.constants import config, root_path
 from deforum.utils.logging_config import logger
 
 
@@ -114,7 +114,7 @@ def ensure_comfy(custom_path=None):
         ('https://github.com/XmYx/ComfyUI-Inspire-Pack', 'd40389f93d6f42b44e0e2f02190a216762d028d8'),
         ('https://github.com/ltdrdata/ComfyUI-Impact-Pack', '48d9ce7528f83074b6db7a7b15ef7e88c7134aa5'),
         ('https://github.com/shiimizu/ComfyUI_smZNodes', 'a1627ce2ade31822694d82aa9600a4eff0f99d69'),
-        ('https://github.com/gameltb/ComfyUI_stable_fast', 'c0327e6f076bd8a36e3c29f3594025c76cf9beae')
+        # ('https://github.com/gameltb/ComfyUI_stable_fast', 'commit_id_5')
     ]
     comfy_path = custom_path or config.comfy_path
     comfy_submodule_folder = os.path.join(comfy_path, 'custom_nodes')
@@ -250,7 +250,7 @@ mock_args = CLIArgs(
     port=8188,
     enable_cors_header=None,
     extra_model_paths_config="config/comfy_paths.yaml",
-    output_directory=config.output_dir,
+    output_directory=root_path,
     temp_directory=None,
     input_directory=None,
     auto_launch=False,

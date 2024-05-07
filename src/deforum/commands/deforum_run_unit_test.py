@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 from skimage.metrics import structural_similarity as ssim
 from loguru import logger as logurulogger
-from deforum.utils.constants import config
+from deforum.utils.constants import root_path
 import json
 
 def save_test_configuration(test_path, configuration):
@@ -84,7 +84,7 @@ def compare_videos(path1, path2):
 
 def manage_test_storage(src_video_path, batch_name):
     """Manage storage of test videos and establish a baseline if not present."""
-    tests_dir = f"{config.root_path}/tests"
+    tests_dir = f"{root_path}/tests"
     base_dir = f"{tests_dir}/base"
     current_test_dir = f"{tests_dir}/{datetime.datetime.now().strftime('%Y-%m-%d')}"
 
@@ -114,7 +114,7 @@ def run_unit_test(options, extra_args):
     # Setup logging directory based on current date and time
     date_str = datetime.datetime.now().strftime("%Y-%m-%d")
     time_str = datetime.datetime.now().strftime("%H-%M-%S")
-    log_directory = f"{config.root_path}/logs/tests/{date_str}"
+    log_directory = f"{root_path}/logs/tests/{date_str}"
     os.makedirs(log_directory, exist_ok=True)
     log_file_path = f"{log_directory}/{time_str}.log"
 

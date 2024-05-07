@@ -449,7 +449,6 @@ class MainWindow(DeforumCore):
     def saveCurrentProjectAsSettingsFile(self):
         if self.project and 'frames' in self.project:
             # Step 2: Use Frame 1 as a base configuration
-
             base_params = self.project['frames']['1'].copy()
             max_frame_index = max(map(int, self.project['frames'].keys()))
             # Initialize parameter consolidation
