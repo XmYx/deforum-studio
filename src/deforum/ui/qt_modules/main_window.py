@@ -784,8 +784,9 @@ class MainWindow(DeforumCore):
                     self.params["animation_prompts"] = dict(zip(new_key, new_prom))
                 else:
                     self.params["animation_prompts"] = prom
-
-                models["deforum_pipe"].live_update_from_kwargs(**self.params)
+                p = copy.deepcopy(self.params)
+                _ = p.pop('max_frames')
+                models["deforum_pipe"].live_update_from_kwargs(**p)
                 print("UPDATED DEFORUM PARAMS")
         except:
             pass
