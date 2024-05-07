@@ -144,20 +144,21 @@ def ensure_comfy(custom_path=None):
         LatentPreviewMethod = lp
 
     sys.modules["comfy.cli_args"] = MockCLIArgsModule()
-    replace_torchsde_browinan()
+    # replace_torchsde_browinan()
     import asyncio
     import execution
     from nodes import init_custom_nodes
     import server
-
-    # Creating a new event loop and setting it as the default loop
+    #
+    # # Creating a new event loop and setting it as the default loop
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-
-    # Creating an instance of PromptServer with the loop
+    #
+    # # Creating an instance of PromptServer with the loop
     server_instance = server.PromptServer(loop)
-    execution.PromptQueue(server_instance)
+    # execution.PromptQueue(server_instance)
     init_custom_nodes()
+    loop.stop()
 
     # comfy.k_diffusion.sampling.BatchedBrownianTree = DeforumBatchedBrownianTree
 

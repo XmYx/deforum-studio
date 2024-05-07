@@ -1,3 +1,33 @@
+"""
+The given python script file is the CLI interface for DeForUM, allowing the interaction with defined DeForUM operational modes via terminal commands. Moreover, it includes methods for initiating web-based interfaces, animation processing, or running predefined presets. Additional provisions for setting up the environment and calling specific functionalities are also highlighted within the code.
+
+First, the main docstring introduces a global CLI script that starts DeForUM with various operational modes based on the user's input. Then, functions in the script are explained:
+
+1. `install_qtpy()`: This function ensures the proper installation of the QtPy library for UI-related activities by checking its presence; if not available, it installs PyQt6-Qt6, PyQt6 and QtPy via pip.
+
+2. `start_deforum_cli() -> None`: This function serves as the main entry point for the command-line interface (CLI) through which users interact with DeForUM. Supported operational modes include 'webui', 'animatediff',  'runpresets', 'api', 'setup', 'ui', 'runsingle', 'config', 'unittest'. According to the mode selection, the corresponding operations are invoked.
+
+Example Usage:
+
+To start DeForUM in 'webui' mode, users can input this command in their terminal:
+```shell
+python deforum_cli.py webui
+```
+
+To guide DeForUM to run presets with a model name or id in 'runpresets' mode, use:
+```shell
+python deforum_cli.py runpresets --modelid 125703
+```
+
+To operate DeForUM in 'api' mode which starts a FastAPI, type:
+```shell
+python deforum_cli.py api
+```
+
+Raises:
+    subprocess.CalledProcessError: If a subprocess for setting up the environment fails.
+    ValueError: If an invalid option is passed to the command line arguments.
+"""
 import argparse
 import os
 import random
@@ -7,12 +37,22 @@ import sys
 import traceback
 
 from deforum.commands.deforum_run_unit_test import run_unit_test
+from deforum.docutils.decorator import deforumdoc
 from deforum.utils.logging_config import logger
-from deforum.utils.constants import config
 
-def install_pyqt6():
+@deforumdoc
+def install_qtpy() -> None:
+    """
+    Function to install the qtpy package using pip if it is not already installed.
+
+    This function tries to import the qtpy module. If it fails, the function uses subprocess to run pip install
+    commands for the PyQt6-Qt6, pyqt6, and qtpy packages.
+
+    Raises:
+        subprocess.CalledProcessError: If the pip installation subprocess fails.
+    """
     try:
-        import PyQt6
+        import qtpy
     except:
         subprocess.run(
             [
@@ -30,9 +70,30 @@ def install_pyqt6():
                 "pyqt6==6.5.0",
             ]
         )
+        subprocess.run(
+            [
+                "python3",
+                "-m" "pip",
+                "install",
+                "qtpy==2.4.1",
+            ]
+        )
+@deforumdoc
+def start_deforum_cli() -> None:
+    """
+    Function to start the DeForUM's Consule Line Interface, featuring various operational modes.
 
-def start_deforum_cli():
+    This function parses command line arguments to determine the operational mode of DeForUM. The operational
+    modes include 'webui', 'animatediff', 'runpresets', 'api', 'setup', 'ui', 'runsingle', 'config', and 'unittest'.
+    Depending on the selected mode, different components of the DeForUM suite are invoked. A file path and additional
+    options can also be passed as arguments to the function.
 
+    Args:
+        None
+
+    Returns:
+        None
+    """
     parser = argparse.ArgumentParser(description="Load settings from a txt file and run the deforum process.")
     # Positional mode argument
     parser.add_argument("mode", choices=['webui', 'animatediff', 'runpresets', 'api', 'setup', 'ui', 'runsingle', 'config', 'unittest', 'version'], default=None, nargs='?',
@@ -172,7 +233,7 @@ def start_deforum_cli():
             from deforum.utils.install_sfast import install_sfast
             install_sfast()
         elif args_main.mode == "ui":
-            install_pyqt6()
+            install_qtpy()
 
             # Get the absolute path of the current file
             current_file_path = os.path.abspath(__file__)
@@ -187,28 +248,8 @@ def start_deforum_cli():
             # try:
             # Execute main.py
             subprocess.run([sys.executable, main_script_path])
-            # except:
-            #
-            #     subprocess.run(
-            #         [
-            #             "python3",
-            #             "-m" "pip",
-            #             "uninstall",
-            #             "PyQt6-Qt6",
-            #             "-y"
-            #         ]
-            #     )
-            #     subprocess.run(
-            #         [
-            #             "python3",
-            #             "-m" "pip",
-            #             "install",
-            #             "PyQt6-Qt6==6.5.0",
-            #         ]
-            #     )
-            #     subprocess.run([sys.executable, main_script_path])
         elif args_main.mode == 'runsingle':
-            install_pyqt6()
+            install_qtpy()
 
             # Get the absolute path of the current file
             current_file_path = os.path.abspath(__file__)

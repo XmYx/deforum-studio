@@ -1,11 +1,11 @@
-from PyQt6.QtCore import pyqtSignal, QThread
+from qtpy.QtCore import Signal, QThread
 
 from deforum import logger
 loaded_model_id = ""
 
 class BackendThread(QThread):
-    imageGenerated = pyqtSignal(object)  # Signal to emit the image data
-    finished = pyqtSignal(dict)  # Signal to emit the image data
+    imageGenerated = Signal(object)  # Signal to emit the image data
+    finished = Signal(dict)  # Signal to emit the image data
 
     def __init__(self, params):
         super().__init__()

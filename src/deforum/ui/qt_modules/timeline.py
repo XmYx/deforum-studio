@@ -1,7 +1,7 @@
-from PyQt6.QtWidgets import QApplication, QMainWindow, QGraphicsView, QGraphicsScene, QGraphicsItem, QVBoxLayout, \
+from qtpy.QtCore import Qt, QRectF, QPointF, Signal, Slot, QObject
+from qtpy.QtGui import QPen, QBrush, QColor
+from qtpy.QtWidgets import QApplication, QGraphicsView, QGraphicsScene, QGraphicsItem, QVBoxLayout, \
     QPushButton, QWidget, QGraphicsRectItem, QGraphicsTextItem, QLabel, QGraphicsPixmapItem, QSlider
-from PyQt6.QtCore import Qt, QRectF, QPointF, pyqtSignal, pyqtSlot, QObject
-from PyQt6.QtGui import QPen, QBrush, QColor, QPainterPath, QPixmap, QTransform
 
 
 class TimelineHandle(QGraphicsItem):
@@ -127,7 +127,7 @@ class VideoObject:
 
 
 class VideoTrackSignals(QObject):
-    trackClicked = pyqtSignal()
+    trackClicked = Signal()
 
     def __init__(self, parent=None):
         super().__init__()
@@ -135,7 +135,7 @@ class VideoTrackSignals(QObject):
 
 
 class VideoTrack(QGraphicsItem):
-    trackClicked = pyqtSignal()
+    trackClicked = Signal()
 
     def __init__(self, y, parent=None):
         super().__init__(parent)
@@ -328,7 +328,7 @@ class TimelineWidget(QWidget):
         self.addTrack()  # Initial track
         self.selectedTrack = None
 
-    @pyqtSlot()
+    @Slot()
     def selectTrack(self):
         sender_track = self.sender().parent  # Get the track that emitted the signal
         if sender_track in self.tracks:

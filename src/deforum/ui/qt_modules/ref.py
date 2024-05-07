@@ -1,16 +1,14 @@
-import sys
-
-from PyQt6.QtWidgets import QLineEdit, QPushButton
-from PyQt6.QtWidgets import (QApplication, QHBoxLayout, QVBoxLayout, QWidget, QSlider, QDockWidget, QMenu)
-
 import math
+import sys
 from datetime import datetime
 from uuid import uuid4
 
-from PyQt6.QtWidgets import QHBoxLayout
-from PyQt6.QtCore import Qt, pyqtSignal, QLine, QPoint, QRectF, QSize, QRect, QPropertyAnimation, QEasingCurve
-from PyQt6.QtGui import QColor, QFont, QPalette, QPainter, QPen, QPolygon, QBrush, QPainterPath, QAction, QCursor
-from PyQt6.QtWidgets import QSizePolicy, QVBoxLayout, QWidget, QSlider, QDockWidget, QMenu
+from qtpy.QtCore import Qt, Signal, QLine, QPoint, QRectF, QRect, QPropertyAnimation, QEasingCurve
+from qtpy.QtGui import QColor, QFont, QPainter, QPen, QPolygon, QBrush, QPainterPath, QAction, QCursor
+from qtpy.QtWidgets import (QApplication)
+from qtpy.QtWidgets import QHBoxLayout
+from qtpy.QtWidgets import QLineEdit, QPushButton
+from qtpy.QtWidgets import QVBoxLayout, QWidget, QSlider, QDockWidget, QMenu
 
 
 class KeyFrame:
@@ -29,9 +27,9 @@ __gridColor__ = QColor(211, 211, 211)  # Light Grey
 
 
 class TimeLine(QWidget):
-    keyFramesUpdated = pyqtSignal()
-    selectionChanged = pyqtSignal(object)
-    keyframeValuesChanged = pyqtSignal(str)
+    keyFramesUpdated = Signal()
+    selectionChanged = Signal(object)
+    keyframeValuesChanged = Signal(str)
 
     def __init__(self, duration, length):
         super().__init__()

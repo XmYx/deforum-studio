@@ -1,5 +1,5 @@
 # import sys
-# from PyQt6.QtCore import QCoreApplication
+# from qtpy.QtCore import QCoreApplication
 # from argparse import ArgumentParser
 #
 # from deforum.ui.qt_modules.backend_thread import BackendThread
@@ -47,14 +47,14 @@
 import sys
 import os
 from threading import Thread
-from PyQt6.QtCore import QCoreApplication, pyqtSignal, QObject
+from qtpy.QtCore import QCoreApplication, Signal, QObject
 from argparse import ArgumentParser
 
 from deforum.ui.qt_modules.backend_thread import BackendThread
 
 
 class ApplicationManager(QObject):
-    start_new_thread = pyqtSignal(str)  # Signal to start a new BackendThread with a settings file
+    start_new_thread = Signal(str)  # Signal to start a new BackendThread with a settings file
 
     def __init__(self):
         super().__init__()
