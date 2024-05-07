@@ -31,12 +31,16 @@ Raises:
 import argparse
 import os
 import random
+import time
 import subprocess
 import sys
+import traceback
 
 from deforum.commands.deforum_run_unit_test import run_unit_test
 from deforum.docutils.decorator import deforumdoc
 from deforum.utils.logging_config import logger
+from deforum.utils.constants import config
+
 @deforumdoc
 def install_qtpy() -> None:
     """
@@ -44,6 +48,7 @@ def install_qtpy() -> None:
 
     This function tries to import the qtpy module. If it fails, the function uses subprocess to run pip install
     commands for the PyQt6-Qt6, pyqt6, and qtpy packages.
+
 
     Raises:
         subprocess.CalledProcessError: If the pip installation subprocess fails.
@@ -93,7 +98,7 @@ def start_deforum_cli() -> None:
     """
     parser = argparse.ArgumentParser(description="Load settings from a txt file and run the deforum process.")
     # Positional mode argument
-    parser.add_argument("mode", choices=['webui', 'animatediff', 'runpresets', 'api', 'setup', 'ui', 'runsingle', 'config', 'unittest'], default=None, nargs='?',
+    parser.add_argument("mode", choices=['webui', 'animatediff', 'runpresets', 'api', 'setup', 'ui', 'runsingle', 'config', 'unittest', 'version'], default=None, nargs='?',
                         help="Choose the mode to run.")
 
     parser.add_argument("--file", type=str, help="Path to the deforum settings file.")
@@ -135,10 +140,15 @@ def start_deforum_cli() -> None:
             options[key] = value
 
     if args_main.mode:
+
+        if args_main.mode == "version":
+            import deforum
+            print(deforum.__version__)
+        
         if args_main.mode == "webui":
             import streamlit.web.cli as stcli
-            root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            stcli.main(["run", f"{root_path}/webui/deforum_webui.py", "--server.headless", "true"])
+            stcli.main(["run", f"{config.src_path}/webui/deforum_webui.py", "--server.headless", "true"])
+
         elif args_main.mode == "animatediff":
             from deforum.pipelines.animatediff_animation.pipeline_animatediff_animation import DeforumAnimateDiffPipeline
             modelid = str(options.get("modelid", "132632"))
@@ -150,34 +160,32 @@ def start_deforum_cli() -> None:
             modelid = str(options.get("modelid", "125703"))
 
             deforum = DeforumAnimationPipeline.from_civitai(model_id=modelid)
-            deforum.generator.optimize = True
 
             preset_dir = "presets"
-            files = []
-            for root, _, filenames in os.walk(preset_dir):
-                for file in filenames:
-
-                    files.append(os.path.join(root, file))
+            txt_files = [os.path.join(root, file)
+                        for root, _, files in os.walk(preset_dir)
+                        for file in files if file.endswith(".txt")]
 
             if options.get("randomize_files", False):
-                random.shuffle(files)
+                random.shuffle(txt_files)
 
-            for file_path in files:
+            for file_path in txt_files:
                 try:
                     logger.info(f"Settings file path: {file_path}")
-
-                    batch_name = file_path.split('.')[0].split("/")[-1]
+                    batch_name = os.path.splitext(os.path.basename(file_path))[0]
                     logger.info(f"Batch Name: {batch_name}")
 
                     extra_args["settings_file"] = file_path
-
-                    options["prompts"] = {"0": "A solo delorean speeding on an ethereal highway through time jumps, like in the iconic movie back to the future."}
-                    options["seed"] = 420
-                    options["batch_name"] = batch_name
+                    options.update({
+                        "prompts": {"0": "A solo delorean speeding on an ethereal highway through time jumps, like in the iconic movie back to the future."},
+                        "seed": 420,
+                        "batch_name": batch_name
+                    })
 
                     deforum(**extra_args, **options)
                 except Exception as e:
                     logger.error(f"Error running settings file: {file_path}")
+                    logger.error(traceback.format_exc())
 
         elif args_main.mode == "api":
             from fastapi import FastAPI, WebSocket
@@ -190,6 +198,7 @@ def start_deforum_cli() -> None:
 
             async def image_callback(websocket, image):
                 await websocket.send_text(image)
+                
             @app.websocket("/ws")
             async def websocket_endpoint(websocket: WebSocket):
                 await websocket.accept()
@@ -197,7 +206,7 @@ def start_deforum_cli() -> None:
 
                 # Assuming data contains the necessary information for deforum to run
                 async def callback(data):
-                    print("deforum callback")
+                    logger.info("deforum callback")
                     image = data.get('image')
                     if image is not None:
                         await websocket.send_text("image")
@@ -222,7 +231,7 @@ def start_deforum_cli() -> None:
             # Start the Uvicorn server
             uvicorn.run(app, host="localhost", port=8000)
         elif args_main.mode == "setup":
-            print("SETUP")
+            logger.info("Installing stable-fast and its dependencies...")
             from deforum.utils.install_sfast import install_sfast
             install_sfast()
         elif args_main.mode == "ui":
@@ -253,7 +262,7 @@ def start_deforum_cli() -> None:
             # Assuming 'deforum' is in the parent directory of the current file
             deforum_directory = os.path.dirname(parent_directory)
             # Construct the path to main.py
-            print(extra_args["settings_file"])
+            logger.info(f"Using settings file: {extra_args['settings_file']}")
 
             main_script_path = os.path.join(deforum_directory, "ui", "process_only.py")
             # try:
@@ -276,4 +285,6 @@ def start_deforum_cli() -> None:
     else:
         from deforum import DeforumAnimationPipeline
         deforum = DeforumAnimationPipeline.from_civitai()
-        _ = deforum(**extra_args, **options)
+        deforum.generator.optimize = False
+        gen = deforum(**extra_args, **options)
+        logger.info(f"Output video: {gen.video_path} ")

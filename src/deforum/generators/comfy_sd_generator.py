@@ -12,7 +12,7 @@ from .comfy_utils import ensure_comfy
 from .rng_noise_generator import ImageRNGNoise, slerp
 from deforum.utils.deforum_cond_utils import blend_tensors
 from deforum.utils.logging_config import logger
-from ..utils.constants import root_path
+from ..utils.constants import config
 from ..utils.model_download import (
     download_from_civitai,
     download_from_civitai_by_version_id,
@@ -394,6 +394,7 @@ class ComfyDeforumGenerator:
             settings_dict["t_max"] = 0.0
             self.model = settings_node.run(self.model, **settings_dict)[0]
             self.clip = settings_node.run(self.clip, **settings_dict)[0]
+            self.onediff_avail = False
             try:
                 from custom_nodes.onediff_comfy_nodes._nodes import BasicBoosterExecutor
                 from custom_nodes.onediff_comfy_nodes.modules import BoosterScheduler
@@ -403,8 +404,16 @@ class ComfyDeforumGenerator:
                 self.model = custom_booster(self.model, ckpt_name=self.model_path)
                 self.vae = BoosterScheduler(OnelineQuantizationBoosterExecutor())(self.vae, ckpt_name=self.model_path)
                 self.model.weight_inplace_update = True
+                self.onediff_avail = True
             except:
                 logger.info("ONEDIFF NOT AVAILABLE IN YOUR BUILD (YET")
+            if not self.onediff_avail:
+              try:
+                  self.optimize_model()
+                  self.optimize = True
+              except:
+                  self.optimize = False
+                  logger.info("Could not apply Stable-Fast Unet patch.")
 
             self.model_loaded = True
 
@@ -413,7 +422,7 @@ class ComfyDeforumGenerator:
 
     def load_lora_from_civitai(self, lora_id="", model_strength=0.0, clip_strength=0.0):
 
-        cache_dir = os.path.join(root_path, "models")
+        cache_dir = os.path.join(config.root_path, "models")
         os.makedirs(cache_dir, exist_ok=True)
 
         try:
@@ -538,10 +547,6 @@ class ComfyDeforumGenerator:
             seed_resize_from_w = 1024
         if seed == -1:
             seed = secrets.randbelow(18446744073709551615)
-        # if self.optimize:
-        #     self.optimize_model()
-        #     self.optimize = False
-
 
         if strength <= 0.05 or strength >= 1.0:
             strength = 1.0
@@ -549,6 +554,10 @@ class ComfyDeforumGenerator:
             # init_image = None
         else:
             strength = 1 - strength if strength != 1.0 else strength
+
+        if self.optimize:
+            self.optimize_model()
+            self.optimize = False
 
         if subseed == -1:
             subseed = secrets.randbelow(18446744073709551615)
