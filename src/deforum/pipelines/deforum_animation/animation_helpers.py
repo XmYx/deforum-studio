@@ -1262,7 +1262,13 @@ def rife_interpolate_cls(cls):
         return Image.fromarray(np.clip(255. * image.cpu().numpy(), 0, 255).astype(np.uint8))
     print(len(cls.images))
     new_images = []
-    new_images.append(Image.fromarray(cls.images[0]))
+
+    if isinstance(cls.images[0], np.ndarray):
+        first_image = Image.fromarray(cls.images[0])
+    else:
+        first_image = cls.images[0]
+    if isinstance(first_image, Image.Image):
+        new_images.append(first_image)
     input_list = [pil2tensor(i)[0] for i in cls.images]
     input_tensor = torch.stack(input_list, dim=0)
 
