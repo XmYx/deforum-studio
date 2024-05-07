@@ -6,6 +6,7 @@ import numpy as np
 import torch
 from PIL import Image
 
+
 from .comfy_utils import ensure_comfy
 from .rng_noise_generator import ImageRNGNoise, slerp
 from deforum.utils.deforum_cond_utils import blend_tensors
@@ -109,7 +110,7 @@ class HIJackCFGGuider:
             denoise_mask,
             disable_pbar,
         )
-        return self.model_patcher.model.process_latent_out(samples.to(torch.float32))
+        return self.model_patcher.model.process_latent_out(samples.to(torch.float16))
 
     def sample(
         self,
@@ -144,7 +145,7 @@ class HIJackCFGGuider:
         sigmas = sigmas.to(device)
 
         output = self.inner_sample(
-            noise, latent_image, device, sampler, sigmas, denoise_mask, None, True, seed
+            noise, latent_image, device, sampler, sigmas, denoise_mask, None, False, seed
         )
 
         return output
@@ -229,6 +230,10 @@ class ComfyDeforumGenerator:
         self.rng = None
         self.optimized = False
 
+        import comfy.model_management
+        comfy.model_management.VAE_DTYPE = torch.float16
+
+
     def optimize_model(self):
         from nodes import NODE_CLASS_MAPPINGS
 
@@ -253,7 +258,7 @@ class ComfyDeforumGenerator:
         # subseed_strength = 0.6
 
         with torch.inference_mode():
-            latent = latent.to(torch.float32)
+            latent = latent.to(torch.float16)
             latent = vae.encode_tiled(latent[:, :, :, :3])
             latent = latent.to("cuda")
         # if self.rng is None or reset_noise:
@@ -316,6 +321,34 @@ class ComfyDeforumGenerator:
         #     tokens = clip.tokenize(prompt)
         #     cond, pooled = clip.encode_from_tokens(tokens, return_pooled=True)
         #     return [[cond, {"pooled_output": pooled}]]
+    def load_onediff_model(self):
+        import comfy.sd
+        from nodes import NODE_CLASS_MAPPINGS
+
+        model, self.clip, vae, self.clipvision = (
+            comfy.sd.load_checkpoint_guess_config(
+                self.model_path,
+                output_vae=True,
+                output_clip=True,
+                embedding_directory="models/embeddings",
+                output_clipvision=False,
+            )
+        )
+        # checkpoint_loader = NODE_CLASS_MAPPINGS["OneDiffCheckpointLoaderSimple"]()
+        # self.model, self.clip, self.vae = checkpoint_loader.onediff_load_checkpoint(
+        #     self.model_path,
+        #     vae_speedup="enable",
+        #     output_vae=True,
+        #     output_clip=True,
+        #     custom_booster=None
+        # )
+        from custom_nodes.onediff_comfy_nodes._nodes import BasicBoosterExecutor
+        from custom_nodes.onediff_comfy_nodes.modules import BoosterScheduler
+        custom_booster = BoosterScheduler(BasicBoosterExecutor())
+        self.model = custom_booster(model, ckpt_name=self.model_path)
+        self.vae = BoosterScheduler(BasicBoosterExecutor())(vae, ckpt_name=self.model_path)
+        self.model.weight_inplace_update = True
+        self.model_loaded = True
 
     def load_model(self):
         if self.vae is None:
@@ -359,6 +392,16 @@ class ComfyDeforumGenerator:
             settings_dict["t_max"] = 0.0
             self.model = settings_node.run(self.model, **settings_dict)[0]
             self.clip = settings_node.run(self.clip, **settings_dict)[0]
+
+            from custom_nodes.onediff_comfy_nodes._nodes import BasicBoosterExecutor
+            from custom_nodes.onediff_comfy_nodes.modules import BoosterScheduler
+            from custom_nodes.onediff_comfy_nodes.modules.oneflow.booster_quantization import \
+                OnelineQuantizationBoosterExecutor
+            custom_booster = BoosterScheduler(OnelineQuantizationBoosterExecutor())
+            self.model = custom_booster(self.model, ckpt_name=self.model_path)
+            self.vae = BoosterScheduler(OnelineQuantizationBoosterExecutor())(self.vae, ckpt_name=self.model_path)
+            self.model.weight_inplace_update = True
+
             self.model_loaded = True
 
             # from ..optimizations.deforum_comfy_trt.deforum_trt_comfyunet import TrtUnet
@@ -483,7 +526,7 @@ class ComfyDeforumGenerator:
     ):
 
         if not self.model_loaded:
-            self.load_model()
+            self.load_onediff_model()
             # self.load_lora_from_civitai('413566', 1.0, 1.0)
         if seed_resize_from_h == 0:
             seed_resize_from_h = 1024
@@ -491,9 +534,9 @@ class ComfyDeforumGenerator:
             seed_resize_from_w = 1024
         if seed == -1:
             seed = secrets.randbelow(18446744073709551615)
-        if self.optimize:
-            self.optimize_model()
-            self.optimize = False
+        # if self.optimize:
+        #     self.optimize_model()
+        #     self.optimize = False
 
 
         if strength <= 0.05 or strength >= 1.0:
@@ -508,7 +551,7 @@ class ComfyDeforumGenerator:
 
         if cnet_image is not None:
             cnet_image = torch.from_numpy(
-                np.array(cnet_image).astype(np.float32) / 255.0
+                np.array(cnet_image).astype(np.float16) / 255.0
             ).unsqueeze(0)
 
         if init_image is None or reset_noise:
@@ -690,7 +733,7 @@ class ComfyDeforumGenerator:
 
     def decode_sample(self, vae, sample):
         with torch.inference_mode():
-            sample = sample.to(torch.float32)
+            sample = sample.to(torch.float16)
             decoded = vae.decode(sample).detach()
 
         return decoded
@@ -894,7 +937,7 @@ def sample_with_subseed(
         base_noise = (
             torch.randn(
                 (1, 4, height, width),
-                dtype=torch.float32,
+                dtype=torch.float16,
                 device="cpu",
                 generator=generator,
             )
@@ -906,7 +949,7 @@ def sample_with_subseed(
         generator = torch.manual_seed(variation_seed)
         variation_noise = torch.randn(
             (batch_size, 4, height, width),
-            dtype=torch.float32,
+            dtype=torch.float16,
             device="cpu",
             generator=generator,
         ).cpu()
