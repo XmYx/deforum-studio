@@ -656,6 +656,8 @@ class ComfyDeforumGenerator:
         if next_prompt is not None and enable_prompt_blend:
             if next_prompt != prompt and next_prompt != "":
                 if 0.0 < prompt_blend < 1.0:
+                    logger.info(f"[DEFORUM PROMPT BLEND] {prompt_blend},\n\n{prompt}\n{next_prompt}")
+
                     next_cond = self.get_conds(
                         self.clip,
                         next_prompt,

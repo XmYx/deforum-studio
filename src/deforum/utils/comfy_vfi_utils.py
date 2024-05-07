@@ -166,8 +166,8 @@ def _generic_frame_loop(
         output_frames[out_len] = frame0  # Start with first frame
         out_len += 1
         # Ensure that input frames are in fp32 - the same dtype as model
-        frame0 = frame0.to(dtype=torch.float32)
-        frame1 = frames[frame_itr + 1:frame_itr + 2].to(dtype=torch.float32)
+        frame0 = frame0.to(dtype=torch.float16)
+        frame1 = frames[frame_itr + 1:frame_itr + 2].to(dtype=torch.float16)
 
         if interpolation_states is not None and interpolation_states.is_frame_skipped(frame_itr):
             continue
@@ -184,11 +184,11 @@ def _generic_frame_loop(
                     frame1.to(DEVICE),
                     timestep,
                     *return_middle_frame_function_args
-                ).detach().cpu()
+                ).detach()
                 middle_frame_batches.append(middle_frame.to(dtype=dtype))
         else:
             middle_frames = non_timestep_inference(frame0.to(DEVICE), frame1.to(DEVICE), multiplier - 1)
-            middle_frame_batches.extend(torch.cat(middle_frames, dim=0).detach().cpu().to(dtype=dtype))
+            middle_frame_batches.extend(torch.cat(middle_frames, dim=0).detach().to(dtype=dtype))
 
         # Copy middle frames to output
         for middle_frame in middle_frame_batches:
@@ -197,13 +197,13 @@ def _generic_frame_loop(
 
         number_of_frames_processed_since_last_cleared_cuda_cache += 1
         # Try to avoid a memory overflow by clearing cuda cache regularly
-        if number_of_frames_processed_since_last_cleared_cuda_cache >= clear_cache_after_n_frames:
-            print("Comfy-VFI: Clearing cache...", end=' ')
-            #soft_empty_cache()
-            number_of_frames_processed_since_last_cleared_cuda_cache = 0
-            print("Done cache clearing")
+        # if number_of_frames_processed_since_last_cleared_cuda_cache >= clear_cache_after_n_frames:
+        #     print("Comfy-VFI: Clearing cache...", end=' ')
+        #     #soft_empty_cache()
+        #     number_of_frames_processed_since_last_cleared_cuda_cache = 0
+        #     print("Done cache clearing")
 
-        gc.collect()
+        # gc.collect()
 
     if final_logging:
         print(f"Comfy-VFI done! {len(output_frames)} frames generated at resolution: {output_frames[0].shape}")

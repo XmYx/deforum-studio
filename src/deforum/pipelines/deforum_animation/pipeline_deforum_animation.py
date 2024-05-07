@@ -560,10 +560,10 @@ class DeforumAnimationPipeline(DeforumBase):
         try:
 
             self.gen.update_from_kwargs(**kwargs)
-            self.gen.max_frames += 5
+            #self.gen.max_frames += 5
             self.gen.keys = DeforumAnimKeys(self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.anim_keys
             #self.gen.loopSchedulesAndData = LooperAnimKeys(self.gen, self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.looper_keys
-            prompt_series = pd.Series([np.nan for a in range(self.gen.max_frames)])
+            prompt_series = pd.Series([np.nan for a in range(kwargs['max_frames'] + 5)])
 
             if self.gen.prompts is not None:
                 if isinstance(self.gen.prompts, dict):
@@ -576,7 +576,6 @@ class DeforumAnimationPipeline(DeforumBase):
                     prompt_series[int(numexpr.evaluate(i))] = prompt
             prompt_series = prompt_series.ffill().bfill()
             self.gen.prompt_series = prompt_series
-            self.gen.max_frames -= 5
             logger.infe("[DEFORUM] Live Updated")
         except:
             pass
