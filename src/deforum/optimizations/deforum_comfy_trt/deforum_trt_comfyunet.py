@@ -5,7 +5,7 @@ from torch import nn
 from torch.cuda import nvtx
 
 from deforum.optimizations.trt.utilities import Engine
-from deforum.utils.constants import root_path
+from deforum.utils.constants import config
 from deforum.utils.logging_config import logger
 
 class TrtUnet(nn.Module):
@@ -41,7 +41,7 @@ class TrtUnet(nn.Module):
 
         #self.loaded_config = self.configs[0]
         self.shape_hash = 0
-        #self.engine = Engine(os.path.join(root_path, "models/Unet-trt/unet.trt"))
+        #self.engine = Engine(os.path.join(config.model_dir, "Unet-trt/unet.trt"))
         self.dtype = torch.float16
         self.lora_path = None
 
@@ -97,7 +97,7 @@ class TrtUnet(nn.Module):
         # self.engine = Engine(os.path.join(os.getcwd(), "models/unet.trt"))
 
         #FOR PIP
-        self.engine = Engine(os.path.join(root_path, "models/unet.trt"))
+        self.engine = Engine(os.path.join(config.model_dir, "unet.trt"))
         self.activate()
         self.loaded_config = "TRT"
 

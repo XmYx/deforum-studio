@@ -77,3 +77,31 @@ def download_from_civitai(
 
     # Use the helper function to download the model
     return download_file(download_url, destination, filename, force_download, token=civitai_token)
+
+
+def download_from_civitai_by_version_id(
+    model_id: str, destination: str, force_download: bool = False
+):
+    # Ensure model id is a string
+    assert isinstance(model_id, str), "Model ID should be a string."
+    civitai_token = '?token=a44763d416db87cfb4fdb6b70369f4a3'
+    # Fetch the model details
+    response = requests.get(f"https://civitai.com/api/v1/model-versions/{model_id}")
+    response.raise_for_status()
+
+    model_data = response.json()
+
+    for key, value in model_data.items():
+        print(key)
+
+        if key.strip().lower() == 'files':
+            for k in value:
+                print(f"             {k}")
+                if k['type'].lower() == 'model':
+                    download_url = k["downloadUrl"]
+                    filename = k["name"]
+
+                    return download_file(download_url, destination, filename, force_download, token=civitai_token)
+
+
+    return None

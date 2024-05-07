@@ -1,11 +1,55 @@
 {
   "General Settings": {
+    "optimize": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Optimize with StableFast"},
+    "model_id": {
+      "label": "Model ID",
+      "widget_type": "text input",
+      "default": "125703"
+    },
     "settings_file": {
       "widget_type": "file_input",
       "accepted_file_types": [".txt"],
       "default": null,
       "label": "Upload Settings File",
       "accessible_name": "Settings File Upload"
+    },
+    "dry_run": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Dry Run"},
+    "deforum_save_gen_info_as_srt": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Save SRT Subtitle"},
+    "resume_from_timestring": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Resume"},
+    "resume_from_frame": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Resume From Frame"},
+    "resume_from": {
+      "widget_type": "number",
+      "default": 1,
+      "min": 1,
+      "max": 655360,
+      "label": "Resume Frame"
+    },
+    "resume_timestring": {
+      "label": "Resume Timestring",
+      "widget_type": "text input",
+      "default": "",
+      "accessible_name": ""
+    },
+    "resume_path": {
+      "label": "Resume Path",
+      "widget_type": "text input",
+      "default": "",
+      "accessible_name": ""
     },
     "prompts": {
       "label": "Prompts",
@@ -78,13 +122,13 @@
       "accessible_name": "Seed Behavior"
     },
     "subseed_schedule": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "0: (-1)",
       "label": "Subseed Schedule",
       "accessible_name": "Subseed Schedule"
     },
     "subseed_strength_schedule": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "0: (0.1)",
       "label": "Subseed Strength Schedule",
       "accessible_name": "Subseed Strength Schedule"
@@ -117,88 +161,231 @@
       "widget_type": "dropdown",
       "options": ["2D", "3D", "None"],
       "default": "3D",
-      "label": "Animation Mode",
-      "accessible_name": "Type of Animation"
+      "label": "Animation Mode"
+    },
+    "use_depth_warping": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Use Depth Warping"
+    },
+    "depth_algorithm": {
+      "widget_type": "dropdown",
+      "options": ["Midas+AdaBins (old)", "Zoe+AdaBins (old)", "Midas-3-Hybrid", "AdaBins", "Zoe", "Leres"],
+      "default": "Midas-3-Hybrid",
+      "label": "Depth Algorithm"
+    },
+    "midas_weight": {
+      "widget_type": "float",
+      "default": 0.8,
+      "min": 0.0,
+      "max": 100,
+      "label": "Midas Weight",
+      "accessible_name": "Maximum Number of Animation Frames"
     },
     "max_frames": {
       "widget_type": "number",
       "default": 362,
       "min": 1,
-      "max": 1000,
+      "max": 6553600,
       "label": "Max Frames",
       "accessible_name": "Maximum Number of Animation Frames"
     },
-    "translation_x": {
-      "widget_type": "text input",
+    "fps": {
+      "widget_type": "number",
+      "default": 30,
+      "min": 1,
+      "max": 4096,
+      "label": "FPS:"
+    },
+    "angle": {
+      "widget_type": "text box",
       "default": "0: (0)",
-      "label": "Translation X",
+      "label": "Angle"
+    },
+    "zoom": {
+      "widget_type": "text box",
+      "default": "0: (1)",
+      "label": "Zoom"
+    },
+    "translation_x": {
+      "widget_type": "text box",
+      "default": "0: (0)",
+      "label": "Translation X\n(Horizontal)",
       "accessible_name": "X-axis Translation Formula"
     },
     "translation_y": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "0: (0)",
-      "label": "Translation Y",
+      "label": "Translation Y\n(Vertical)",
       "accessible_name": "Y-axis Translation Formula"
     },
     "translation_z": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "0: (0)",
-      "label": "Translation Z",
+      "label": "Translation Z\n(Traversial)",
       "accessible_name": "Z-axis Translation Formula"
     },
-    "rotation_x": {
-      "widget_type": "text input",
+    "rotation_3d_x": {
+      "widget_type": "text box",
       "default": "0: (0)",
-      "label": "Rotation X",
+      "label": "Rotation X\n(Tilt)",
       "accessible_name": "X-axis Rotation Formula"
     },
-    "rotation_y": {
-      "widget_type": "text input",
+    "rotation_3d_y": {
+      "widget_type": "text box",
       "default": "0: (0)",
-      "label": "Rotation Y",
+      "label": "Rotation Y\n(Pan)",
       "accessible_name": "Y-axis Rotation Formula"
     },
-    "rotation_z": {
-      "widget_type": "text input",
+    "rotation_3d_z": {
+      "widget_type": "text box",
       "default": "0: (0)",
-      "label": "Rotation Z",
+      "label": "Rotation Z\n(Dutch)",
       "accessible_name": "Z-axis Rotation Formula"
     }
 
   },
   "Diffusion Schedules": {
     "steps_schedule": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "0: (20)",
       "label": "Steps Schedule",
       "accessible_name": "Steps Schedule"
     },
     "strength_schedule": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "0: (0.65)",
       "label": "Strength Schedule",
       "accessible_name": "Strength Schedule"
     },
     "noise_schedule": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "0: (0.02)",
       "label": "Noise Schedule",
       "accessible_name": "Noise Schedule"
     },
     "cfg_scale_schedule": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "0: (5.0)",
       "label": "CFG Scale Schedule",
       "accessible_name": "CFG Scale Schedule"
     },
     "parseq_manifest": {
-      "widget_type": "text input",
+      "widget_type": "text box",
       "default": "",
       "label": "ParSeq Manifest",
       "accessible_name": "ParSeq"
     }
   },
+  
+  "Cadence": {
+    "diffusion_cadence": {
+      "widget_type": "number",
+      "default": 1,
+      "min": 1,
+      "max": 1000,
+      "label": "Cadence"
+    },
+    "optical_flow_cadence": {
+      "widget_type": "dropdown",
+      "options": ["None", "RAFT", "DIS Medium", "DIS Fine", "Farneback"],
+      "default": "None",
+      "label": "Cadence Type"
+    },
+    "cadence_flow_factor_schedule": {
+      "widget_type": "text box",
+      "default": "0: (1)",
+      "label": "Cadence Flow Factor",
+      "accessible_name": "Cadence Flow Factor"
+    },
+    "frame_interpolation_engine": {
+      "widget_type": "dropdown",
+      "options": ["None", "RIFE", "FILM"],
+      "default": "None",
+      "label": "Frame Interpolation Engine"
+    },
+    "frame_interpolation_x_amount": {
+      "widget_type": "number",
+      "default": 2,
+      "min": 2,
+      "max": 64,
+      "label": "Frame Interpolation X Amount"
+    }
+  },
+  "Hybrid": {
+    "video_init_path": {
+      "widget_type": "text input",
+      "default": "",
+      "label": "Init Video Path"
+    },
+    "extract_nth_frame": {
+      "widget_type": "number",
+      "default": 1,
+      "min": 1,
+      "max": 2048,
+      "label": "Extract Nth Frame"
+    },
+    "extract_from_frame": {
+      "widget_type": "number",
+      "default": 0,
+      "min": 0,
+      "max": 65536000,
+      "label": "Extract From Frame"
+    },
+    "extract_to_frame": {
+      "widget_type": "number",
+      "default": -1,
+      "min": -1,
+      "max": 65536000,
+      "label": "Extract To Frame"
+    },
+    "hybrid_flow_factor_schedule": {
+      "widget_type": "text box",
+      "default": "0:(1)",
+      "label": "Hybrid Flow Factor"
+    },
+    "hybrid_generate_inputframes": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Hybrid Generate Inputframes"
+    },
+    "hybrid_use_full_video": {
+      "widget_type": "checkbox",
+      "default": true,
+      "label": "Hybrid Use Full Video"
+    },
+    "hybrid_motion": {
+      "widget_type": "dropdown",
+      "options": ["None", "Optical Flow", "Perspective", "Affine"],
+      "default": "None",
+      "label": "Hybrid motion"
+    },
+    "hybrid_flow_method": {
+      "widget_type": "dropdown",
+      "options": ["None", "RAFT", "DIS Medium", "DIS Fine", "Farneback"],
+      "default": "RAFT",
+      "label": "Hybrid motion"
+    },    
+    "hybrid_flow_consistency": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Flow consistency mask"
+    }
+  },
   "Image & Mask Settings": {
+    
+    "color_coherence": {
+      "widget_type": "dropdown",
+      "options": ["None", "HSV", "LAB", "RGB", "Video Input", "Image"],
+      "default": "None",
+      "label": "Color Coherence"
+    },
+    "noise_type": {
+      "widget_type": "dropdown",
+      "options": ["uniform", "perlin"],
+      "default": "perlin",
+      "label": "Noise Type"
+    },
     "use_init": {
       "widget_type": "checkbox",
       "options": [true, false],

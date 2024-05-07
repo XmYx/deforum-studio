@@ -177,15 +177,15 @@ def hybrid_composite(args, anim_args, frame_idx, prev_img, depth_model, hybrid_c
 
 
 def get_matrix_for_hybrid_motion(frame_idx, dimensions, inputfiles, hybrid_motion):
-    logger.info(f"Calculating {hybrid_motion} RANSAC matrix for frames {frame_idx} to {frame_idx + 1}")
+    #logger.info(f"Calculating {hybrid_motion} RANSAC matrix for frames {frame_idx} to {frame_idx + 1}")
     img1 = cv2.cvtColor(get_resized_image_from_filename(str(inputfiles[frame_idx]), dimensions), cv2.COLOR_BGR2GRAY)
     img2 = cv2.cvtColor(get_resized_image_from_filename(str(inputfiles[frame_idx + 1]), dimensions), cv2.COLOR_BGR2GRAY)
-    M = get_transformation_matrix_from_images(img1, img2, hybrid_motion)
+    M = get_transformation_matrix_from_images(img1.astype(np.uint8), img2.astype(np.uint8), hybrid_motion)
     return M
 
 
 def get_matrix_for_hybrid_motion_prev(frame_idx, dimensions, inputfiles, prev_img, hybrid_motion):
-    logger.info(f"Calculating {hybrid_motion} RANSAC matrix for frames {frame_idx} to {frame_idx + 1}")
+    #logger.info(f"Calculating {hybrid_motion} RANSAC matrix for frames {frame_idx} to {frame_idx + 1}")
     # first handle invalid images by returning default matrix
     height, width = prev_img.shape[:2]
     if height == 0 or width == 0 or prev_img != np.uint8:
@@ -197,7 +197,7 @@ def get_matrix_for_hybrid_motion_prev(frame_idx, dimensions, inputfiles, prev_im
         M = get_transformation_matrix_from_images(prev_img_gray, img, hybrid_motion)
         return M
 def get_matrix_for_hybrid_motion_prev_imgs(frame_idx, dimensions, goal_img, prev_img, hybrid_motion):
-    logger.info(f"Calculating {hybrid_motion} RANSAC matrix for frames {frame_idx} to {frame_idx + 1}")
+    #logger.info(f"Calculating {hybrid_motion} RANSAC matrix for frames {frame_idx} to {frame_idx + 1}")
     # first handle invalid images by returning default matrix
     height, width = prev_img.shape[:2]
     #x = prev_img.astype(np.float32)

@@ -188,6 +188,9 @@ class DeforumGenerationObject(DeforumDataObject):
         self.parseq_manifest = None
         animation_prompts = DeforumAnimPrompts()
         self.animation_prompts = json.loads(animation_prompts)
+        self.resume_timestring = None
+        self.resume_from_timestring = False
+
         self.timestring = time.strftime('%Y%m%d%H%M%S')
         self.batch_name = kwargs.get('batch_name', f"deforum_{self.timestring}")
         # current_arg_list = [deforum.args, deforum.anim_args, deforum.video_args, deforum.parseq_args]
@@ -195,8 +198,13 @@ class DeforumGenerationObject(DeforumDataObject):
         self.raw_batch_name = self.batch_name
         # self.batch_name = substitute_placeholders(deforum.args.batch_name, current_arg_list,
         #                                                  full_base_folder_path)
-        self.outdir = os.path.join(full_base_folder_path, str(self.batch_name))
-        os.makedirs(self.outdir, exist_ok=True)
+        if self.timestring not in self.batch_name:
+            self.outdir = os.path.join(full_base_folder_path, f"{self.batch_name}_{self.timestring}")
+        else:
+            self.outdir = os.path.join(full_base_folder_path, f"{self.batch_name}")
+
+
+        # os.makedirs(self.outdir, exist_ok=True)
 
         # Handle seed initialization
         if self.seed == -1 or self.seed == "-1":
@@ -224,6 +232,7 @@ class DeforumGenerationObject(DeforumDataObject):
         self.turbo_next_image, self.turbo_next_frame_idx = None, 0
         self.contrast = 1.0
         self.hybrid_use_full_video = True
+        self.hybrid_use_first_frame_as_init_image = False
         self.turbo_steps = self.diffusion_cadence
         self.img = None
         self.opencv_image = None
@@ -236,6 +245,10 @@ class DeforumGenerationObject(DeforumDataObject):
         self.amount = 0
         self.noise = 0.002
         self.skip_video_creation = False
+        self.color_match_at = 'pre'
+        self.dry_run = False
+        self.animation_prompts_positive = ""
+        self.animation_prompts_negative = ""
 
         # Set all provided keyword arguments as attributes
         for key, value in kwargs.items():

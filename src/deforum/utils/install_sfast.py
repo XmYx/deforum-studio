@@ -7,7 +7,7 @@ def install_sfast():
 
     subprocess.run(
         [
-            "python3",
+            "python",
             "-m" "pip",
             "install",
             "ninja",
@@ -16,7 +16,7 @@ def install_sfast():
 
     subprocess.run(
         [
-            "python3",
+            "python",
             "-m" "pip",
             "install",
             "-v",

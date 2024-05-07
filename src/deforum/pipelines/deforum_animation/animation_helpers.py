@@ -22,9 +22,10 @@ from ...generators.deforum_flow_generator import (get_flow_for_hybrid_motion_pre
                                                   abs_flow_to_rel_flow,
                                                   rel_flow_to_abs_flow, get_flow_from_images)
 from ...generators.deforum_noise_generator import add_noise
+from ...models.RIFE.rife_model import RIFEInterpolator
 from ...pipeline_utils import next_seed
 from ...utils import py3d_tools as p3d
-from ...utils.constants import root_path, config
+from ...utils.constants import config
 from ...utils.deforum_framewarp_utils import (get_flip_perspective_matrix,
                                               flip_3d_perspective,
                                               transform_image_3d_new,
@@ -39,6 +40,7 @@ from ...utils.image_utils import (load_image,
                                   get_mask_from_file, do_overlay_mask, save_image, maintain_colors,
                                   compose_mask_with_check)
 from ...utils.string_utils import check_is_number, prepare_prompt
+from ...utils.subtitle_handler import init_srt_file, format_animation_params, write_frame_subtitle
 from ...utils.video_frame_utils import (get_frame_name,
                                         get_next_frame)
 from ...utils.video_save_util import save_as_h264
@@ -64,22 +66,13 @@ def anim_frame_warp_cls(cls: Any) -> None:
         cls.gen.mask = None
         if cls.gen.use_depth_warping:
             if cls.gen.depth is None and cls.depth_model is not None:
-
-
-                #img = Image.fromarray(cv2.cvtColor(cls.gen.prev_img, cv2.COLOR_BGR2RGB))
-
-                #print("ERROR HERE", type(img))
                 if cls.depth_model.device != 'cuda':
                     cls.depth_model.to('cuda')
                     cls.depth_model.device = 'cuda'
                 with torch.no_grad():
                     cls.gen.depth = cls.depth_model.predict(cls.gen.prev_img, cls.gen.midas_weight, True)
-                                                            #cls.gen.half_precision)
-                    torch.cuda.empty_cache()
-                #cls.depth_model.to('cpu')
         else:
             cls.gen.depth = None
-
         if cls.gen.animation_mode == '2D':
             cls.gen.prev_img = anim_frame_warp_2d_cls(cls, cls.gen.prev_img)
         else:  # '3D'
@@ -180,7 +173,6 @@ def anim_frame_warp_3d_cls(cls: Any, image: Union[None, Any]) -> Tuple[Any, Any]
 
     result = transform_image_3d_new(torch.device('cuda'), image, cls.gen.depth, rot_mat, translate_xyz,
                                           cls.gen, cls.gen.keys, cls.gen.frame_idx)
-    torch.cuda.empty_cache()
     return result, None
 
 
@@ -201,7 +193,6 @@ def anim_frame_warp_3d_direct(cls, image, x, y, z, rx, ry, rz):
     rot_mat = p3d.euler_angles_to_matrix(torch.tensor(rotate_xyz, device="cuda"), "XYZ").unsqueeze(0)
     result, mask = transform_image_3d_new(torch.device('cuda'), image, cls.gen.depth, rot_mat, translate_xyz,
                                           cls.gen, cls.gen.keys, cls.gen.frame_idx)
-    torch.cuda.empty_cache()
     return result, mask
 
 def hybrid_composite_cls(cls: Any) -> None:
@@ -310,7 +301,10 @@ def affine_persp_motion(cls: Any) -> None:
     Returns:
         None: Modifies the class instance attributes in place.
     """
-    if cls.gen.hybrid_motion_use_prev_img:
+    if cls.gen.frame_idx < 1:
+        logger.info("Skipping optical flow motion for first frame.")
+        return
+    if cls.gen.hybrid_motion_use_prev_img and cls.gen.prev_img is not None:
         matrix = get_matrix_for_hybrid_motion_prev(cls.gen.frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
                                                    cls.gen.prev_img,
                                                    cls.gen.hybrid_motion)
@@ -373,7 +367,7 @@ def color_match_cls(cls: Any) -> None:
     """
     if cls.gen.color_match_sample is None and cls.gen.image is not None:
         cls.gen.color_match_sample = cls.gen.prev_img.copy()
-    elif cls.gen.prev_img is not None:
+    elif cls.gen.prev_img is not None and cls.gen.color_match_sample is not None:
         cls.gen.prev_img = maintain_colors(cls.gen.prev_img, cls.gen.color_match_sample, cls.gen.color_coherence)
     return
 
@@ -439,6 +433,7 @@ def add_noise_cls(cls: Any) -> None:
         # use transformed previous frame as init for current
         cls.gen.use_init = True
         cls.gen.init_sample = Image.fromarray(cv2.cvtColor(noised_image, cv2.COLOR_BGR2RGB))
+        cls.gen.prev_img = noised_image
         cls.gen.strength = max(0.0, min(1.0, cls.gen.strength))
     return
 
@@ -457,7 +452,7 @@ def get_generation_params(cls: Any) -> None:
     frame_idx = cls.gen.frame_idx
     keys = cls.gen.keys
 
-    # print(f"\033[36mAnimation frame: \033[0m{frame_idx}/{cls.gen.max_frames}  ")
+    # logger.info(f"\033[36mAnimation frame: \033[0m{frame_idx}/{cls.gen.max_frames}  ")
 
     cls.gen.noise = keys.noise_schedule_series[frame_idx]
     cls.gen.strength = keys.strength_schedule_series[frame_idx]
@@ -656,15 +651,12 @@ def diffusion_redo(cls: Any) -> None:
 def main_generate_with_cls(cls: Any) -> None:
     """
     Executes the main generation process for the given class instance.
-
     Args:
         cls: The class instance containing generation parameters and other attributes.
-
     Returns:
         None: Modifies the class instance attributes in place.
     """
     cls.gen.image = cls.generate()
-
     return
 
 
@@ -699,7 +691,7 @@ def post_color_match_with_cls(cls: Any) -> None:
         None: Modifies the class instance attributes in place.
     """
     # color matching on first frame is after generation, color match was collected earlier, so we do an extra generation to avoid the corruption introduced by the color match of first output
-    if cls.gen.color_match_sample is not None:
+    if cls.gen.color_match_sample is not None and 'post' in cls.gen.color_match_at:
         if cls.gen.frame_idx == 0 and (cls.gen.color_coherence == 'Image' or (
                 cls.gen.color_coherence == 'Video Input' and cls.gen.hybrid_available)):
             image = maintain_colors(cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR), cls.gen.color_match_sample,
@@ -773,13 +765,14 @@ def post_gen_cls(cls: Any) -> None:
             # cls.logger(f"                                   [ turbo_steps > 1 block executed ]", True)
         else:
             filename = f"{cls.gen.timestring}_{cls.gen.frame_idx:09}.png"
+            image_full_path = os.path.join(cls.gen.outdir, filename)
             # cls.logger(f"                                   [ filename generated: {filename} ]", True)
             # cv2.imwrite("current_deforum_debug.png", cls.gen.opencv_image)
             if not cls.gen.store_frames_in_ram:
                 # p = Process(target=save_image, args=(cls.gen.image, 'PIL', filename, cls.gen, cls.gen, cls.gen))
                 # p.start()
                 save_image(cls.gen.image, 'PIL', filename, cls.gen, cls.gen, cls.gen)
-                cls.gen.image_paths.append(os.path.join(cls.gen.outdir, filename))
+                cls.gen.image_paths.append(image_full_path)
 
                 # cls.logger(f"                                   [ image saved ]", True)
 
@@ -794,7 +787,7 @@ def post_gen_cls(cls: Any) -> None:
             cls.gen.frame_idx += 1
             # cls.logger(f"                                   [ frame_idx incremented ]", True)
         if cls.gen.turbo_steps < 2:
-            done = cls.datacallback({"image": cls.gen.image, "operation_id":cls.gen.operation_id, "frame_idx":cls.gen.frame_idx})
+            done = cls.datacallback({"image": cls.gen.image, "operation_id":cls.gen.operation_id, "frame_idx":cls.gen.frame_idx, "image_path": image_full_path})
         # cls.logger(f"                                   [ datacallback executed ]", True)
 
         cls.gen.seed = next_seed(cls.gen, cls.gen)
@@ -806,10 +799,10 @@ def post_gen_cls(cls: Any) -> None:
 
 def generate_interpolated_frames(cls):
     
-    turbo_prev_image = cls.gen.turbo_prev_image
-    turbo_next_image = cls.gen.turbo_next_image
-    turbo_prev_frame_idx = cls.gen.turbo_prev_frame_idx
-    turbo_next_frame_idx = cls.gen.turbo_next_frame_idx
+    turbo_prev_image = copy.deepcopy(cls.gen.turbo_prev_image)
+    turbo_next_image = copy.deepcopy(cls.gen.turbo_next_image)
+    turbo_prev_frame_idx = copy.deepcopy(cls.gen.turbo_prev_frame_idx)
+    turbo_next_frame_idx = copy.deepcopy(cls.gen.turbo_next_frame_idx)
     
     # emit in-between frames
     if cls.gen.turbo_steps > 1 and cls.gen.frame_idx > 1:
@@ -934,7 +927,7 @@ def generate_interpolated_frames(cls):
                 img = do_overlay_mask(cls.gen, cls.gen, img, tween_frame_idx, True)
 
             # get prev_img during cadence
-            prev_img = img
+            prev_img = copy.deepcopy(img)
 
 
             # current image update for cadence frames (left commented because it doesn't currently update the preview)
@@ -942,18 +935,19 @@ def generate_interpolated_frames(cls):
 
             # saving cadence frames
             filename = f"{cls.gen.timestring}_{tween_frame_idx:09}.png"
-            cv2.imwrite(os.path.join(cls.gen.outdir, filename), img)
+            image_full_path = os.path.join(cls.gen.outdir, filename)
+            cv2.imwrite(image_full_path, img)
             # cv2.imwrite("current_cadence.png", img)
             cb_img = Image.fromarray(cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB))
-            cls.datacallback({"image":cb_img, "operation_id":cls.gen.operation_id, "frame_idx":cls.gen.frame_idx})
-            cls.images.append(cb_img)
+            cls.datacallback({"image":cb_img, "operation_id":cls.gen.operation_id, "frame_idx":tween_frame_idx, "image_path": image_full_path})
+            cls.images.append(copy.deepcopy(cb_img))
 
 
             if cls.gen.save_depth_maps:
                 cls.depth_model.save(os.path.join(cls.gen.outdir, f"{cls.gen.timestring}_depth_{tween_frame_idx:09}.png"), depth)
-            cls.gen.prev_img = prev_img
-            cls.gen.turbo_prev_image = turbo_prev_image
-            cls.gen.turbo_next_image = turbo_next_image
+            cls.gen.prev_img = copy.deepcopy(prev_img)
+            cls.gen.turbo_prev_image = copy.deepcopy(turbo_prev_image)
+            cls.gen.turbo_next_image = copy.deepcopy(turbo_next_image)
 
 
 
@@ -1131,12 +1125,13 @@ def make_cadence_frames(cls: Any) -> None:
                 # saving cadence frames
                 if not cls.gen.store_frames_in_ram:
                     filename = f"{cls.gen.timestring}_{tween_frame_idx:09}.png"
-                    cv2.imwrite(os.path.join(cls.gen.outdir, filename), cls.gen.img)
-                    cls.gen.image_paths.append(os.path.join(cls.gen.outdir, filename))
+                    image_full_path = os.path.join(cls.gen.outdir, filename)
+                    cv2.imwrite(image_full_path, cls.gen.img)
+                    cls.gen.image_paths.append(image_full_path)
 
 
                 callback_img = cv2.cvtColor(cls.gen.img.astype(np.uint8), cv2.COLOR_BGR2RGB)
-                done = cls.datacallback({"image": Image.fromarray(callback_img), "operation_id":cls.gen.operation_id, "frame_idx":cls.gen.frame_idx})
+                done = cls.datacallback({"image": Image.fromarray(callback_img), "operation_id":cls.gen.operation_id, "frame_idx":tween_frame_idx, "image_path": image_full_path})
                 # done = cls.datacallback({"image": Image.fromarray(cv2.cvtColor(cls.gen.img, cv2.COLOR_BGR2RGB))})
                 cls.images.append(callback_img)
 
@@ -1202,14 +1197,66 @@ def film_interpolate_cls(cls: Any) -> None:
     return
 
 
+def rife_interpolate_cls(cls: Any) -> None:
+    """
+    Performs frame interpolation on a sequence of images stored in cls.images using a custom RIFEInterpolator class.
+    The interpolated images will replace the original sequence in cls.images.
+
+    Args:
+        cls: An instance of a class containing:
+             - images: a list of PIL Image objects to interpolate.
+             - frame_interpolation_x_amount: the number of frames to interpolate between each pair of images.
+
+    Returns:
+        None: Modifies the cls.images attribute in place.
+    """
+
+    # Initialize the interpolator
+    interpolator = RIFEInterpolator()
+
+    # Prepare an empty list to hold all the interpolated images
+    new_images = []
+    new_images.append(Image.fromarray(cls.images[0]))
+    # Iterate through pairs of consecutive images in cls.images
+    for i in range(len(cls.images) - 1):
+        img1 = cls.images[i]
+        img2 = cls.images[i + 1]
+
+        # Interpolate between each pair
+        interpolated_frames = interpolator.interpolate(np.array(img1), np.array(img2),
+                                                       interp_amount=cls.gen.frame_interpolation_x_amount + 1)
+        # Append all interpolated frames including the first of the pair but excluding the last one
+        # The last frame of each segment should not be added to avoid duplication except for the final segment
+        for i in interpolated_frames[:-1]:
+
+            new_images.append(i)
+
+    # After the loop, add the last frame of the last interpolated segment to complete the sequence
+    if interpolated_frames:
+        new_images.append(interpolated_frames[-1])  # Add the final image of the last interpolation batch
+
+    # Print the number of interpolated frames for debugging
+    print(f"Interpolated frame count: {len(new_images)}")
+
+    # Replace the original images with the new, interpolated ones
+    cls.gen.images = new_images
+
+
+    # Optionally clear image paths if no longer needed
+    if hasattr(cls, 'gen') and hasattr(cls.gen, 'image_paths'):
+        cls.gen.image_paths = []
+    return
+
+
 def save_video_cls(cls):
-    dir_path = os.path.join(root_path, 'output/video')
+    dir_path = os.path.join(config.output_dir, 'video')
     os.makedirs(dir_path, exist_ok=True)
-
-    name = f'{cls.gen.batch_name}_{cls.gen.timestring}'
-
+    if cls.gen.timestring not in cls.gen.batch_name:
+        name = f'{cls.gen.batch_name}_{cls.gen.timestring}'
+    else:
+        name = f'{cls.gen.batch_name}'
     output_filename_base = os.path.join(dir_path, name)
-
+    cls.gen.images = cls.images
 
     audio_path = None
     if hasattr(cls.gen, 'video_init_path'):
@@ -1217,7 +1264,7 @@ def save_video_cls(cls):
 
     fps = getattr(cls.gen, "fps", 24)  # Using getattr to simplify fetching attributes with defaults
     try:
-        save_as_h264(cls.images, output_filename_base + ".mp4", audio_path=audio_path, fps=fps)
+        save_as_h264(cls.gen.images, output_filename_base + ".mp4", audio_path=audio_path, fps=fps)
     except Exception as e:
         logger.error(f"save as h264 failed: {str(e)}")
     cls.gen.video_path = output_filename_base + ".mp4"
@@ -1237,6 +1284,16 @@ def calculate_frames_to_add(total_frames: int, interp_x: float) -> int:
     frames_to_add = (total_frames * interp_x - total_frames) / (total_frames - 1)
     return int(round(frames_to_add))
 
+def cls_subtitle_handler(cls):
+    if hasattr(cls.gen, "deforum_save_gen_info_as_srt"):
+        if cls.gen.deforum_save_gen_info_as_srt:
+            if cls.gen.frame_idx == 0 or not hasattr(cls.gen, 'srt_filename'):
+                cls.gen.srt_filename = os.path.join(cls.gen.outdir, f"{cls.gen.timestring}.srt")
+                cls.gen.srt_frame_duration = init_srt_file(cls.gen.srt_filename, cls.gen.fps)
+            params_to_print = ["Trans X", "Trans Y", "Trans Z", "Str Sch", "Subseed Str Sch"]
+            params_string = format_animation_params(cls.gen.keys, cls.gen.prompt_series, cls.gen.frame_idx, params_to_print)
+            write_frame_subtitle(cls.gen.srt_filename, cls.gen.frame_idx, cls.gen.srt_frame_duration,
+                                 f"F#: {cls.gen.frame_idx}; Cadence: false; Seed: {cls.gen.seed}; {params_string}")
 
 class DeforumAnimKeys():
     def __init__(self, anim_args, seed=-1, *args, **kwargs):

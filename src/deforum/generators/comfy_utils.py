@@ -11,7 +11,7 @@ import torch
 import torchsde
 
 from deforum.generators.rng_noise_generator import randn_local
-from deforum.utils.constants import config, root_path
+from deforum.utils.constants import config
 from deforum.utils.logging_config import logger
 
 
@@ -34,9 +34,15 @@ def change_dir(destination):
         os.chdir(cwd)
 
 
-def clone_repo(repo_url):
+def clone_repo(repo_url, commit_id=None):
+    """Clones a Git repository and optionally checks out a specific commit."""
     try:
         subprocess.run(["git", "clone", repo_url])
+        if commit_id:
+            repo_name = repo_url.split("/")[-1].split(".")[0]
+            os.chdir(repo_name)
+            subprocess.run(["git", "checkout", commit_id])
+            os.chdir("..")
     except Exception as e:
         logger.error(f"An error occurred while cloning: {e}")
 
@@ -82,8 +88,8 @@ def load_custom_node(module_path, ignore=set()):
         #         EXTENSION_WEB_DIRS[module_name] = web_dir
 
         if (
-            hasattr(module, "NODE_CLASS_MAPPINGS")
-            and getattr(module, "NODE_CLASS_MAPPINGS") is not None
+                hasattr(module, "NODE_CLASS_MAPPINGS")
+                and getattr(module, "NODE_CLASS_MAPPINGS") is not None
         ):
             for name in module.NODE_CLASS_MAPPINGS:
                 if name not in ignore:
@@ -104,33 +110,31 @@ def load_custom_node(module_path, ignore=set()):
 def ensure_comfy(custom_path=None):
     curr_folder = os.getcwd()
     comfy_submodules = [
-       # "https://github.com/XmYx/ComfyUI-AnimateDiff-Evolved",
-       # "https://github.com/FizzleDorf/ComfyUI_FizzNodes",
-        "https://github.com/gameltb/ComfyUI_stable_fast",
+        # ('https://github.com/XmYx/ComfyUI-AnimateDiff-Evolved', 'commit_id_1'),
+        ('https://github.com/ltdrdata/ComfyUI-Inspire-Pack', '9c5fa36a51786fe6d75546831e5ac15cee67e77b'),
+        ('https://github.com/ltdrdata/ComfyUI-Impact-Pack', '48d9ce7528f83074b6db7a7b15ef7e88c7134aa5'),
+        ('https://github.com/shiimizu/ComfyUI_smZNodes', 'a1627ce2ade31822694d82aa9600a4eff0f99d69'),
+        ('https://github.com/gameltb/ComfyUI_stable_fast', 'c0327e6f076bd8a36e3c29f3594025c76cf9beae')
     ]
-    comfy_submodule_folders = [url.split("/")[-1] for url in comfy_submodules]
     comfy_path = custom_path or config.comfy_path
-    comfy_submodule_folder = os.path.join(comfy_path, "custom_nodes")
+    comfy_submodule_folder = os.path.join(comfy_path, 'custom_nodes')
 
-    if not os.path.exists(config.comfy_path):
-        # Clone the comfy repository if it doesn't exist
-        clone_repo_to("https://github.com/comfyanonymous/ComfyUI", comfy_path)
-    elif config.comfy_update:
-        # If comfy directory exists, update it.
-        with change_dir(comfy_path):
-            subprocess.run(["git", "pull"])
+    # if not os.path.exists(config.comfy_path):
+    #     # Clone the comfy repository if it doesn't exist
+    #     clone_repo_to('https://github.com/comfyanonymous/ComfyUI', comfy_path)
+    # elif config.comfy_update:
+    #     # If comfy directory exists, update it.
+    #     with change_dir(comfy_path):
+    #         subprocess.run(["git", "pull"])
 
     with change_dir(comfy_submodule_folder):
-        for module in comfy_submodules:
-            if not os.path.exists(os.path.join(os.getcwd(),module.split("/")[-1])):
-                clone_repo(module)
+        for module, commit_id in comfy_submodules:
+            if not os.path.exists(os.path.join(os.getcwd(), module.split("/")[-1])):
+                clone_repo(module, commit_id)
 
     os.chdir(curr_folder)
     # Add paths to sys.path
     add_to_sys_path(comfy_path)
-    for path in comfy_submodule_folders:
-        add_to_sys_path(os.path.join(comfy_submodule_folder, path))
-        load_custom_node(os.path.join(comfy_submodule_folder, path))
 
     # Create and add the mock module to sys.modules
     from comfy.cli_args import LatentPreviewMethod as lp
@@ -140,21 +144,21 @@ def ensure_comfy(custom_path=None):
         LatentPreviewMethod = lp
 
     sys.modules["comfy.cli_args"] = MockCLIArgsModule()
-    # import comfy.k_diffusion.sampling
-    replace_torchsde_browinan()
+    # replace_torchsde_browinan()
     import asyncio
     import execution
     from nodes import init_custom_nodes
     import server
-
-    # Creating a new event loop and setting it as the default loop
+    #
+    # # Creating a new event loop and setting it as the default loop
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-
-    # Creating an instance of PromptServer with the loop
+    #
+    # # Creating an instance of PromptServer with the loop
     server_instance = server.PromptServer(loop)
-    execution.PromptQueue(server_instance)
+    # execution.PromptQueue(server_instance)
     init_custom_nodes()
+    loop.stop()
 
     # comfy.k_diffusion.sampling.BatchedBrownianTree = DeforumBatchedBrownianTree
 
@@ -221,7 +225,7 @@ mock_args = CLIArgs(
     lowvram=False,
     novram=False,
     highvram=True,
-    gpu_only=False,
+    gpu_only=True,
     disable_xformers=False,
     use_pytorch_cross_attention=True,
     use_split_cross_attention=False,
@@ -246,7 +250,7 @@ mock_args = CLIArgs(
     port=8188,
     enable_cors_header=None,
     extra_model_paths_config="config/comfy_paths.yaml",
-    output_directory=root_path,
+    output_directory=config.output_dir,
     temp_directory=None,
     input_directory=None,
     auto_launch=False,
@@ -254,7 +258,7 @@ mock_args = CLIArgs(
     cuda_device=0,
     cuda_malloc=False,
     disable_cuda_malloc=False,
-    dont_upcast_attention=False,
+    dont_upcast_attention=True,
     directml=None,
     preview_method="none",
     dont_print_server=True,

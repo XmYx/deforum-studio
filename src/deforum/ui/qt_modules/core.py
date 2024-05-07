@@ -1,20 +1,23 @@
 import json
 import os
-import threading
 
-from PyQt6 import QtCore
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import QMainWindow, QMessageBox, QHBoxLayout, QSpinBox, QLabel, QDoubleSpinBox, QCheckBox, \
-    QComboBox, QPushButton, QFileDialog, QTextEdit
+from qtpy import QtCore
+from qtpy.QtCore import Qt
+from qtpy.QtGui import QAction
+from qtpy.QtWidgets import QMainWindow, QHBoxLayout, QSpinBox, QDoubleSpinBox, QCheckBox, \
+    QComboBox, QFileDialog, QLineEdit, QSlider, \
+    QDockWidget
+from qtpy.QtWidgets import QWidget, QTextEdit, QLabel, QPushButton
 
+from deforum.ui.qt_modules.custom_ui import CustomTextBox
 
 
 class DeforumCore(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.initMenu()
+        # self.initMenu()
         self.params = {}
+        self.widgets = {}
 
     def initMenu(self):
         self.menuBar = self.menuBar()
@@ -87,9 +90,35 @@ class DeforumCore(QMainWindow):
         filter = Filter(self)
         filter.parent = self
         return filter
+
+    def addDock(self, title, area):
+        dock = QDockWidget(title, self)
+        dock.setObjectName(title)
+        dock.setAllowedAreas(
+            Qt.DockWidgetArea.BottomDockWidgetArea | Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea)
+        dock.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetMovable | QDockWidget.DockWidgetFeature.DockWidgetFloatable)
+        # Assuming the main window's size is an appropriate reference for setting the dock's size
+        main_width = self.size().width()
+        dock.setMinimumSize(main_width // 2, 150)  # Set minimum size to half the main window's width
+        self.addDockWidget(area, dock)
+        return dock
+    def createSlider(self, label, layout, minimum, maximum, value, key):
+        # Creating a slider and adding it to the layout
+        slider = QSlider(Qt.Orientation.Horizontal)
+        slider.setMinimum(minimum)
+        slider.setMaximum(maximum)
+        slider.setValue(value)
+        slider.valueChanged.connect(lambda val, k=key: self.updateParam(k, val))
+        self.params[key] = value
+        layout.addWidget(QLabel(label))
+        layout.addWidget(slider)
+
     def createSpinBox(self, label, layout, minimum, maximum, step, value, key):
         hbox = QHBoxLayout()
         spinBox = QSpinBox()
+        spinBox.setAccessibleName(key)
+
         spinBox.setMinimum(minimum)
         spinBox.setMaximum(maximum)
         spinBox.setSingleStep(step)
@@ -99,11 +128,14 @@ class DeforumCore(QMainWindow):
         hbox.addWidget(QLabel(label))
         hbox.addWidget(spinBox)
         layout.addLayout(hbox)
+        self.widgets[key] = spinBox
         return spinBox
 
     def createDoubleSpinBox(self, label, layout, minimum, maximum, step, value, key):
         hbox = QHBoxLayout()
         spinBox = QDoubleSpinBox()
+        spinBox.setAccessibleName(key)
+
         spinBox.setMinimum(minimum)
         spinBox.setMaximum(maximum)
         spinBox.setSingleStep(step)
@@ -113,37 +145,64 @@ class DeforumCore(QMainWindow):
         hbox.addWidget(QLabel(label))
         hbox.addWidget(spinBox)
         layout.addLayout(hbox)
+        self.widgets[key] = spinBox
+
         return spinBox
 
     def createTextBox(self, label, layout, value, key):
         hbox = QHBoxLayout()
-        textBox = QTextEdit()
-        textBox.setText(value)
+        textBox = CustomTextBox(label, value)
+        textBox.text_box.setText(value)
+        textBox.text_box.setAccessibleName(key)
+        textBox.setObjectName(key)
         # Connect the lambda directly without expecting arguments from the signal
-        textBox.textChanged.connect(lambda: self.updateParam(key, textBox.toPlainText()))
+        textBox.text_box.textChanged.connect(lambda: self.updateParam(key, textBox.text_box.toPlainText()))
+        self.params[key] = value
+        # hbox.addWidget(QLabel(label))
+        hbox.addWidget(textBox)
+        layout.addLayout(hbox)
+        self.widgets[key] = textBox.text_box
+
+        return textBox.text_box
+    def createTextInput(self, label, layout, value, key):
+        hbox = QHBoxLayout()
+        textBox = QLineEdit()
+        textBox.setText(value)
+        textBox.setAccessibleName(key)
+        # Connect the lambda directly without expecting arguments from the signal
+        textBox.textChanged.connect(lambda: self.updateParam(key, textBox.text()))
         self.params[key] = value
         hbox.addWidget(QLabel(label))
         hbox.addWidget(textBox)
         layout.addLayout(hbox)
-        return textBox
+        self.widgets[key] = textBox
 
+        return textBox
     def createCheckBox(self, label, layout, default, key):
         checkBox = QCheckBox(label)
+        checkBox.setAccessibleName(key)
+
         checkBox.setChecked(bool(default))
-        checkBox.stateChanged.connect(lambda state, k=key: self.updateParam(k, state == QtCore.Qt.Checked))
+        # checkBox.stateChanged.connect(lambda state, k=key: self.updateParam(k, state == checkBox.isChecked()))
+        checkBox.stateChanged.connect(self.onStateChanged)
         layout.addWidget(checkBox)
         self.params[key] = default  # Initialize the parameter dictionary
+        self.widgets[key] = checkBox
+
         return checkBox
 
     def createComboBox(self, label, layout, items, key):
         hbox = QHBoxLayout()
         comboBox = QComboBox()
+        comboBox.setAccessibleName(key)
+
         comboBox.addItems(items)
         comboBox.currentTextChanged.connect(lambda val, k=key: self.updateParam(k, val))
         hbox.addWidget(QLabel(label))
         hbox.addWidget(comboBox)
         layout.addLayout(hbox)
         self.params[key] = comboBox.currentText()  # Initialize the parameter dictionary with the current text
+        self.widgets[key] = comboBox
         return comboBox
 
     def createPushButton(self, label, layout, function):
@@ -152,6 +211,31 @@ class DeforumCore(QMainWindow):
         layout.addWidget(button)
         return button
 
+    # Method to handle value changes from SpinBox and DoubleSpinBox
+    def onSpinBoxValueChanged(self, value):
+        widget = self.sender()
+        if isinstance(widget, QWidget):
+
+            if widget:
+                key = widget.accessibleName()
+                self.updateParam(key, value)
+
+    # Method to handle text changes from TextBox
+    def onTextChanged(self):
+        widget = self.sender()
+        if isinstance(widget, QWidget):
+
+            if widget:
+                key = widget.accessibleName()
+                self.updateParam(key, widget.toPlainText())
+
+    # Method to handle state changes from CheckBox
+    def onStateChanged(self, state):
+        widget = self.sender()
+        if isinstance(widget, QWidget):
+            if widget:
+                key = widget.accessibleName()
+                self.updateParam(key, widget.isChecked())
     def updateParam(self, key, value):
         self.params[key] = value
     def populatePresetsDropdown(self):
@@ -185,7 +269,7 @@ class DeforumCore(QMainWindow):
             print("Failed to load preset:", str(e))
 
     def updateWidgetValue(self, key, value):
-        widget = getattr(self, key + "_widget", None)
+        widget = self.widgets.get(key)
         if widget:
             if isinstance(widget, QSpinBox) or isinstance(widget, QDoubleSpinBox):
                 widget.setValue(value)
@@ -193,24 +277,29 @@ class DeforumCore(QMainWindow):
                 widget.setChecked(value)
             elif isinstance(widget, QComboBox):
                 widget.setCurrentIndex(widget.findText(value))
+            elif isinstance(widget, QLineEdit) or isinstance(widget, QTextEdit):
+                widget.setText(str(value))
+            elif isinstance(widget, CustomTextBox):
+                widget.text_box.setText(str(value))
             self.updateParam(key, value)
 
-    def loadConfig(self, configPath):
-        """Load configuration from a specified JSON file."""
-        try:
-            with open(configPath, 'r') as f:
-                settings = json.load(f)
-            # Apply settings to UI components
-            self.width_widget.setValue(settings["width"])
-            self.height_widget.setValue(settings["height"])
-            self.blend_widget.setValue(settings["blend"])
-            self.cond_blend_widget.setValue(settings["conditional_blend"])
-            self.fps_widget.setValue(settings["fps"])
-            self.seed_widget.setValue(settings["seed"])
-            self.inter_widget.setValue(settings["interpolation"])
-            self.useLLM.setChecked(settings["use_llm"])
-            self.llmDropdown.setCurrentText(settings["llm_model"])
-            self.flowDropdown.setCurrentText(settings["flow_algo"])
-            self.useFlow.setChecked(settings["use_flow"])
-        except:
-            pass
+    def updateUIFromParams(self):
+        for k, widget in self.widgets.items():
+            if hasattr(widget, 'accessibleName'):
+                key = widget.accessibleName()
+                if key in self.params:
+                    value = self.params[key]
+                    if isinstance(widget, QSpinBox):
+                        widget.setValue(value)
+                    elif isinstance(widget, QComboBox):
+                        index = widget.findText(str(value))
+                        if index != -1:
+                            widget.setCurrentIndex(index)
+                    elif isinstance(widget, QLineEdit):
+                        widget.setText(str(value))
+                    elif isinstance(widget, QTextEdit):
+                        widget.setText(str(value))
+                    elif isinstance(widget, QSlider):
+                        widget.setValue(value)
+                    elif isinstance(widget, QCheckBox):
+                        widget.setChecked(value)

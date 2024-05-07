@@ -4,8 +4,7 @@ import secrets
 from PIL import Image
 import torch
 from diffusers import AutoPipelineForText2Image, AutoPipelineForImage2Image, StableDiffusionXLPipeline, \
-    StableDiffusionXLImg2ImgPipeline, StableDiffusionPipeline, StableDiffusionImg2ImgPipeline, LCMScheduler, \
-    TCDScheduler
+    StableDiffusionXLImg2ImgPipeline, StableDiffusionPipeline, StableDiffusionImg2ImgPipeline, LCMScheduler
 from diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl_img2img import retrieve_timesteps, \
     retrieve_latents
 from diffusers.utils.torch_utils import randn_tensor
@@ -25,6 +24,11 @@ from diffusers import (
     DEISMultistepScheduler,
     UniPCMultistepScheduler
 )
+
+try:
+    from diffusers import TCDScheduler
+except:
+    logger.warning("TCD Scheduler not available, please update diffusers")
 
 def configure_scheduler(pipe, model_config):
     if model_config == "DPM++ 2M":
