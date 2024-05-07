@@ -25,7 +25,7 @@ from ...generators.deforum_noise_generator import add_noise
 from ...models.RIFE.rife_model import RIFEInterpolator
 from ...pipeline_utils import next_seed
 from ...utils import py3d_tools as p3d
-from ...utils.constants import root_path, config
+from ...utils.constants import config
 from ...utils.deforum_framewarp_utils import (get_flip_perspective_matrix,
                                               flip_3d_perspective,
                                               transform_image_3d_new,
@@ -367,7 +367,7 @@ def color_match_cls(cls: Any) -> None:
     """
     if cls.gen.color_match_sample is None and cls.gen.image is not None:
         cls.gen.color_match_sample = cls.gen.prev_img.copy()
-    elif cls.gen.prev_img is not None:
+    elif cls.gen.prev_img is not None and cls.gen.color_match_sample is not None:
         cls.gen.prev_img = maintain_colors(cls.gen.prev_img, cls.gen.color_match_sample, cls.gen.color_coherence)
     return
 
@@ -765,13 +765,14 @@ def post_gen_cls(cls: Any) -> None:
             # cls.logger(f"                                   [ turbo_steps > 1 block executed ]", True)
         else:
             filename = f"{cls.gen.timestring}_{cls.gen.frame_idx:09}.png"
+            image_full_path = os.path.join(cls.gen.outdir, filename)
             # cls.logger(f"                                   [ filename generated: {filename} ]", True)
             # cv2.imwrite("current_deforum_debug.png", cls.gen.opencv_image)
             if not cls.gen.store_frames_in_ram:
                 # p = Process(target=save_image, args=(cls.gen.image, 'PIL', filename, cls.gen, cls.gen, cls.gen))
                 # p.start()
                 save_image(cls.gen.image, 'PIL', filename, cls.gen, cls.gen, cls.gen)
-                cls.gen.image_paths.append(os.path.join(cls.gen.outdir, filename))
+                cls.gen.image_paths.append(image_full_path)
 
                 # cls.logger(f"                                   [ image saved ]", True)
 
@@ -786,7 +787,7 @@ def post_gen_cls(cls: Any) -> None:
             cls.gen.frame_idx += 1
             # cls.logger(f"                                   [ frame_idx incremented ]", True)
         if cls.gen.turbo_steps < 2:
-            done = cls.datacallback({"image": cls.gen.image, "operation_id":cls.gen.operation_id, "frame_idx":cls.gen.frame_idx})
+            done = cls.datacallback({"image": cls.gen.image, "operation_id":cls.gen.operation_id, "frame_idx":cls.gen.frame_idx, "image_path": image_full_path})
         # cls.logger(f"                                   [ datacallback executed ]", True)
 
         cls.gen.seed = next_seed(cls.gen, cls.gen)
@@ -934,10 +935,11 @@ def generate_interpolated_frames(cls):
 
             # saving cadence frames
             filename = f"{cls.gen.timestring}_{tween_frame_idx:09}.png"
-            cv2.imwrite(os.path.join(cls.gen.outdir, filename), img)
+            image_full_path = os.path.join(cls.gen.outdir, filename)
+            cv2.imwrite(image_full_path, img)
             # cv2.imwrite("current_cadence.png", img)
             cb_img = Image.fromarray(cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB))
-            cls.datacallback({"image":cb_img, "operation_id":cls.gen.operation_id, "frame_idx":cls.gen.frame_idx})
+            cls.datacallback({"image":cb_img, "operation_id":cls.gen.operation_id, "frame_idx":tween_frame_idx, "image_path": image_full_path})
             cls.images.append(copy.deepcopy(cb_img))
 
 
@@ -1123,12 +1125,13 @@ def make_cadence_frames(cls: Any) -> None:
                 # saving cadence frames
                 if not cls.gen.store_frames_in_ram:
                     filename = f"{cls.gen.timestring}_{tween_frame_idx:09}.png"
-                    cv2.imwrite(os.path.join(cls.gen.outdir, filename), cls.gen.img)
-                    cls.gen.image_paths.append(os.path.join(cls.gen.outdir, filename))
+                    image_full_path = os.path.join(cls.gen.outdir, filename)
+                    cv2.imwrite(image_full_path, cls.gen.img)
+                    cls.gen.image_paths.append(image_full_path)
 
 
                 callback_img = cv2.cvtColor(cls.gen.img.astype(np.uint8), cv2.COLOR_BGR2RGB)
-                done = cls.datacallback({"image": Image.fromarray(callback_img), "operation_id":cls.gen.operation_id, "frame_idx":cls.gen.frame_idx})
+                done = cls.datacallback({"image": Image.fromarray(callback_img), "operation_id":cls.gen.operation_id, "frame_idx":tween_frame_idx, "image_path": image_full_path})
                 # done = cls.datacallback({"image": Image.fromarray(cv2.cvtColor(cls.gen.img, cv2.COLOR_BGR2RGB))})
                 cls.images.append(callback_img)
 
@@ -1246,7 +1249,7 @@ def rife_interpolate_cls(cls: Any) -> None:
 
 
 def save_video_cls(cls):
-    dir_path = os.path.join(root_path, 'output/video')
+    dir_path = os.path.join(config.output_dir, 'video')
     os.makedirs(dir_path, exist_ok=True)
     if cls.gen.timestring not in cls.gen.batch_name:
         name = f'{cls.gen.batch_name}_{cls.gen.timestring}'

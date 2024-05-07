@@ -1,14 +1,14 @@
 import os
 import cv2
 
-from deforum.utils.constants import root_path
+from deforum.utils.constants import config
 
 
 def get_resume_vars(resume_path, timestring, cadence):
     DEBUG_MODE = False
     frame_count = 0
     batchname = None
-    output_path = os.path.join(root_path, "output", "deforum")
+    output_path = os.path.join(config.root_path, "output", "deforum")
     # Find the correct folder based on timestring
     # for folder_name in os.listdir(output_path):
     #     if timestring in folder_name:
