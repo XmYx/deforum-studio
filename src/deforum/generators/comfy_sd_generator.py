@@ -290,7 +290,7 @@ class ComfyDeforumGenerator:
             self.rng = ImageRNGNoise(shape=shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
                                      seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
         noise = self.rng.first()
-        # noise = torch.zeros([1, 4, height // 8, width // 8])
+
         return {"samples": noise.to("cuda")}
 
     def get_conds(self, clip, prompt, width, height, target_width, target_height):
@@ -395,6 +395,8 @@ class ComfyDeforumGenerator:
             self.model = settings_node.run(self.model, **settings_dict)[0]
             self.clip = settings_node.run(self.clip, **settings_dict)[0]
             self.onediff_avail = False
+
+
             try:
                 from custom_nodes.onediff_comfy_nodes._nodes import BasicBoosterExecutor
                 from custom_nodes.onediff_comfy_nodes.modules import BoosterScheduler
@@ -414,6 +416,7 @@ class ComfyDeforumGenerator:
               except:
                   self.optimize = False
                   logger.info("Could not apply Stable-Fast Unet patch.")
+
 
             self.model_loaded = True
 

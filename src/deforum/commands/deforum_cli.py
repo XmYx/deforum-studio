@@ -39,7 +39,6 @@ import traceback
 from deforum.commands.deforum_run_unit_test import run_unit_test
 from deforum.docutils.decorator import deforumdoc
 from deforum.utils.logging_config import logger
-from deforum.utils.constants import config
 
 @deforumdoc
 def install_qtpy() -> None:
@@ -48,7 +47,6 @@ def install_qtpy() -> None:
 
     This function tries to import the qtpy module. If it fails, the function uses subprocess to run pip install
     commands for the PyQt6-Qt6, pyqt6, and qtpy packages.
-
 
     Raises:
         subprocess.CalledProcessError: If the pip installation subprocess fails.
