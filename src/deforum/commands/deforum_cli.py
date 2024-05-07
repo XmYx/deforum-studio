@@ -1,12 +1,14 @@
 import argparse
 import os
 import random
+import time
 import subprocess
 import sys
 import traceback
 
 from deforum.commands.deforum_run_unit_test import run_unit_test
 from deforum.utils.logging_config import logger
+from deforum.utils.constants import config
 
 def install_pyqt6():
     try:
@@ -33,7 +35,7 @@ def start_deforum_cli():
 
     parser = argparse.ArgumentParser(description="Load settings from a txt file and run the deforum process.")
     # Positional mode argument
-    parser.add_argument("mode", choices=['webui', 'animatediff', 'runpresets', 'api', 'setup', 'ui', 'runsingle', 'config', 'unittest'], default=None, nargs='?',
+    parser.add_argument("mode", choices=['webui', 'animatediff', 'runpresets', 'api', 'setup', 'ui', 'runsingle', 'config', 'unittest', 'version'], default=None, nargs='?',
                         help="Choose the mode to run.")
 
     parser.add_argument("--file", type=str, help="Path to the deforum settings file.")
@@ -75,10 +77,15 @@ def start_deforum_cli():
             options[key] = value
 
     if args_main.mode:
+
+        if args_main.mode == "version":
+            import deforum
+            print(deforum.__version__)
+        
         if args_main.mode == "webui":
             import streamlit.web.cli as stcli
-            root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            stcli.main(["run", f"{root_path}/webui/deforum_webui.py", "--server.headless", "true"])
+            stcli.main(["run", f"{config.src_path}/webui/deforum_webui.py", "--server.headless", "true"])
+
         elif args_main.mode == "animatediff":
             from deforum.pipelines.animatediff_animation.pipeline_animatediff_animation import DeforumAnimateDiffPipeline
             modelid = str(options.get("modelid", "132632"))
@@ -128,6 +135,7 @@ def start_deforum_cli():
 
             async def image_callback(websocket, image):
                 await websocket.send_text(image)
+                
             @app.websocket("/ws")
             async def websocket_endpoint(websocket: WebSocket):
                 await websocket.accept()
@@ -135,7 +143,7 @@ def start_deforum_cli():
 
                 # Assuming data contains the necessary information for deforum to run
                 async def callback(data):
-                    print("deforum callback")
+                    logger.info("deforum callback")
                     image = data.get('image')
                     if image is not None:
                         await websocket.send_text("image")
@@ -160,7 +168,7 @@ def start_deforum_cli():
             # Start the Uvicorn server
             uvicorn.run(app, host="localhost", port=8000)
         elif args_main.mode == "setup":
-            print("SETUP")
+            logger.info("Installing stable-fast and its dependencies...")
             from deforum.utils.install_sfast import install_sfast
             install_sfast()
         elif args_main.mode == "ui":
@@ -211,7 +219,7 @@ def start_deforum_cli():
             # Assuming 'deforum' is in the parent directory of the current file
             deforum_directory = os.path.dirname(parent_directory)
             # Construct the path to main.py
-            print(extra_args["settings_file"])
+            logger.info(f"Using settings file: {extra_args['settings_file']}")
 
             main_script_path = os.path.join(deforum_directory, "ui", "process_only.py")
             # try:
@@ -234,4 +242,6 @@ def start_deforum_cli():
     else:
         from deforum import DeforumAnimationPipeline
         deforum = DeforumAnimationPipeline.from_civitai()
-        _ = deforum(**extra_args, **options)
+        deforum.generator.optimize = False
+        gen = deforum(**extra_args, **options)
+        logger.info(f"Output video: {gen.video_path} ")
