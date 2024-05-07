@@ -536,6 +536,8 @@ def get_generation_params(cls: Any) -> None:
     if cls.gen.enable_subseed_scheduling:
         cls.gen.subseed = int(cls.gen.keys.subseed_schedule_series[cls.gen.frame_idx])
         cls.gen.subseed_strength = float(cls.gen.keys.subseed_strength_schedule_series[cls.gen.frame_idx])
+    else:
+        cls.gen.subseed_strength = 0.0
 
     if cls.parseq_adapter.manages_seed():
         cls.gen.enable_subseed_scheduling = True

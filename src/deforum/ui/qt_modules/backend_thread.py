@@ -55,10 +55,10 @@ class BackendThread(QThread):
                 file_path = self.params.pop('settings_file')
                 if file_path:
                     use_settings_file = True
-            self.params['enable_subseed_scheduling'] = True
-            self.params['enable_steps_scheduling'] = True
-            self.params['color_coherence'] = False
-            self.params['hybrid_use_first_frame_as_init_image'] = False
+            # self.params['enable_subseed_scheduling'] = True
+            # self.params['enable_steps_scheduling'] = True
+            # self.params['color_coherence'] = False
+            # self.params['hybrid_use_first_frame_as_init_image'] = False
             animation = models["deforum_pipe"](callback=datacallback, **self.params) if not use_settings_file else models["deforum_pipe"](callback=datacallback, settings_file=file_path)
             result = {"status":"Ready",
                       "timestring":animation.timestring,

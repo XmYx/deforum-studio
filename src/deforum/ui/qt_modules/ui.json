@@ -93,6 +93,11 @@
       "label": "Steps",
       "accessible_name": "Diffusion Steps"
     },
+    "enable_steps_scheduling": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Steps Scheduling"},
+
     "show_info_on_ui": {
       "widget_type": "dropdown",
       "options": [true, false],
@@ -121,6 +126,11 @@
       "label": "Seed Behavior",
       "accessible_name": "Seed Behavior"
     },
+    "enable_subseed_scheduling": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Subseed Scheduling"},
+
     "subseed_schedule": {
       "widget_type": "text box",
       "default": "0: (-1)",
@@ -318,7 +328,6 @@
       "default": "",
       "label": "Init Video Path"
     },
-
     "extract_nth_frame": {
       "widget_type": "number",
       "default": 1,
@@ -344,6 +353,11 @@
       "widget_type": "text box",
       "default": "0:(1)",
       "label": "Hybrid Flow Factor"
+    },
+    "hybrid_use_first_frame_as_init_image": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Hybrid Use First as Init"
     },
     "hybrid_generate_inputframes": {
       "widget_type": "checkbox",
