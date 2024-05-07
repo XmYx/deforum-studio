@@ -367,7 +367,7 @@ def color_match_cls(cls: Any) -> None:
     """
     if cls.gen.color_match_sample is None and cls.gen.image is not None:
         cls.gen.color_match_sample = cls.gen.prev_img.copy()
-    elif cls.gen.prev_img is not None:
+    elif cls.gen.prev_img is not None and cls.gen.color_match_sample is not None:
         cls.gen.prev_img = maintain_colors(cls.gen.prev_img, cls.gen.color_match_sample, cls.gen.color_coherence)
     return
 
