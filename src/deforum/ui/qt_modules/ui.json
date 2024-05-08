@@ -387,8 +387,26 @@
       "label": "Flow consistency mask"
     }
   },
+  "Audio": {
+    "audio_path": {
+      "widget_type": "text input",
+      "default": "",
+      "label": "Audio Path"
+    },
+    "milk_path": {
+      "widget_type": "text input",
+      "default": "",
+      "label": "Milk Path"
+    },
+    "generate_viz": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Generate Viz"
+    }
+
+
+  },
   "Image & Mask Settings": {
-    
     "color_coherence": {
       "widget_type": "dropdown",
       "options": ["None", "HSV", "LAB", "RGB", "Video Input", "Image"],

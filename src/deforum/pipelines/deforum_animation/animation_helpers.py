@@ -1319,6 +1319,9 @@ def save_video_cls(cls):
     audio_path = None
     if hasattr(cls.gen, 'video_init_path'):
         audio_path = cls.gen.video_init_path
+    if hasattr(cls.gen, 'audio_path'):
+        if cls.gen.audio_path != "":
+            audio_path = cls.gen.audio_path
     if cls.gen.frame_interpolation_engine is not "None":
         cls.gen.fps = float(cls.gen.fps) * int(cls.gen.frame_interpolation_x_amount)
         if cls.gen.frame_interpolation_slow_mo_enabled:

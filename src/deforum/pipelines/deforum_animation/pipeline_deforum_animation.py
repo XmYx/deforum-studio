@@ -545,6 +545,7 @@ class DeforumAnimationPipeline(DeforumBase):
         #     self.gen.frame_idx = start_frame
         #     self.gen.use_init = True
         os.makedirs(self.gen.outdir, exist_ok=True)
+        logger.info('DEFORUM AUDIO PATH', self.gen.audio_path)
         self.gen.image_paths = []
 
     @deforumdoc

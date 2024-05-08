@@ -5,7 +5,7 @@ import os
 
 import imageio.v2 as imageio
 import numpy as np
-from qtpy.QtCore import Qt, Slot, QUrl, QSize
+from qtpy.QtCore import Qt, Slot, QUrl, QSize, Signal
 from qtpy.QtGui import QAction
 from qtpy.QtMultimedia import QMediaPlayer, QAudioOutput
 from qtpy.QtMultimediaWidgets import QVideoWidget
@@ -22,7 +22,7 @@ from deforum.ui.qt_modules.custom_ui import ResizableImageLabel, JobDetailPopup,
 from deforum.ui.qt_modules.ref import TimeLineQDockWidget
 from deforum.utils.constants import root_path
 
-
+DEFAULT_MILK = ""
 class MainWindow(DeforumCore):
     def __init__(self):
         super().__init__()
@@ -669,6 +669,7 @@ class MainWindow(DeforumCore):
         self.thread = BackendThread(self.params)
         self.thread.imageGenerated.connect(self.updateImage)
         self.thread.finished.connect(self.playVideo)
+        self.thread.generateViz.connect(self.generateViz)
         self.thread.start()
     def stopBackendProcess(self):
         self.statusLabel.setText("Stopped")
@@ -787,3 +788,10 @@ class MainWindow(DeforumCore):
                 # print("UPDATED DEFORUM PARAMS")
         except:
             pass
+
+    def generateViz(self, data):
+        if self.params['generate_viz']:
+            if self.params['audio_path'] is not "":
+                milk = DEFAULT_MILK if self.params["milk_path"] == "" else self.params["milk_path"]
+                from deforum.commands.deforum_run_projectmcli import generate_visual_from_audio
+                generate_visual_from_audio(self.params['audio_path'], data['output_path'], milk, data['fps'], data['width'], data['height'])

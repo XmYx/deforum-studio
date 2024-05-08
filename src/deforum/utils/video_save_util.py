@@ -49,12 +49,12 @@ def save_as_h264(frames, filename, audio_path=None, fps=12):
         # Extract and merge audio if an audio path is provided
         # audio_path = False
         if audio_path:
-            logger.info("Audio Extraction not implemented with imageio yet, you need to have ffmpeg available in your system")
             try:
                 extracted_audio_path = "extracted_audio.aac"
-                # Extract the audio from the input video file
-                extract_cmd = ['ffmpeg', '-y', '-i', audio_path, '-vn', '-acodec', 'copy', extracted_audio_path]
-                subprocess.run(extract_cmd, stderr=subprocess.PIPE)
+                # Transcode and extract audio to ensure compatibility
+                extract_cmd = ['ffmpeg', '-y', '-i', f'{audio_path}', '-vn', '-acodec', 'aac', '-strict', 'experimental',
+                               extracted_audio_path]
+                subprocess.run(extract_cmd, check=True, stderr=subprocess.PIPE)
 
                 # Calculate the duration of the video
                 video_duration = len(frames) / fps
@@ -62,30 +62,41 @@ def save_as_h264(frames, filename, audio_path=None, fps=12):
 
                 # Merge the extracted audio with the video file
                 merge_cmd = ['ffmpeg', '-y', '-i', filename, '-i', extracted_audio_path,
-                             '-c:v', 'copy', '-c:a', 'aac', '-strict', 'experimental',
+                             '-c:v', 'copy', '-c:a', 'copy', '-strict', 'experimental',
                              '-t', str(video_duration), output_filename]
-                result = subprocess.run(merge_cmd, stderr=subprocess.PIPE)
-                if result.returncode != 0:
-                    logger.error(f"Audio file merge failed: {result.stderr.decode('utf-8')}")
-                else:
-                    os.rename(output_filename, filename)  # Replace the original file with the merged audio version
-                    os.remove(extracted_audio_path)  # Cleanup the extracted audio file
-            except:
-                logger.info("Audio merging failed")
-            # extracted_audio_path = "extracted_audio.aac"
-            # # Extract the audio from the input video file
-            # imageio.ffmpeg_extract_audio(audio_path, extracted_audio_path)
-            #
-            # # Calculate the duration of the video
-            # video_duration = len(frames) / fps
-            # output_filename = filename.replace(".mp4", "_with_audio.mp4")
-            #
-            # # Merge the extracted audio with the video file
-            # imageio.ffmpeg_merge_video_audio(filename, extracted_audio_path, output_filename,
-            #                                  vcodec='copy', acodec='aac', ffmpeg_params=['-t', str(video_duration)])
-            #
-            # os.rename(output_filename, filename)  # Replace the original file with the merged audio version
-            # os.remove(extracted_audio_path)  # Cleanup the extracted audio file
+                result = subprocess.run(merge_cmd, check=True, stderr=subprocess.PIPE)
+
+                os.rename(output_filename, filename)  # Replace the original file with the merged audio version
+                os.remove(extracted_audio_path)  # Cleanup the extracted audio file
+                logger.info("Audio merged successfully.")
+            except subprocess.CalledProcessError as e:
+                logger.error(f"Audio processing failed: {e.stderr.decode('utf-8')}")
+            except Exception as e:
+                logger.error(f"An error occurred during audio merging: {str(e)}")
+        # if audio_path:
+        #     logger.info("Audio Extraction not implemented with imageio yet, you need to have ffmpeg available in your system")
+        #     try:
+        #         extracted_audio_path = "extracted_audio.aac"
+        #         # Extract the audio from the input video file
+        #         extract_cmd = ['ffmpeg', '-y', '-i', audio_path, '-vn', '-acodec', 'copy', extracted_audio_path]
+        #         subprocess.run(extract_cmd, stderr=subprocess.PIPE)
+        #
+        #         # Calculate the duration of the video
+        #         video_duration = len(frames) / fps
+        #         output_filename = filename.replace(".mp4", "_with_audio.mp4")
+        #
+        #         # Merge the extracted audio with the video file
+        #         merge_cmd = ['ffmpeg', '-y', '-i', filename, '-i', extracted_audio_path,
+        #                      '-c:v', 'copy', '-c:a', 'aac', '-strict', 'experimental',
+        #                      '-t', str(video_duration), output_filename]
+        #         result = subprocess.run(merge_cmd, stderr=subprocess.PIPE)
+        #         if result.returncode != 0:
+        #             logger.error(f"Audio file merge failed: {result.stderr.decode('utf-8')}")
+        #         else:
+        #             os.rename(output_filename, filename)  # Replace the original file with the merged audio version
+        #             os.remove(extracted_audio_path)  # Cleanup the extracted audio file
+        #     except:
+        #         logger.info("Audio merging failed")
     else:
         logger.info("The buffer is empty, cannot save.")
 
