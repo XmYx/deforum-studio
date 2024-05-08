@@ -15,6 +15,10 @@ from deforum.ui.qt_modules.custom_ui import CustomTextBox
 class DeforumCore(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setDockOptions(
+            QMainWindow.DockOption.AllowNestedDocks |  # Allow docks to be nested inside each other
+            QMainWindow.DockOption.AllowTabbedDocks    # Allow docking in tabs
+        )
         # self.initMenu()
         self.params = {}
         self.widgets = {}

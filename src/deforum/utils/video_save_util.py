@@ -29,7 +29,16 @@ def save_as_h264(frames, filename, audio_path=None, fps=12):
             frames = [Image.fromarray(frame) for frame in frames]
 
         width, height = frames[0].size
-
+        resize = False
+        old_size = ""
+        # Resize all frames to match the first frame's size if they differ
+        for i in range(len(frames)):
+            if frames[i].size != (width, height):
+                resize = True
+                old_size = frames[i].size
+                frames[i] = frames[i].resize((width, height), resample=Image.Resampling.LANCZOS)
+        if resize:
+            logger.warning(f"Resized frames from {old_size} to {frames[0].size}")
         writer = imageio.get_writer(filename, fps=fps, codec='libx264',
                                     pixelformat='yuv420p', output_params=['-crf', '5'])
 
