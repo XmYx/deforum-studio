@@ -1,16 +1,17 @@
 {
+    "batch_name": "Look-Around",
     "width": 768,
     "height": 768,
+    "sampler_name": "dpmpp_2m_sde_gpu",
+    "scheduler": "karras",
     "show_info_on_ui": true,
     "tiling": false,
     "restore_faces": false,
     "seed_resize_from_w": 1024,
     "seed_resize_from_h": 1024,
     "seed": -1,
-    "sampler_name": "dpmpp_2m_sde_gpu",
-    "scheduler": karras,
+    "sampler": "DPM++ 2M SDE Karras",
     "steps": 18,
-    "batch_name": "Look-Around-4-15",
     "seed_behavior": "fixed",
     "seed_iter_N": 1,
     "use_init": false,
@@ -32,7 +33,7 @@
     "reroll_patience": 10.0,
     "motion_preview_mode": false,
     "prompts": {
-        "0": "" 
+        "0": ""
     },
     "animation_prompts_positive": "",
     "animation_prompts_negative": "",
@@ -237,7 +238,7 @@
     "fps": 12,
     "make_gif": false,
     "delete_imgs": false,
-    "delete_input_frames": false, 
+    "delete_input_frames": false,
     "add_soundtrack": "None",
     "soundtrack_path": "https://deforum.github.io/a1/A1.mp3",
     "r_upscale_video": false,
