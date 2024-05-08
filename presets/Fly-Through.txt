@@ -1,6 +1,9 @@
 {
+    "batch_name": "Fly-Through",
     "width": 768,
     "height": 768,
+    "sampler_name": "dpmpp_2m_sde_gpu",
+    "scheduler": "karras",
     "show_info_on_ui": true,
     "tiling": false,
     "restore_faces": false,
@@ -9,7 +12,6 @@
     "seed": -1,
     "sampler": "DPM++ 2M SDE Karras",
     "steps": 18,
-    "batch_name": "Fly-Through-4-15",
     "seed_behavior": "fixed",
     "seed_iter_N": 1,
     "use_init": false,
@@ -31,7 +33,7 @@
     "reroll_patience": 10.0,
     "motion_preview_mode": false,
     "prompts": {
-        "0": "" 
+        "0": ""
     },
     "animation_prompts_positive": "",
     "animation_prompts_negative": "",
@@ -110,7 +112,7 @@
     "padding_mode": "border",
     "sampling_mode": "bicubic",
     "save_depth_maps": false,
-    "video_init_path": "presets/videos/Kaleidoscope2-12fps.mp4",
+    "video_init_path": "presets/videos//Kaleidoscope2-12fps.mp4",
     "extract_nth_frame": 1,
     "extract_from_frame": 0,
     "extract_to_frame": -1,
