@@ -180,13 +180,10 @@ def sampleDeforum(
 
 
 class ComfyDeforumGenerator:
-
     def __init__(self, model_path: str = None, lcm=False, trt=False):
-
         ensure_comfy()
         import comfy.samplers
         import comfy
-
         comfy.samplers.CFGGuider = HIJackCFGGuider
         comfy.samplers.sample = sampleDeforum
         self.optimize = None
@@ -212,6 +209,8 @@ class ComfyDeforumGenerator:
         self.loaded_lora = None
         self.model_loaded = None
         self.model_path = model_path
+        self.onediff_avail = False
+
         # if not lcm:
         #     # if model_path is None:
         #     #     models_dir = os.path.join(default_cache_folder)
@@ -364,15 +363,29 @@ class ComfyDeforumGenerator:
             settings_dict["s_churn"] = 0.0
             settings_dict["t_min"] = 0.0
             settings_dict["t_max"] = 0.0
-            if self.optimize:
-                try:
-                    self.optimize_model()
-                    self.optimized = True
-                except:
-                    self.optimize = False
-                    self.optimized = False
-            self.model_loaded = True
+            # if self.optimize:
+            #     try:
+            #         self.optimize_model()
+            #         self.optimized = True
+            #     except:
+            #         self.optimize = False
+            #         self.optimized = False
+            self.model = settings_node.run(self.model, **settings_dict)[0]
+            self.clip = settings_node.run(self.clip, **settings_dict)[0]
+            try:
+                from custom_nodes.onediff_comfy_nodes._nodes import BasicBoosterExecutor
+                from custom_nodes.onediff_comfy_nodes.modules import BoosterScheduler
+                # from custom_nodes.onediff_comfy_nodes.modules.oneflow.booster_quantization import \
+                #     OnelineQuantizationBoosterExecutor
+                custom_booster = BoosterScheduler(BasicBoosterExecutor())
+                self.model = custom_booster(self.model, ckpt_name=self.model_path)
+                self.vae = BoosterScheduler(BasicBoosterExecutor())(self.vae, ckpt_name=self.model_path)
+                self.model.weight_inplace_update = True
+                self.onediff_avail = True
+            except:
+                logger.info("ONEDIFF NOT AVAILABLE IN YOUR BUILD (YET")
 
+            self.model_loaded = True
             # from ..optimizations.deforum_comfy_trt.deforum_trt_comfyunet import TrtUnet
             # self.model.model.diffusion_model = TrtUnet()
 
@@ -496,7 +509,7 @@ class ComfyDeforumGenerator:
 
         if not self.model_loaded:
             self.load_model()
-        if self.optimize and not self.optimized:
+        if self.optimize and not (self.optimized or self.onediff_avail):
             try:
                 self.optimize_model()
                 self.optimized = True
