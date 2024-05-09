@@ -562,26 +562,27 @@ class DeforumAnimationPipeline(DeforumBase):
         ```
         """
         try:
+            if hasattr(self, 'gen'):
+                self.gen.update_from_kwargs(**kwargs)
+                #self.gen.max_frames += 5
+                self.gen.keys = DeforumAnimKeys(self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.anim_keys
+                #self.gen.loopSchedulesAndData = LooperAnimKeys(self.gen, self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.looper_keys
+                prompt_series = pd.Series([np.nan for a in range(self.gen.max_frames + 5)])
 
-            self.gen.update_from_kwargs(**kwargs)
-            #self.gen.max_frames += 5
-            self.gen.keys = DeforumAnimKeys(self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.anim_keys
-            #self.gen.loopSchedulesAndData = LooperAnimKeys(self.gen, self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.looper_keys
-            prompt_series = pd.Series([np.nan for a in range(kwargs['max_frames'] + 5)])
+                if self.gen.prompts is not None:
+                    if isinstance(self.gen.prompts, dict):
+                        self.gen.animation_prompts = self.gen.prompts
 
-            if self.gen.prompts is not None:
-                if isinstance(self.gen.prompts, dict):
-                    self.gen.animation_prompts = self.gen.prompts
-
-            for i, prompt in self.gen.animation_prompts.items():
-                if str(i).isdigit():
-                    prompt_series[int(i)] = prompt
-                else:
-                    prompt_series[int(numexpr.evaluate(i))] = prompt
-            prompt_series = prompt_series.ffill().bfill()
-            self.gen.prompt_series = prompt_series
-            logger.infe("[DEFORUM] Live Updated")
-        except:
+                for i, prompt in self.gen.animation_prompts.items():
+                    if str(i).isdigit():
+                        prompt_series[int(i)] = prompt
+                    else:
+                        prompt_series[int(numexpr.evaluate(i))] = prompt
+                prompt_series = prompt_series.ffill().bfill()
+                self.gen.prompt_series = prompt_series
+                logger.info("[DEFORUM] Live Updated")
+        except Exception as e:
+            print(repr(e))
             pass
             # logger.info("[DEFORUM] Live Update Failed")
 

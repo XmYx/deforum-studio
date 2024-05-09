@@ -938,7 +938,7 @@ class MainWindow(DeforumCore):
                 p = copy.deepcopy(self.params)
                 _ = p.pop('max_frames')
                 models["deforum_pipe"].live_update_from_kwargs(**p)
-                # print("UPDATED DEFORUM PARAMS")
+                print(p['animation_prompts'])
         except:
             pass
 
