@@ -100,8 +100,9 @@ class BackendThread(QThread):
         # self.params['enable_steps_scheduling'] = True
         # self.params['color_coherence'] = False
         # self.params['hybrid_use_first_frame_as_init_image'] = False
+
         self.should_wait = True
-        if self.params['generate_viz']:
+        if self.params.get('generate_viz'):
             # from deforum.utils.constants import config
             # config.allow_blocking_input_frame_lists = True
             import os
@@ -143,13 +144,7 @@ class BackendThread(QThread):
             #
             # process = subprocess.run(ffmpeg_command, text=True)
             self.finished.emit({'video_path': self.temp_video_path})
-            # self.generateViz.emit({"output_path":str(output_path),
-            #                        "fps":self.params['fps'],
-            #                        "width":self.params['width'],
-            #                        "height":self.params['height']})
-            # self.mutex.lock()
-            # self.condition.wait(self.mutex)  # The thread will block here until condition.wakeAll() is called
-            # self.mutex.unlock()
+
 
         animation = models['deforum_pipe'](callback=datacallback, **self.params)
         result = {"status":"Ready",
