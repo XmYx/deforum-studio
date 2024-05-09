@@ -2,9 +2,15 @@ import copy
 import datetime
 import json
 import os
+import shutil
+import sys
+import tempfile
+import time
 
 import imageio.v2 as imageio
 import numpy as np
+from PyQt6.QtWidgets import QDockWidget, QMenu
+from qtpy import QtWidgets
 from qtpy.QtCore import Qt, Slot, QUrl, QSize, Signal
 from qtpy.QtGui import QAction
 from qtpy.QtMultimedia import QMediaPlayer, QAudioOutput
@@ -16,13 +22,27 @@ from qtpy.QtWidgets import QWidget, QVBoxLayout, QSlider, QLabel, QMdiArea, \
 from deforum import logger
 from deforum.ui.qt_helpers.qt_image import npArrayToQPixmap
 from deforum.ui.qt_modules.backend_thread import BackendThread
+from deforum.ui.qt_modules.console_widget import NodesConsole, StreamRedirect
 from deforum.ui.qt_modules.core import DeforumCore
 from deforum.ui.qt_modules.custom_ui import ResizableImageLabel, JobDetailPopup, JobQueueItem, AspectRatioMdiSubWindow, \
     DetachableTabWidget, AutoReattachDockWidget, CustomTextBox
 from deforum.ui.qt_modules.ref import TimeLineQDockWidget
 from deforum.utils.constants import root_path
+from deforum.ui.qt_modules.viz_thread import VisualGeneratorThread
+# from deforum.ui.qt_modules.viz_thread import VideoAssemblerThread
 
 DEFAULT_MILK = ""
+
+def list_milk_presets(folder):
+    return [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
+
+os.makedirs(os.path.join(root_path, 'milks'), exist_ok=True)
+
+known_dropdowns = {"milk_path":list_milk_presets(os.path.join(root_path, 'milks'))}
+
+
+
+
 class MainWindow(DeforumCore):
     def __init__(self):
         super().__init__()
@@ -35,6 +55,7 @@ class MainWindow(DeforumCore):
         self.setupTimeline()
         self.setupBatchControls()
         self.setupVideoPlayer()
+        self.create_console_widget()
         self.tileMdiSubWindows()
         self.timelineDock.hide()
         self.newProject()
@@ -62,14 +83,17 @@ class MainWindow(DeforumCore):
         self.renderButton = QAction('Render', self)
         self.renderButton.triggered.connect(self.startBackendProcess)
 
+        self.renderVizButton = QAction('Render Viz', self)
+        self.renderVizButton.triggered.connect(self.generateVizData)
+
         self.stopRenderButton = QAction('Stop Render', self)
         self.stopRenderButton.triggered.connect(self.stopBackendProcess)
 
         # Add presets dropdown to the toolbar
-        self.presetsDropdown = QComboBox()
-        #self.presetsDropdown.currentIndexChanged.connect(self.loadPreset)
-        self.presetsDropdown.activated.connect(self.loadPresetsDropdown)
-        self.loadPresetsDropdown()
+        # self.presetsDropdown = QMenu()
+        # #self.presetsDropdown.currentIndexChanged.connect(self.loadPreset)
+        # # self.presetsDropdown.triggered.connect(self.loadPresetsDropdown)
+        # self.loadPresetsDropdown()
 
         # Add actions to load and save presets
         self.loadPresetAction = QAction('Load Preset', self)
@@ -85,8 +109,9 @@ class MainWindow(DeforumCore):
         self.addJobButton.triggered.connect(self.addCurrentParamsAsJob)
 
         self.toolbar.addAction(self.renderButton)
+        self.toolbar.addAction(self.renderVizButton)
         self.toolbar.addAction(self.stopRenderButton)
-        self.toolbar.addWidget(self.presetsDropdown)
+        # self.toolbar.addWidget(self.presetsDropdown)
         self.toolbar.addAction(self.loadPresetAction)
         self.toolbar.addAction(self.tileSubWindowsAction)
         self.toolbar.addAction(self.savePresetAction)
@@ -175,6 +200,7 @@ class MainWindow(DeforumCore):
         self.updateUIFromParams()  # Reflect updates
 
     def playVideo(self, data):
+        self.cleanupVizThread()
         if 'video_path' in data:
             self.player.setSource(QUrl.fromLocalFile(data['video_path']))
             self.player.play()
@@ -198,6 +224,12 @@ class MainWindow(DeforumCore):
         convertProjectAction = QAction('&Convert Project', self)
         convertProjectAction.triggered.connect(self.convertProjectToSingleSettingsFile)
         fileMenu.addAction(convertProjectAction)
+
+        self.presetsDropdown = menuBar.addMenu('&Presets')
+        #self.presetsDropdown.currentIndexChanged.connect(self.loadPreset)
+        # self.presetsDropdown.triggered.connect(self.loadPresetsDropdown)
+        self.loadPresetsDropdown()
+        menuBar.addMenu(self.presetsDropdown)
 
     def setupDynamicUI(self):
         # Initialize the tabbed control layout docked on the left
@@ -224,7 +256,11 @@ class MainWindow(DeforumCore):
                     self.createDoubleSpinBox(params['label'], layout, params['min'], params['max'], 0.01, params['default'], setting)
 
                 elif params['widget_type'] == 'dropdown':
-                    self.createComboBox(params['label'], layout, [str(param) for param in params['options']], setting)
+                    if setting in known_dropdowns:
+                        options = known_dropdowns[setting]
+                    else:
+                        options = [str(param) for param in params['options']]
+                    self.createComboBox(params['label'], layout, options, setting)
                 elif params['widget_type'] == 'text input':
                     self.createTextInput(params['label'], layout, params['default'], setting)
                 elif params['widget_type'] == 'text box':
@@ -332,6 +368,27 @@ class MainWindow(DeforumCore):
 
         self.videoSubWindow.widget().setLayout(mainLayout)
         self.videoSlider.valueChanged.connect(self.setResumeFrom)
+    def create_console_widget(self):
+        # Create a text widget for stdout and stderr
+        self.text_widget = NodesConsole()
+        # Set up the StreamRedirect objects
+        self.stdout_redirect = StreamRedirect()
+        self.stderr_redirect = StreamRedirect()
+        self.stdout_redirect.text_written.connect(self.text_widget.write)
+        self.stderr_redirect.text_written.connect(self.text_widget.write)
+        sys.stdout = self.stdout_redirect
+        sys.stderr = self.stderr_redirect
+
+        self.console = QDockWidget()
+        self.console.setWindowTitle("Console")
+        self.console.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
+        widget = QtWidgets.QWidget()
+        layout = QtWidgets.QHBoxLayout(widget)
+        layout.setContentsMargins(5,5,5,5)
+        layout.addWidget(self.text_widget)
+        self.console.setWidget(widget)
+        #layout.addWidget(self.text_widget2)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.console)
     def tileMdiSubWindows(self):
         """Resize and evenly distribute all subwindows in the MDI area."""
         # Optionally, set a uniform size for all subwindows
@@ -573,26 +630,40 @@ class MainWindow(DeforumCore):
         self.job_queue.append(widget)  # Append job widget to the queue
 
     def loadPresetsDropdown(self, restore=None):
-        if not isinstance(restore, str):
-            current_text = self.presetsDropdown.currentText()  # Remember current text
-        else:
-            current_text = restore
         if not os.path.exists(self.presets_folder):
             os.makedirs(self.presets_folder)
 
-        preset_files = sorted([f for f in os.listdir(self.presets_folder) if f.endswith('.txt')])
+        def list_files(folder):
+            items = []
+            for entry in os.listdir(folder):
+                full_path = os.path.join(folder, entry)
+                if os.path.isdir(full_path):
+                    sub_items = list_files(full_path)
+                    items.append((entry, sub_items))
+                elif entry.endswith('.txt'):
+                    items.append(entry)
+            return items
+
+        preset_items = list_files(self.presets_folder)
+
         self.presetsDropdown.clear()
-        self.presetsDropdown.addItems(preset_files)
 
-        # Re-select the current text if it exists in the new list
-        if current_text in preset_files:
-            index = self.presetsDropdown.findText(current_text)
-            self.presetsDropdown.setCurrentIndex(index)
+        def add_items(menu, items, path=''):
+            for item in items:
+                if isinstance(item, tuple):
+                    sub_menu = QMenu(item[0], menu)
+                    menu.addMenu(sub_menu)
+                    add_items(sub_menu, item[1], os.path.join(path, item[0]))
+                else:
+                    full_item_path = os.path.join(path, item)
+                    action = QAction(item, menu)
+                    action.triggered.connect(
+                        lambda _, p=os.path.join(self.presets_folder, full_item_path): self.loadPreset(p))
+                    menu.addAction(action)
 
-    def loadPreset(self):
-        selected_preset = self.presetsDropdown.currentText()
-        #self.loadPresetsDropdown(restore=selected_preset)
-        preset_path = os.path.join(self.presets_folder, selected_preset)
+        add_items(self.presetsDropdown, preset_items)
+
+    def loadPreset(self, preset_path):
         try:
             with open(preset_path, 'r') as file:
                 config = json.load(file)
@@ -610,7 +681,47 @@ class MainWindow(DeforumCore):
             preset_path = os.path.join(self.presets_folder, preset_name)
             with open(preset_path, 'w') as file:
                 json.dump(self.params, file, indent=4)
-            self.loadPresetsDropdown(restore=preset_name)
+            self.loadPresetsDropdown()  # Reload presets dropdown without restoring as it uses QMenu
+
+    # def loadPresetsDropdown(self, restore=None):
+    #     if not isinstance(restore, str):
+    #         current_text = self.presetsDropdown.currentText()  # Remember current text
+    #     else:
+    #         current_text = restore
+    #     if not os.path.exists(self.presets_folder):
+    #         os.makedirs(self.presets_folder)
+    #
+    #     preset_files = sorted([f for f in os.listdir(self.presets_folder) if f.endswith('.txt')])
+    #     self.presetsDropdown.clear()
+    #     self.presetsDropdown.addItems(preset_files)
+    #
+    #     # Re-select the current text if it exists in the new list
+    #     if current_text in preset_files:
+    #         index = self.presetsDropdown.findText(current_text)
+    #         self.presetsDropdown.setCurrentIndex(index)
+    #
+    # def loadPreset(self):
+    #     selected_preset = self.presetsDropdown.currentText()
+    #     #self.loadPresetsDropdown(restore=selected_preset)
+    #     preset_path = os.path.join(self.presets_folder, selected_preset)
+    #     try:
+    #         with open(preset_path, 'r') as file:
+    #             config = json.load(file)
+    #             for key, value in config.items():
+    #                 if key in self.params:
+    #                     self.params[key] = value
+    #         self.updateUIFromParams()
+    #     except:
+    #         pass
+    #
+    # def savePreset(self):
+    #     preset_name, _ = QFileDialog.getSaveFileName(self, 'Save Preset', self.presets_folder, 'Text Files (*.txt)')
+    #     if preset_name:
+    #         preset_name = os.path.splitext(os.path.basename(preset_name))[0] + '.txt'
+    #         preset_path = os.path.join(self.presets_folder, preset_name)
+    #         with open(preset_path, 'w') as file:
+    #             json.dump(self.params, file, indent=4)
+    #         self.loadPresetsDropdown(restore=preset_name)
 
     def setResumeFrom(self, position):
         # Assuming the frame rate is stored in self.frameRate
@@ -636,26 +747,67 @@ class MainWindow(DeforumCore):
         self.videoSlider.setTickInterval(duration // 100)  # For example, 100 ticks across the slider
 
     @Slot(dict)
-    def playVideo(self, data):
-        self.statusLabel.setText("Ready")
-        # Stop the player and reset its state before loading a new video
-        self.player.stop()
-        self.player.setSource(QUrl())  # Reset the source to clear buffers
-        if 'video_path' in data:
-            try:
-                # Set new video source and attempt to play
-                self.player.setSource(QUrl.fromLocalFile(data['video_path']))
-                self.player.play()
-            except Exception as e:
-                print(f"Error playing video: {e}")
-                self.player.stop()  # Ensure player is stopped on error
-        if 'timestring' in data:
-            self.updateWidgetValue('resume_timestring', data['timestring'])
-            self.updateWidgetValue('resume_path', data['resume_path'])
-            self.updateWidgetValue('resume_from', data['resume_from'])
+    def cleanupThread(self):
+        pass
+        # if self.thread is not None:
+        #     self.thread.wait()  # Ensure the thread has finished
+        #     self.thread.deleteLater()  # Properly dispose of the thread object
+        #     self.thread = None  # Remove the reference, allowing garbage collection
 
-            self.saveCurrentProjectAsSettingsFile()
-            self.updateRenderDropdown()
+    @Slot(dict)
+    def playVideo(self, data):
+        try:
+            # Update status label
+            self.statusLabel.setText("Preparing video...")
+
+            # Stop the player and clear current source
+            self.player.stop()
+            self.player.setSource(QUrl())
+
+            # Check if the video path is in the data dictionary
+            if 'video_path' in data:
+                original_path = data['video_path']
+                temp_dir = tempfile.gettempdir()  # Get the system's temporary directory
+                temp_video_path = os.path.join(temp_dir, os.path.basename(original_path))
+
+                # Copy the video file to the temporary directory
+                shutil.copy2(original_path, temp_video_path)
+
+                # Give the system some time to release any handles on the file if needed
+                time.sleep(0.5)
+
+                # Set the copied video file as the new source
+                self.player.setSource(QUrl.fromLocalFile(temp_video_path))
+                self.player.play()
+                self.statusLabel.setText("Playing video...")
+
+        except Exception as e:
+            self.statusLabel.setText(f"Failed to load video: {str(e)}")
+            print(f"Error playing video: {str(e)}")
+    # @Slot(dict)
+    # def playVideo(self, data):
+    #
+    #
+    #     try:
+    #
+    #
+    #         self.statusLabel.setText("Ready")
+    #         # Stop the player and reset its state before loading a new video
+    #         self.player.stop()
+    #         self.player.setSource(QUrl())  # Reset the source to clear buffers
+    #         time.sleep(0.5)
+    #         if 'video_path' in data:
+    #             self.player.setSource(QUrl.fromLocalFile(data['video_path']))
+    #             self.player.play()
+    #         # if 'timestring' in data:
+    #         #     self.updateWidgetValue('resume_timestring', data['timestring'])
+    #         #     self.updateWidgetValue('resume_path', data['resume_path'])
+    #         #     self.updateWidgetValue('resume_from', data['resume_from'])
+    #         #
+    #         #     self.saveCurrentProjectAsSettingsFile()
+    #         #     self.updateRenderDropdown()
+    #     except:
+    #         pass
 
     def startBackendProcess(self):
         #params = {key: widget.value() for key, widget in self.params.items() if hasattr(widget, 'value')}
@@ -669,7 +821,8 @@ class MainWindow(DeforumCore):
         self.thread = BackendThread(self.params)
         self.thread.imageGenerated.connect(self.updateImage)
         self.thread.finished.connect(self.playVideo)
-        self.thread.generateViz.connect(self.generateViz)
+        self.thread.finished.connect(self.cleanupThread)
+        # self.thread.generateViz.connect(self.handleFinishedVizGen)
         self.thread.start()
     def stopBackendProcess(self):
         self.statusLabel.setText("Stopped")
@@ -789,9 +942,46 @@ class MainWindow(DeforumCore):
         except:
             pass
 
+    def generateVizData(self):
+        directory_path = os.path.join(root_path, 'temp_viz_images')
+        for filename in os.listdir(directory_path):
+            file_path = os.path.join(directory_path, filename)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)  # Remove the file or link
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)  # Remove the directory recursively
+            except Exception as e:
+                print('Failed to delete %s. Reason: %s' % (file_path, e))
+        self.generateViz({'output_path':directory_path})
+
+
+
     def generateViz(self, data):
         if self.params['generate_viz']:
             if self.params['audio_path'] is not "":
-                milk = DEFAULT_MILK if self.params["milk_path"] == "" else self.params["milk_path"]
-                from deforum.commands.deforum_run_projectmcli import generate_visual_from_audio
-                generate_visual_from_audio(self.params['audio_path'], data['output_path'], milk, data['fps'], data['width'], data['height'])
+                milk = os.path.join(root_path, 'milks', self.params["milk_path"])
+                self.vizGenThread = VisualGeneratorThread(self.params['audio_path'], data['output_path'], milk, self.params['fps'], self.params['width'], self.params['height'])
+                self.vizGenThread.finished.connect(self.playVideo)
+                self.vizGenThread.start()
+    def cleanupVizThread(self):
+
+        if hasattr(self, 'vizGenThread'):
+            self.vizGenThread.finished.disconnect(self.playVideo)
+            # self.vizGenThread.finished.disconnect(self.cleanupVizThread)
+            self.vizGenThread.terminate()  # Ensure the thread has finished
+            self.vizGenThread.deleteLater()  # Properly dispose of the thread object
+            # self.thread = None  # Remove the reference, allowing garbage collection
+            # # Encourage garbage collection
+            # del self.vizGenThread
+
+            # Optional: Explicitly collect garbage if experiencing issues with lingering objects
+            # import gc
+            # gc.collect()
+
+
+    def handleFinishedVizGen(self, path):
+        pass
+        # self.vizAssemblerThread = VideoAssemblerThread(path, 24, self.params['audio_path'])
+        # self.vizAssemblerThread.finished.connect(self.playVideo)
+        # self.vizAssemblerThread.start()

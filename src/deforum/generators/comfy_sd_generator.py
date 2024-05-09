@@ -323,34 +323,6 @@ class ComfyDeforumGenerator:
         #     tokens = clip.tokenize(prompt)
         #     cond, pooled = clip.encode_from_tokens(tokens, return_pooled=True)
         #     return [[cond, {"pooled_output": pooled}]]
-    def load_onediff_model(self):
-        import comfy.sd
-        from nodes import NODE_CLASS_MAPPINGS
-
-        model, self.clip, vae, self.clipvision = (
-            comfy.sd.load_checkpoint_guess_config(
-                self.model_path,
-                output_vae=True,
-                output_clip=True,
-                embedding_directory="models/embeddings",
-                output_clipvision=False,
-            )
-        )
-        # checkpoint_loader = NODE_CLASS_MAPPINGS["OneDiffCheckpointLoaderSimple"]()
-        # self.model, self.clip, self.vae = checkpoint_loader.onediff_load_checkpoint(
-        #     self.model_path,
-        #     vae_speedup="enable",
-        #     output_vae=True,
-        #     output_clip=True,
-        #     custom_booster=None
-        # )
-        from custom_nodes.onediff_comfy_nodes._nodes import BasicBoosterExecutor
-        from custom_nodes.onediff_comfy_nodes.modules import BoosterScheduler
-        custom_booster = BoosterScheduler(BasicBoosterExecutor())
-        self.model = custom_booster(model, ckpt_name=self.model_path)
-        self.vae = BoosterScheduler(BasicBoosterExecutor())(vae, ckpt_name=self.model_path)
-        self.model.weight_inplace_update = True
-        self.model_loaded = True
 
     def load_model(self):
         if self.vae is None:
@@ -392,20 +364,13 @@ class ComfyDeforumGenerator:
             settings_dict["s_churn"] = 0.0
             settings_dict["t_min"] = 0.0
             settings_dict["t_max"] = 0.0
-            self.model = settings_node.run(self.model, **settings_dict)[0]
-            self.clip = settings_node.run(self.clip, **settings_dict)[0]
-            try:
-                from custom_nodes.onediff_comfy_nodes._nodes import BasicBoosterExecutor
-                from custom_nodes.onediff_comfy_nodes.modules import BoosterScheduler
-                from custom_nodes.onediff_comfy_nodes.modules.oneflow.booster_quantization import \
-                    OnelineQuantizationBoosterExecutor
-                custom_booster = BoosterScheduler(OnelineQuantizationBoosterExecutor())
-                self.model = custom_booster(self.model, ckpt_name=self.model_path)
-                self.vae = BoosterScheduler(OnelineQuantizationBoosterExecutor())(self.vae, ckpt_name=self.model_path)
-                self.model.weight_inplace_update = True
-            except:
-                logger.info("ONEDIFF NOT AVAILABLE IN YOUR BUILD (YET")
-
+            if self.optimize:
+                try:
+                    self.optimize_model()
+                    self.optimized = True
+                except:
+                    self.optimize = False
+                    self.optimized = False
             self.model_loaded = True
 
             # from ..optimizations.deforum_comfy_trt.deforum_trt_comfyunet import TrtUnet
@@ -530,8 +495,14 @@ class ComfyDeforumGenerator:
     ):
 
         if not self.model_loaded:
-            self.load_onediff_model()
-            # self.load_lora_from_civitai('413566', 1.0, 1.0)
+            self.load_model()
+        if self.optimize:
+            try:
+                self.optimize_model()
+                self.optimized = True
+            except:
+                self.optimize = False
+                self.optimized = False
         if seed_resize_from_h == 0:
             seed_resize_from_h = 1024
         if seed_resize_from_w == 0:

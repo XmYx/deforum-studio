@@ -394,7 +394,8 @@
       "label": "Audio Path"
     },
     "milk_path": {
-      "widget_type": "text input",
+      "widget_type": "dropdown",
+      "options": [],
       "default": "",
       "label": "Milk Path"
     },

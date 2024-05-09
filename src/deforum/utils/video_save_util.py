@@ -54,7 +54,7 @@ def save_as_h264(frames, filename, audio_path=None, fps=12):
                 # Transcode and extract audio to ensure compatibility
                 extract_cmd = ['ffmpeg', '-y', '-i', f'{audio_path}', '-vn', '-acodec', 'aac', '-strict', 'experimental',
                                extracted_audio_path]
-                subprocess.run(extract_cmd, check=True, stderr=subprocess.PIPE)
+                subprocess.run(extract_cmd, text=True)
 
                 # Calculate the duration of the video
                 video_duration = len(frames) / fps
@@ -64,11 +64,11 @@ def save_as_h264(frames, filename, audio_path=None, fps=12):
                 merge_cmd = ['ffmpeg', '-y', '-i', filename, '-i', extracted_audio_path,
                              '-c:v', 'copy', '-c:a', 'copy', '-strict', 'experimental',
                              '-t', str(video_duration), output_filename]
-                result = subprocess.run(merge_cmd, check=True, stderr=subprocess.PIPE)
-
-                os.rename(output_filename, filename)  # Replace the original file with the merged audio version
-                os.remove(extracted_audio_path)  # Cleanup the extracted audio file
-                logger.info("Audio merged successfully.")
+                result = subprocess.run(merge_cmd, text=True)
+                if result.returncode == 0:
+                    os.rename(output_filename, filename)  # Replace the original file with the merged audio version
+                    os.remove(extracted_audio_path)  # Cleanup the extracted audio file
+                    logger.info("Audio merged successfully.")
             except subprocess.CalledProcessError as e:
                 logger.error(f"Audio processing failed: {e.stderr.decode('utf-8')}")
             except Exception as e:
