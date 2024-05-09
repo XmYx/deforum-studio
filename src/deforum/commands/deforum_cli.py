@@ -75,6 +75,14 @@ def install_qtpy() -> None:
                 "qtpy==2.4.1",
             ]
         )
+        subprocess.run(
+            [
+                "python3",
+                "-m" "pip",
+                "install",
+                "pyqtgraph==0.13.7",
+            ]
+        )
 @deforumdoc
 def start_deforum_cli() -> None:
     """
