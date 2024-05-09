@@ -496,7 +496,7 @@ class ComfyDeforumGenerator:
 
         if not self.model_loaded:
             self.load_model()
-        if self.optimize:
+        if self.optimize and not self.optimized:
             try:
                 self.optimize_model()
                 self.optimized = True
