@@ -214,8 +214,9 @@ def hybrid_composite_cls(cls: Any) -> None:
             inputfiles = BlockingFileList(video_frame_path, cls.gen.max_frames)
             video_frame = inputfiles[cls.gen.frame_idx]
         else: 
-            video_frame = os.path.join(cls.gen.outdir, 'inputframes',
-                                    get_frame_name(cls.gen.video_init_path) + f"{cls.gen.frame_idx:09}.jpg")
+            # video_frame = os.path.join(cls.gen.outdir, 'inputframes',
+            #                         get_frame_name(cls.gen.video_init_path) + f"{cls.gen.frame_idx:09}.jpg")
+            video_frame = cls.gen.inputfiles[cls.gen.frame_idx]
         video_depth_frame = os.path.join(cls.gen.outdir, 'hybridframes',
                                          get_frame_name(
                                              cls.gen.video_init_path) + f"_vid_depth{cls.gen.frame_idx:09}.jpg")
@@ -229,10 +230,10 @@ def hybrid_composite_cls(cls: Any) -> None:
         cls.gen.prev_img = cv2.cvtColor(cls.gen.prev_img, cv2.COLOR_BGR2RGB)
         prev_img_hybrid = Image.fromarray(cls.gen.prev_img)
         if cls.gen.hybrid_use_init_image:
-            video_image = load_image(cls.gen.init_image, cls.gen.init_image_box)
+            video_image = load_image(cls.gen.init_image)
         else:
             video_image = Image.open(video_frame)
-        video_image = video_image.resize((cls.gen.width, cls.gen.height), Image.LANCZOS)
+        video_image = video_image.resize((cls.gen.width, cls.gen.height), Image.Resampling.LANCZOS)
         hybrid_mask = None
 
         # composite mask types
@@ -378,8 +379,9 @@ def color_match_cls(cls: Any) -> None:
     Returns:
         None: Modifies the class instance attributes in place.
     """
-    if cls.gen.color_match_sample is None and cls.gen.image is not None:
-        cls.gen.color_match_sample = cls.gen.prev_img.copy()
+    if cls.gen.color_match_sample is None and cls.gen.opencv_image is not None:
+        cls.gen.color_match_sample = cls.gen.opencv_image.copy()
+
     elif cls.gen.prev_img is not None:
         cls.gen.prev_img = maintain_colors(cls.gen.prev_img, cls.gen.color_match_sample, cls.gen.color_coherence)
     return

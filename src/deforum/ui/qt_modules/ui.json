@@ -380,7 +380,18 @@
       "options": ["None", "RAFT", "DIS Medium", "DIS Fine", "Farneback"],
       "default": "RAFT",
       "label": "Hybrid motion"
-    },    
+    },
+    "hybrid_composite": {
+      "widget_type": "dropdown",
+      "options": ["None", "Normal", "Before Motion", "After Generation"],
+      "default": "None",
+      "label": "Hybrid Composite"
+    },
+    "hybrid_use_init_image": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Hybrid Use Init Image"
+    },
     "hybrid_flow_consistency": {
       "widget_type": "checkbox",
       "default": false,
