@@ -250,12 +250,13 @@ class VisualGeneratorThread(QThread):
         self.height = height
 
     def run(self):
-        temp_path = os.path.join(self.output_path, 'temp')
+        temp_path = os.path.join(root_path, 'temp')
         os.makedirs(temp_path, exist_ok=True)
 
         temp_file = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False, dir=temp_path)
         self.temp_video_path = temp_file.name
         temp_file.close()
+        os.remove(self.temp_video_path)
 
         # queue = Queue()
         # process = Process(target=self.run_subprocess, args=(self.build_viz_command(), queue))
@@ -267,14 +268,14 @@ class VisualGeneratorThread(QThread):
 
         # Wait for a small delay to allow file system updates (if necessary)
         # time.sleep(0.5)
+        self.finished.emit({'video_path': self.temp_video_path})
 
-        # Check if the video file was actually created
-        if os.path.exists(self.temp_video_path):
-            print("Video generated:", self.temp_video_path)
-            self.finished.emit({'video_path': self.temp_video_path})
-        else:
-            print("Failed to generate video.")
-            self.finished.emit({'error': 'Failed to generate video.'})
+        # # Check if the video file was actually created
+        # if os.path.exists(self.temp_video_path):
+        #     print("Video generated:", self.temp_video_path)
+        # else:
+        #     print("Failed to generate video.")
+        #     self.finished.emit({'error': 'Failed to generate video.'})
 
     def build_viz_command(self):
 

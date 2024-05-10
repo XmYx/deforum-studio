@@ -395,11 +395,11 @@ class MainWindow(DeforumCore):
         self.playButton.clicked.connect(self.player.play)
         self.pauseButton.clicked.connect(self.player.pause)
         self.stopButton.clicked.connect(self.player.stop)
-        self.volumeSlider.valueChanged.connect(lambda value: self.audioOutput.setVolume(value / 100))
+        # self.volumeSlider.valueChanged.connect(lambda value: self.audioOutput.setVolume(value / 100))
         self.videoSlider = QSlider(Qt.Orientation.Horizontal)
-        self.videoSlider.sliderMoved.connect(self.setPosition)
-        self.player.positionChanged.connect(self.updatePosition)
-        self.player.durationChanged.connect(self.updateDuration)
+        # self.videoSlider.sliderMoved.connect(self.setPosition)
+        # self.player.positionChanged.connect(self.updatePosition)
+        # self.player.durationChanged.connect(self.updateDuration)
         # Layout for the video player controls
         controlsLayout = QHBoxLayout()
         controlsLayout.addWidget(self.playButton)
@@ -416,8 +416,8 @@ class MainWindow(DeforumCore):
         mainLayout.addLayout(controlsLayout)
 
         self.videoSubWindow.widget().setLayout(mainLayout)
-        self.videoSlider.valueChanged.connect(self.setResumeFrom)
-        self.player.mediaStatusChanged.connect(self.onMediaStatusChanged)
+        # self.videoSlider.valueChanged.connect(self.setResumeFrom)
+        # self.player.mediaStatusChanged.connect(self.onMediaStatusChanged)
     def create_console_widget(self):
         # Create a text widget for stdout and stderr
         self.text_widget = NodesConsole()
@@ -764,15 +764,17 @@ class MainWindow(DeforumCore):
 
 
     def setPosition(self, position):
-        self.player.setPosition(position)
+        if self.player.playbackState() == QMediaPlayer.PlaybackState.PausedState:
+            self.player.setPosition(position)
 
     def updatePosition(self, position):
         self.videoSlider.setValue(position)
 
     def updateDuration(self, duration):
-        self.videoSlider.setMaximum(duration)
-        # Optionally, you might want to adjust the ticks interval based on the video duration
-        self.videoSlider.setTickInterval(duration // 100)  # For example, 100 ticks across the slider
+        if duration > 0:
+            self.videoSlider.setMaximum(duration)
+            # Optionally, you might want to adjust the ticks interval based on the video duration
+            self.videoSlider.setTickInterval(duration // 100)  # For example, 100 ticks across the slider
 
     @Slot(dict)
     def cleanupThread(self):
@@ -785,36 +787,45 @@ class MainWindow(DeforumCore):
     @Slot(dict)
     def playVideo(self, data):
         # Ensure the player stops properly before setting a new source
-        if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
+        print(self.player.playbackState())
+        if self.player.playbackState() == QMediaPlayer.PlaybackState.StoppedState:
+            self.player.pause()
             self.player.stop()
+        print(self.player.playbackState())
 
-        # Wait for the player to be in the stopped state before proceeding
-        while self.player.playbackState() != QMediaPlayer.PlaybackState.StoppedState:
-            QCoreApplication.processEvents()  # Process existing events to avoid freezing the UI
+        # # Wait for the player to be in the stopped state before proceeding
+        # while self.player.playbackState() != QMediaPlayer.PlaybackState.PausedState:
+        #     print(self.player.playbackState())
+        #
+        #     QCoreApplication.processEvents()  # Process existing events to avoid freezing the UI
 
         # Clear the current source
         self.player.setSource(QUrl())
 
         if 'video_path' in data:
-            original_path = data['video_path']
-
             # Reinitialize the audio output if it exists
-            if hasattr(self, 'audioOutput'):
-                self.audioOutput.deleteLater()  # Properly dispose of the old output
-                self.audioOutput = QAudioOutput()
+            # if hasattr(self, 'audioOutput'):
+            #     self.audioOutput.deleteLater()  # Properly dispose of the old output
+            #     self.audioOutput = QAudioOutput()
+            #
+            # self.player.setAudioOutput(self.audioOutput)  # Set the new audio output
 
-            self.player.setAudioOutput(self.audioOutput)  # Set the new audio output
-            self.player.setSource(QUrl.fromLocalFile(original_path))
-            # self.player.play()
+            print("DUMMY CHECKING", data['video_path'])
+
+            self.player.setSource(QUrl.fromLocalFile(data['video_path']))
+
+
+            self.player.play()
 
     def onMediaStatusChanged(self, status):
-        try:
-            if status == QMediaPlayer.MediaStatus.LoadedMedia:
-                self.player.play()
-            elif status in (QMediaPlayer.MediaStatus.NoMedia, QMediaPlayer.MediaStatus.InvalidMedia):
-                print("Failed to load video")
-        except Exception as e:
-            print(f"Error in media status change: {e}")
+        pass
+        # try:
+        #     if status == QMediaPlayer.MediaStatus.LoadedMedia:
+        #         self.player.play()
+        #     elif status in (QMediaPlayer.MediaStatus.NoMedia, QMediaPlayer.MediaStatus.InvalidMedia):
+        #         print("Failed to load video")
+        # except Exception as e:
+        #     print(f"Error in media status change: {e}")
     def startBackendProcess(self):
         #params = {key: widget.value() for key, widget in self.params.items() if hasattr(widget, 'value')}
         # if not self.thread:
@@ -963,7 +974,10 @@ class MainWindow(DeforumCore):
         if self.params['generate_viz']:
             if self.params['audio_path'] is not "":
                 milk = os.path.join(root_path, 'milks', self.params["milk_path"])
+                print(milk)
+
                 self.vizGenThread = VisualGeneratorThread(self.params['audio_path'], data['output_path'], milk, self.params['fps'], self.params['width'], self.params['height'])
+                self.vizGenThread.preset_path = milk
                 self.vizGenThread.finished.connect(self.playVideo)
                 self.vizGenThread.start()
     def cleanupVizThread(self):
