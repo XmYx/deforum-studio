@@ -46,3 +46,5 @@ class AppConfig:
 
 # Make available for import 
 config = AppConfig.load()
+
+root_path = config.root_path

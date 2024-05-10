@@ -1316,8 +1316,10 @@ def save_video_cls(cls):
     else:
         name = f'{cls.gen.batch_name}'
     output_filename_base = os.path.join(dir_path, name)
-    #cls.gen.images = cls.images
-
+    if cls.gen.frame_interpolation_engine is not "None":
+        cls.gen.fps = float(cls.gen.fps) * int(cls.gen.frame_interpolation_x_amount)
+        if cls.gen.frame_interpolation_slow_mo_enabled:
+            cls.gen.fps /= int(cls.gen.frame_interpolation_slow_mo_amount)
     audio_path = None
     if hasattr(cls.gen, 'video_init_path'):
         audio_path = cls.gen.video_init_path
