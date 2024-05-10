@@ -1,4 +1,5 @@
 import os
+import re
 from shutil import move
 from pathlib import Path
 
@@ -7,11 +8,9 @@ def extract_nth_files(folder, extract_nth_frame):
     # Define the path object for the folder
     folder_path = Path(folder)
 
-    # Gather all jpg and png files
+    # Gather all jpg and png files and sort by creation time
     image_files = [file for file in folder_path.iterdir() if file.suffix.lower() in ['.jpg', '.png']]
-
-    # Sort the files to ensure consistent ordering
-    image_files.sort()
+    image_files.sort(key=lambda x: int(re.search(r'\d+', x.stem).group()))
 
     # Filter images, keeping only the first and every nth frame
     filtered_images = [image_files[i] for i in range(len(image_files)) if i == 0 or (i % extract_nth_frame == 0)]
@@ -28,9 +27,10 @@ def extract_nth_files(folder, extract_nth_frame):
             os.remove(image)
 
     # Move back from temp and rename
-    for index, image in enumerate(sorted(temp_folder.iterdir(), key=lambda x: x.name), 1):
+    for index, image in enumerate(sorted(temp_folder.iterdir(), key=lambda x: int(re.search(r'\d+', x.stem).group())), 1):
         new_name = folder_path / f'{index:04d}{image.suffix}'
         move(str(image), new_name)
 
     # Remove the temporary directory
     os.rmdir(temp_folder)
+
