@@ -674,7 +674,8 @@ class ComfyDeforumGenerator:
             sample_fn = self.sampler_node.sample
         elif hasattr(self.sampler_node, "doit"):
             sample_fn = self.sampler_node.doit
-        logger.info(f"SEED:{seed}, STPS:{steps}, CFG:{scale}, SMPL:{sampler_name}, SCHD:{scheduler}, STR:{strength}, SUB:{subseed}, SUBSTR:{subseed_strength}")
+        print(f"SEED:{seed}, STPS:{steps}, CFG:{scale}, SMPL:{sampler_name}, SCHD:{scheduler}, STR:{strength}, SUB:{subseed}, SUBSTR:{subseed_strength}")
+        print(prompt)
         sample = sample_fn(
             self.model,
             seed,
@@ -692,7 +693,7 @@ class ComfyDeforumGenerator:
             variation_strength=subseed_strength,
         )[0]
         sample = [{"samples": sample["samples"]}]
-
+        torch.cuda.synchronize('cuda')
         if sample[0]["samples"].shape[0] == 1:
             decoded = self.decode_sample(self.vae, sample[0]["samples"])
             np_array = np.clip(255.0 * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[

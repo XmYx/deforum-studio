@@ -36,6 +36,7 @@ import sys
 
 from deforum.commands.deforum_run_unit_test import run_unit_test
 from deforum.docutils.decorator import deforumdoc
+from deforum.utils.constants import config
 from deforum.utils.logging_config import logger
 @deforumdoc
 def install_qtpy() -> None:
@@ -101,7 +102,7 @@ def start_deforum_cli() -> None:
     """
     parser = argparse.ArgumentParser(description="Load settings from a txt file and run the deforum process.")
     # Positional mode argument
-    parser.add_argument("mode", choices=['webui', 'animatediff', 'runpresets', 'api', 'setup', 'ui', 'runsingle', 'config', 'unittest'], default=None, nargs='?',
+    parser.add_argument("mode", choices=['webui', 'animatediff', 'runpresets', 'api', 'setup', 'ui', 'runsingle', 'config', 'unittest', 'version'], default=None, nargs='?',
                         help="Choose the mode to run.")
 
     parser.add_argument("--file", type=str, help="Path to the deforum settings file.")
@@ -143,10 +144,14 @@ def start_deforum_cli() -> None:
             options[key] = value
 
     if args_main.mode:
-        if args_main.mode == "webui":
+        if args_main.mode == "version":
+            import deforum
+            print(deforum.__version__)
+        elif args_main.mode == "webui":
             import streamlit.web.cli as stcli
-            root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            stcli.main(["run", f"{root_path}/webui/deforum_webui.py", "--server.headless", "true"])
+            stcli.main(["run", f"{config.src_path}/webui/deforum_webui.py", "--server.headless", "true"])
+            # root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            # stcli.main(["run", f"{root_path}/webui/deforum_webui.py", "--server.headless", "true"])
         elif args_main.mode == "animatediff":
             from deforum.pipelines.animatediff_animation.pipeline_animatediff_animation import DeforumAnimateDiffPipeline
             modelid = str(options.get("modelid", "132632"))
