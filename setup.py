@@ -94,12 +94,13 @@ _deps = [
     'xformers==0.0.26.post1',
     'tensorrt==10.0.1',
     'onnx_graphsurgeon==0.5.2',
-    'onnx==1.16.0',    
+    'onnx==1.16.0',
     'zstandard==0.22.0',
     'polygraphy==0.49.9',
     'kornia==0.7.2',
     'wheel==0.43.0',
     'loguru==0.7.2',
+    'kornia==0.6.7'
 ]
 
 # this is a lookup table with items like:
@@ -204,7 +205,6 @@ extras["dev"] = deps_list('torch',
                           'python-decouple',
                           'imageio[ffmpeg]',
                           'xformers',
-                          'loguru',
                           'kornia',
                           'tensorrt',
                           'onnx_graphsurgeon',
@@ -212,7 +212,9 @@ extras["dev"] = deps_list('torch',
                           'onnx',
                           'polygraphy',
                           'kornia',
-                          'wheel'
+                          'wheel',
+                          'loguru',
+                          'kornia'
                           )
 
 extras["cli"] = deps_list('torch',

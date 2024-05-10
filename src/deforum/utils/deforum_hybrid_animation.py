@@ -24,79 +24,79 @@ def delete_all_imgs_in_folder(folder_path):
     for f in files: os.remove(f)
 
 
-def hybrid_generation(args, anim_args, root):
-    video_in_frame_path = os.path.join(args.outdir, 'inputframes')
-    hybrid_frame_path = os.path.join(args.outdir, 'hybridframes')
-    human_masks_path = os.path.join(args.outdir, 'human_masks')
+def hybrid_generation(cls):
+    video_in_frame_path = os.path.join(cls.outdir, 'inputframes')
+    hybrid_frame_path = os.path.join(cls.outdir, 'hybridframes')
+    human_masks_path = os.path.join(cls.outdir, 'human_masks')
 
     # create hybridframes folder whether using init_image or inputframes
     os.makedirs(hybrid_frame_path, exist_ok=True)
 
-    if anim_args.hybrid_generate_inputframes:
+    if cls.hybrid_generate_inputframes:
         # create folders for the video input frames and optional hybrid frames to live in
         os.makedirs(video_in_frame_path, exist_ok=True)
 
         # delete frames if overwrite = true
-        if anim_args.overwrite_extracted_frames:
+        if cls.overwrite_extracted_frames:
             delete_all_imgs_in_folder(hybrid_frame_path)
 
         # save the video frames from input video
-        logger.info(f"Video to extract: {anim_args.video_init_path}")
-        logger.info(f"Extracting video (1 every {anim_args.extract_nth_frame}) frames to {video_in_frame_path}...")
-        video_fps = vid2frames(video_path=anim_args.video_init_path, video_in_frame_path=video_in_frame_path,
-                               n=anim_args.extract_nth_frame, overwrite=anim_args.overwrite_extracted_frames,
-                               extract_from_frame=anim_args.extract_from_frame,
-                               extract_to_frame=anim_args.extract_to_frame)
+        logger.info(f"Video to extract: {cls.video_init_path}")
+        logger.info(f"Extracting video (1 every {cls.extract_nth_frame}) frames to {video_in_frame_path}...")
+        video_fps = vid2frames(video_path=cls.video_init_path, video_in_frame_path=video_in_frame_path,
+                               n=cls.extract_nth_frame, overwrite=cls.overwrite_extracted_frames,
+                               extract_from_frame=cls.extract_from_frame,
+                               extract_to_frame=cls.extract_to_frame)
 
     # extract alpha masks of humans from the extracted input video imgs
-    if anim_args.hybrid_generate_human_masks != "None":
+    if cls.hybrid_generate_human_masks != "None":
         # create a folder for the human masks imgs to live in
         logger.info(f"Checking /creating a folder for the human masks")
         os.makedirs(human_masks_path, exist_ok=True)
 
         # delete frames if overwrite = true
-        if anim_args.overwrite_extracted_frames:
+        if cls.overwrite_extracted_frames:
             delete_all_imgs_in_folder(human_masks_path)
 
         # in case that generate_input_frames isn't selected, we won't get the video fps rate as vid2frames isn't called, So we'll check the video fps in here instead
-        if not anim_args.hybrid_generate_inputframes:
-            _, video_fps, _ = get_quick_vid_info(anim_args.video_init_path)
+        if not cls.hybrid_generate_inputframes:
+            _, video_fps, _ = get_quick_vid_info(cls.video_init_path)
 
         # calculate the correct fps of the masked video according to the original video fps and 'extract_nth_frame'
-        output_fps = video_fps / anim_args.extract_nth_frame
+        output_fps = video_fps / cls.extract_nth_frame
 
         # generate the actual alpha masks from the input imgs
         logger.info(f"Extracting alpha humans masks from the input frames")
-        video2humanmasks(video_in_frame_path, human_masks_path, anim_args.hybrid_generate_human_masks, output_fps)
+        video2humanmasks(video_in_frame_path, human_masks_path, cls.hybrid_generate_human_masks, output_fps)
 
     # get sorted list of inputfiles
-    inputfiles = sorted(pathlib.Path(video_in_frame_path).glob('*.jpg'))
+    cls.inputfiles = sorted(pathlib.Path(video_in_frame_path).glob('*.jpg'))
 
-    if not anim_args.hybrid_use_init_image:
+    if not cls.hybrid_use_init_image:
         if config.allow_blocking_input_frame_lists:
             logger.info(f"Will wait for input frames to appear in {video_in_frame_path}")
-            inputfiles = BlockingFileList(video_in_frame_path, anim_args.max_frames)
+            cls.inputfiles = BlockingFileList(video_in_frame_path, cls.max_frames)
                     
         # determine max frames from length of input frames
-        if args.hybrid_use_full_video:
-            anim_args.max_frames = len(inputfiles)
-        if anim_args.max_frames > len(inputfiles):
-            anim_args.max_frames = len(inputfiles)
-        if anim_args.max_frames < 1:
+        if cls.hybrid_use_full_video:
+            cls.max_frames = len(cls.inputfiles)
+        if cls.max_frames > len(cls.inputfiles):
+            cls.max_frames = len(cls.inputfiles)
+        if cls.max_frames < 1:
             raise Exception(
                 f"Error: No input frames found in {video_in_frame_path}! Please check your input video path and whether you've opted to extract input frames.")
-        logger.info(f"Using {anim_args.max_frames} input frames from {video_in_frame_path}...")
+        logger.info(f"Using {cls.max_frames} input frames from {video_in_frame_path}...")
 
     # use first frame as init
-    if anim_args.hybrid_use_first_frame_as_init_image:
-        for f in inputfiles:
-            args.init_image = str(f)
-            args.init_image_box = None  # init_image_box not used in this case
-            args.use_init = True
-            logger.info(f"Using init_image from video: {args.init_image}")
+    if cls.hybrid_use_first_frame_as_init_image:
+        for f in cls.inputfiles:
+            cls.init_image = str(f)
+            cls.init_image_box = None  # init_image_box not used in this case
+            cls.use_init = True
+            logger.info(f"Using init_image from video: {cls.init_image}")
             break
 
-    return args, anim_args, inputfiles
+    return cls
 
 
 def hybrid_composite(args, anim_args, frame_idx, prev_img, depth_model, hybrid_comp_schedules, root):

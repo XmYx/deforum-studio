@@ -12,7 +12,7 @@ from .comfy_utils import ensure_comfy
 from .rng_noise_generator import ImageRNGNoise, slerp
 from deforum.utils.deforum_cond_utils import blend_tensors
 from deforum.utils.logging_config import logger
-from ..utils.constants import config
+from ..utils.constants import root_path
 from ..utils.model_download import (
     download_from_civitai,
     download_from_civitai_by_version_id,
@@ -180,13 +180,10 @@ def sampleDeforum(
 
 
 class ComfyDeforumGenerator:
-
     def __init__(self, model_path: str = None, lcm=False, trt=False):
-
         ensure_comfy()
         import comfy.samplers
         import comfy
-
         comfy.samplers.CFGGuider = HIJackCFGGuider
         comfy.samplers.sample = sampleDeforum
         self.optimize = None
@@ -212,6 +209,8 @@ class ComfyDeforumGenerator:
         self.loaded_lora = None
         self.model_loaded = None
         self.model_path = model_path
+        self.onediff_avail = False
+
         # if not lcm:
         #     # if model_path is None:
         #     #     models_dir = os.path.join(default_cache_folder)
@@ -290,7 +289,7 @@ class ComfyDeforumGenerator:
             self.rng = ImageRNGNoise(shape=shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
                                      seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
         noise = self.rng.first()
-
+        # noise = torch.zeros([1, 4, height // 8, width // 8])
         return {"samples": noise.to("cuda")}
 
     def get_conds(self, clip, prompt, width, height, target_width, target_height):
@@ -364,40 +363,35 @@ class ComfyDeforumGenerator:
             settings_dict["s_churn"] = 0.0
             settings_dict["t_min"] = 0.0
             settings_dict["t_max"] = 0.0
+            # if self.optimize:
+            #     try:
+            #         self.optimize_model()
+            #         self.optimized = True
+            #     except:
+            #         self.optimize = False
+            #         self.optimized = False
             self.model = settings_node.run(self.model, **settings_dict)[0]
             self.clip = settings_node.run(self.clip, **settings_dict)[0]
-            self.onediff_avail = False
-
-
             try:
                 from custom_nodes.onediff_comfy_nodes._nodes import BasicBoosterExecutor
                 from custom_nodes.onediff_comfy_nodes.modules import BoosterScheduler
-                from custom_nodes.onediff_comfy_nodes.modules.oneflow.booster_quantization import \
-                    OnelineQuantizationBoosterExecutor
-                custom_booster = BoosterScheduler(OnelineQuantizationBoosterExecutor())
+                # from custom_nodes.onediff_comfy_nodes.modules.oneflow.booster_quantization import \
+                #     OnelineQuantizationBoosterExecutor
+                custom_booster = BoosterScheduler(BasicBoosterExecutor())
                 self.model = custom_booster(self.model, ckpt_name=self.model_path)
-                self.vae = BoosterScheduler(OnelineQuantizationBoosterExecutor())(self.vae, ckpt_name=self.model_path)
+                self.vae = BoosterScheduler(BasicBoosterExecutor())(self.vae, ckpt_name=self.model_path)
                 self.model.weight_inplace_update = True
                 self.onediff_avail = True
             except:
                 logger.info("ONEDIFF NOT AVAILABLE IN YOUR BUILD (YET")
-            if not self.onediff_avail:
-              try:
-                  self.optimize_model()
-                  self.optimize = True
-              except:
-                  self.optimize = False
-                  logger.info("Could not apply Stable-Fast Unet patch.")
-
 
             self.model_loaded = True
-
             # from ..optimizations.deforum_comfy_trt.deforum_trt_comfyunet import TrtUnet
             # self.model.model.diffusion_model = TrtUnet()
 
     def load_lora_from_civitai(self, lora_id="", model_strength=0.0, clip_strength=0.0):
 
-        cache_dir = os.path.join(config.root_path, "models")
+        cache_dir = os.path.join(root_path, "models")
         os.makedirs(cache_dir, exist_ok=True)
 
         try:
@@ -515,13 +509,26 @@ class ComfyDeforumGenerator:
 
         if not self.model_loaded:
             self.load_model()
+        if self.optimize and not (self.optimized or self.onediff_avail):
+            try:
+                self.optimize_model()
+                self.optimized = True
+            except:
+                self.optimize = False
+                self.optimized = False
+
             # self.load_lora_from_civitai('413566', 1.0, 1.0)
+
         if seed_resize_from_h == 0:
             seed_resize_from_h = 1024
         if seed_resize_from_w == 0:
             seed_resize_from_w = 1024
         if seed == -1:
             seed = secrets.randbelow(18446744073709551615)
+        # if self.optimize:
+        #     self.optimize_model()
+        #     self.optimize = False
+
 
         if strength <= 0.05 or strength >= 1.0:
             strength = 1.0
@@ -529,10 +536,6 @@ class ComfyDeforumGenerator:
             # init_image = None
         else:
             strength = 1 - strength if strength != 1.0 else strength
-
-        if self.optimize:
-            self.optimize_model()
-            self.optimize = False
 
         if subseed == -1:
             subseed = secrets.randbelow(18446744073709551615)
@@ -674,7 +677,8 @@ class ComfyDeforumGenerator:
             sample_fn = self.sampler_node.sample
         elif hasattr(self.sampler_node, "doit"):
             sample_fn = self.sampler_node.doit
-        logger.info(f"SEED:{seed}, STPS:{steps}, CFG:{scale}, SMPL:{sampler_name}, SCHD:{scheduler}, STR:{strength}, SUB:{subseed}, SUBSTR:{subseed_strength}")
+        print(f"SEED:{seed}, STPS:{steps}, CFG:{scale}, SMPL:{sampler_name}, SCHD:{scheduler}, STR:{strength}, SUB:{subseed}, SUBSTR:{subseed_strength}")
+        print(prompt)
         sample = sample_fn(
             self.model,
             seed,
@@ -692,7 +696,7 @@ class ComfyDeforumGenerator:
             variation_strength=subseed_strength,
         )[0]
         sample = [{"samples": sample["samples"]}]
-
+        torch.cuda.synchronize('cuda')
         if sample[0]["samples"].shape[0] == 1:
             decoded = self.decode_sample(self.vae, sample[0]["samples"])
             np_array = np.clip(255.0 * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[

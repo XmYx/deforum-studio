@@ -10,7 +10,7 @@ from torch.nn import functional as F
 from tqdm import tqdm
 from PIL import Image
 
-from deforum.utils.constants import config
+from deforum.utils.constants import root_path
 
 
 class RIFEInterpolator:
@@ -19,7 +19,7 @@ class RIFEInterpolator:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.fp16 = fp16
 
-        model_path = os.path.join(config.root_path, model_path)
+        model_path = os.path.join(root_path, model_path)
         self.ensure_model(model_path)
         self.load_model(model_path, fp16)
     def ensure_model(self, model_path):

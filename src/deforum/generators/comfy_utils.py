@@ -11,7 +11,7 @@ import torch
 import torchsde
 
 from deforum.generators.rng_noise_generator import randn_local
-from deforum.utils.constants import config
+from deforum.utils.constants import config, root_path
 from deforum.utils.logging_config import logger
 
 
@@ -238,8 +238,8 @@ mock_args = CLIArgs(
     fp8_e5m2_text_enc=False,
     fp16_text_enc=True,
     fp32_text_enc=False,
-    fp16_vae=True,
-    bf16_vae=False,
+    fp16_vae=False,
+    bf16_vae=True,
     fp32_vae=False,
     force_fp32=False,
     force_fp16=False,
@@ -250,7 +250,7 @@ mock_args = CLIArgs(
     port=8188,
     enable_cors_header=None,
     extra_model_paths_config="config/comfy_paths.yaml",
-    output_directory=config.output_dir,
+    output_directory=root_path,
     temp_directory=None,
     input_directory=None,
     auto_launch=False,
@@ -258,7 +258,7 @@ mock_args = CLIArgs(
     cuda_device=0,
     cuda_malloc=False,
     disable_cuda_malloc=False,
-    dont_upcast_attention=True,
+    dont_upcast_attention=False,
     directml=None,
     preview_method="none",
     dont_print_server=True,

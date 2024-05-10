@@ -48,7 +48,7 @@ from .animation_helpers import (
     DeforumAnimKeys,
     LooperAnimKeys,
     generate_interpolated_frames,
-    rife_interpolate_cls, cls_subtitle_handler
+    rife_interpolate_cls, cls_subtitle_handler, apply_temporal_flow_cls
 )
 
 from .parseq_adapter import ParseqAdapter
@@ -59,7 +59,7 @@ from ... import ComfyDeforumGenerator
 from deforum.docutils.decorator import deforumdoc
 from ...models import DepthModel, RAFT
 from ...pipeline_utils import DeforumGenerationObject, pairwise_repl, isJson
-from ...utils.constants import config 
+from ...utils.constants import root_path, config 
 from ...utils.deforum_hybrid_animation import hybrid_generation
 from ...utils.deforum_logger_util import Logger
 from ...utils.image_utils import load_image_with_mask, prepare_mask, check_mask_for_errors, load_image
@@ -108,7 +108,7 @@ class DeforumAnimationPipeline(DeforumBase):
         self.generator = generator
 
         if logger is None:
-            self.logger = Logger(config.root_path)
+            self.logger = Logger(root_path)
         else:
             self.logger = logger
 
@@ -218,7 +218,8 @@ class DeforumAnimationPipeline(DeforumBase):
         #     # handle hybrid video generation
         if not self.gen.skip_hybrid_paths:
             if self.gen.hybrid_composite != 'None' or self.gen.hybrid_motion in hybrid_motion_modes:
-                _, _, self.gen.inputfiles = hybrid_generation(self.gen, self.gen, self.gen)
+                self.gen = hybrid_generation(self.gen)
+                logger.info(self.gen.use_init, self.gen.init_image)
                 self.gen.hybrid_frame_path = os.path.join(self.gen.outdir, 'hybridframes')
 
         if not hasattr(self.gen, 'parseq_non_schedule_overrides'):
@@ -312,7 +313,7 @@ class DeforumAnimationPipeline(DeforumBase):
         self.shoot_fns.append(get_generation_params)
 
         self.gen.turbo_steps = self.gen.get('diffusion_cadence', 1)
-        if self.gen.turbo_steps > 1:
+        if self.gen.turbo_steps > 1 and self.gen.optical_flow_cadence is not 'None':
             self.shoot_fns.append(generate_interpolated_frames)
         if self.gen.color_coherence == 'Video Input' and hybrid_available:
             self.shoot_fns.append(color_match_video_input)
@@ -359,6 +360,9 @@ class DeforumAnimationPipeline(DeforumBase):
             self.shoot_fns.append(overlay_mask_cls)
 
         self.shoot_fns.append(post_gen_cls)
+        if hasattr(self.gen, 'enable_temporal_flow'):
+            if self.gen.enable_temporal_flow and self.gen.turbo_steps == 1:
+                self.shoot_fns.append(apply_temporal_flow_cls)
 
         if hasattr(self.gen, "deforum_save_gen_info_as_srt"):
             if self.gen.deforum_save_gen_info_as_srt:
@@ -453,7 +457,7 @@ class DeforumAnimationPipeline(DeforumBase):
             batch_name = self.gen.resume_path.split('/')[-1]
             self.gen.timestring = resume_timestring
             self.gen.batch_name = batch_name
-            self.gen.outdir = os.path.join(config.root_path, f"output/deforum/{batch_name}")
+            self.gen.outdir = os.path.join(root_path, f"output/deforum/{batch_name}")
 
             if self.gen.turbo_steps > 1:
                 self.gen.turbo_prev_image, self.gen.turbo_prev_frame_idx = prev_img, prev_frame
@@ -542,6 +546,7 @@ class DeforumAnimationPipeline(DeforumBase):
         #     self.gen.frame_idx = start_frame
         #     self.gen.use_init = True
         os.makedirs(self.gen.outdir, exist_ok=True)
+        #logger.info('DEFORUM AUDIO PATH', self.gen.audio_path)
         self.gen.image_paths = []
 
     @deforumdoc
@@ -558,26 +563,27 @@ class DeforumAnimationPipeline(DeforumBase):
         ```
         """
         try:
+            if hasattr(self, 'gen'):
+                self.gen.update_from_kwargs(**kwargs)
+                #self.gen.max_frames += 5
+                self.gen.keys = DeforumAnimKeys(self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.anim_keys
+                #self.gen.loopSchedulesAndData = LooperAnimKeys(self.gen, self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.looper_keys
+                prompt_series = pd.Series([np.nan for a in range(self.gen.max_frames + 5)])
 
-            self.gen.update_from_kwargs(**kwargs)
-            #self.gen.max_frames += 5
-            self.gen.keys = DeforumAnimKeys(self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.anim_keys
-            #self.gen.loopSchedulesAndData = LooperAnimKeys(self.gen, self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.looper_keys
-            prompt_series = pd.Series([np.nan for a in range(kwargs['max_frames'] + 5)])
+                if self.gen.prompts is not None:
+                    if isinstance(self.gen.prompts, dict):
+                        self.gen.animation_prompts = self.gen.prompts
 
-            if self.gen.prompts is not None:
-                if isinstance(self.gen.prompts, dict):
-                    self.gen.animation_prompts = self.gen.prompts
-
-            for i, prompt in self.gen.animation_prompts.items():
-                if str(i).isdigit():
-                    prompt_series[int(i)] = prompt
-                else:
-                    prompt_series[int(numexpr.evaluate(i))] = prompt
-            prompt_series = prompt_series.ffill().bfill()
-            self.gen.prompt_series = prompt_series
-            logger.infe("[DEFORUM] Live Updated")
-        except:
+                for i, prompt in self.gen.animation_prompts.items():
+                    if str(i).isdigit():
+                        prompt_series[int(i)] = prompt
+                    else:
+                        prompt_series[int(numexpr.evaluate(i))] = prompt
+                prompt_series = prompt_series.ffill().bfill()
+                self.gen.prompt_series = prompt_series
+                logger.info("[DEFORUM] Live Updated")
+        except Exception as e:
+            print(repr(e))
             pass
             # logger.info("[DEFORUM] Live Update Failed")
 
@@ -669,79 +675,84 @@ class DeforumAnimationPipeline(DeforumBase):
     def datacallback(self, data) -> None:
         return None
 
-    def generate_(self):
-        assert self.gen.prompt is not None
-        prompt, negative_prompt = split_weighted_subprompts(self.gen.prompt, self.gen.frame_idx, self.gen.max_frames)
-        next_prompt, blend_value = get_next_prompt_and_blend(self.gen.frame_idx, self.gen.prompt_series)
-
-        if hasattr(self.gen, "sampler_name"):
-            from comfy.samplers import SAMPLER_NAMES
-            if self.gen.sampler_name not in SAMPLER_NAMES:
-                sampler_name = auto_to_comfy[self.gen.sampler_name]["sampler"]
-                scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
-                self.gen.sampler_name = sampler_name
-                self.gen.scheduler = scheduler
-
-        if self.gen.scheduled_sampler_name is not None:
-            if self.gen.scheduled_sampler_name in auto_to_comfy.keys():
-                sampler_name = auto_to_comfy[self.gen.sampler_name]["sampler"]
-                scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
-                self.gen.sampler_name = sampler_name
-                self.gen.scheduler = scheduler
-
-        img = None
-        if self.gen.opencv_image is not None:
-            if not isinstance(img, PIL.Image.Image):
-                img = Image.fromarray(cv2.cvtColor(self.gen.opencv_image.astype(np.uint8), cv2.COLOR_BGR2RGB))
-
-        if self.gen.use_init and self.gen.init_image:
-            img = self.gen.init_image
-
-        self.gen.strength = 1.0 if img is None else 1 - self.gen.strength
-
-        gen_args = {
-            "prompt": prompt,
-            "negative_prompt": negative_prompt,
-            "steps": self.gen.steps,
-            "seed": self.gen.seed,
-            "scale": self.gen.scale,
-            "strength": self.gen.strength,
-            "init_image": img,
-            "width": self.gen.width,
-            "height": self.gen.height,
-            "cnet_image": None,
-            "next_prompt": next_prompt,
-            "prompt_blend": blend_value,
-            "scheduler": self.gen.scheduler,
-            "sampler_name": self.gen.sampler_name,
-            "reset_noise": False if self.gen.strength < 1.0 else True
-        }
-        if self.gen.frame_idx == 0 and not self.gen.use_init:
-            gen_args["reset_noise"] = True
-
-        if hasattr(self.gen, "style"):
-            if self.gen.style != "(No Style)" and self.gen.style in STYLE_NAMES:
-                gen_args["prompt"], gen_args["negative_prompt"] = apply_style(self.gen.style, gen_args["prompt"],
-                                                                              gen_args["negative_prompt"])
-
-        if self.gen.use_areas:
-            gen_args["areas"] = self.gen.areas[self.gen.frame_idx]
-            gen_args["use_areas"] = True
-            gen_args["prompt"] = None
-
-        if self.gen.enable_subseed_scheduling:
-            gen_args["subseed"] = self.gen.subseed
-            gen_args["subseed_strength"] = self.gen.subseed_strength
-            gen_args["seed_resize_from_h"] = self.gen.seed_resize_from_h
-            gen_args["seed_resize_from_w"] = self.gen.seed_resize_from_w
-        if hasattr(self.gen, 'animation_prompts_positive'):
-            gen_args["prompt"] = gen_args["prompt"] + self.gen.animation_prompts_positive
-            if next_prompt:
-                gen_args['next_prompt'] = next_prompt + self.gen.animation_prompts_positive
-        if hasattr(self.gen, 'animation_prompts_negative'):
-            gen_args["negative_prompt"] = gen_args["negative_prompt"] + self.gen.animation_prompts_negative
-        processed = self.generator(**gen_args)
-        return processed
+    # def generate_(self):
+    #     assert self.gen.prompt is not None
+    #     prompt, negative_prompt = split_weighted_subprompts(self.gen.prompt, self.gen.frame_idx, self.gen.max_frames)
+    #     next_prompt, blend_value = get_next_prompt_and_blend(self.gen.frame_idx, self.gen.prompt_series)
+    #
+    #     if hasattr(self.gen, "sampler_name"):
+    #         from comfy.samplers import SAMPLER_NAMES
+    #         if self.gen.sampler_name not in SAMPLER_NAMES:
+    #             sampler_name = auto_to_comfy[self.gen.sampler_name]["sampler"]
+    #             scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
+    #             self.gen.sampler_name = sampler_name
+    #             self.gen.scheduler = scheduler
+    #
+    #     if self.gen.scheduled_sampler_name is not None:
+    #         if self.gen.scheduled_sampler_name in auto_to_comfy.keys():
+    #             sampler_name = auto_to_comfy[self.gen.sampler_name]["sampler"]
+    #             scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
+    #             self.gen.sampler_name = sampler_name
+    #             self.gen.scheduler = scheduler
+    #
+    #     img = None
+    #     if self.gen.opencv_image is not None:
+    #         if not isinstance(img, PIL.Image.Image):
+    #             img = Image.fromarray(cv2.cvtColor(self.gen.opencv_image.astype(np.uint8), cv2.COLOR_BGR2RGB))
+    #
+    #     logger.info(self.gen.use_init, self.gen.init_image)
+    #
+    #     if self.gen.use_init and self.gen.init_image:
+    #         print("Actually using:", self.gen.init_image)
+    #         if not isinstance(self.gen.init_image, PIL.Image.Image):
+    #             self.gen.init_image = Image.open(self.gen.init_image)
+    #         img = self.gen.init_image
+    #
+    #     self.gen.strength = 1.0 if img is None else 1 - self.gen.strength
+    #
+    #     gen_args = {
+    #         "prompt": prompt,
+    #         "negative_prompt": negative_prompt,
+    #         "steps": self.gen.steps,
+    #         "seed": self.gen.seed,
+    #         "scale": self.gen.scale,
+    #         "strength": self.gen.strength,
+    #         "init_image": img,
+    #         "width": self.gen.width,
+    #         "height": self.gen.height,
+    #         "cnet_image": None,
+    #         "next_prompt": next_prompt,
+    #         "prompt_blend": blend_value,
+    #         "scheduler": self.gen.scheduler,
+    #         "sampler_name": self.gen.sampler_name,
+    #         "reset_noise": False if self.gen.strength < 1.0 else True
+    #     }
+    #     if self.gen.frame_idx == 0 and not self.gen.use_init:
+    #         gen_args["reset_noise"] = True
+    #
+    #     if hasattr(self.gen, "style"):
+    #         if self.gen.style != "(No Style)" and self.gen.style in STYLE_NAMES:
+    #             gen_args["prompt"], gen_args["negative_prompt"] = apply_style(self.gen.style, gen_args["prompt"],
+    #                                                                           gen_args["negative_prompt"])
+    #
+    #     if self.gen.use_areas:
+    #         gen_args["areas"] = self.gen.areas[self.gen.frame_idx]
+    #         gen_args["use_areas"] = True
+    #         gen_args["prompt"] = None
+    #
+    #     if self.gen.enable_subseed_scheduling:
+    #         gen_args["subseed"] = self.gen.subseed
+    #         gen_args["subseed_strength"] = self.gen.subseed_strength
+    #         gen_args["seed_resize_from_h"] = self.gen.seed_resize_from_h
+    #         gen_args["seed_resize_from_w"] = self.gen.seed_resize_from_w
+    #     if hasattr(self.gen, 'animation_prompts_positive'):
+    #         gen_args["prompt"] = gen_args["prompt"] + self.gen.animation_prompts_positive
+    #         if next_prompt:
+    #             gen_args['next_prompt'] = next_prompt + self.gen.animation_prompts_positive
+    #     if hasattr(self.gen, 'animation_prompts_negative'):
+    #         gen_args["negative_prompt"] = gen_args["negative_prompt"] + self.gen.animation_prompts_negative
+    #     processed = self.generator(**gen_args)
+    #     return processed
 
     def generate(self):
         """
@@ -757,8 +768,8 @@ class DeforumAnimationPipeline(DeforumBase):
         next_prompt, blend_value = get_next_prompt_and_blend(self.gen.frame_idx, self.gen.prompt_series)
         init_image = None
         cnet_image = None
-        if not self.gen.use_init and self.gen.strength < 1.0 and self.gen.strength_0_no_init:
-            self.gen.strength = 1.0
+        # if not self.gen.use_init and self.gen.strength < 1.0 and self.gen.strength_0_no_init:
+        #     self.gen.strength = 1.0
         if hasattr(self.gen, "sampler_name"):
             if isinstance(self.generator, ComfyDeforumGenerator):
                 try:
@@ -776,11 +787,19 @@ class DeforumAnimationPipeline(DeforumBase):
                 self.gen.scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
 
         # logger.info(f"GENERATE'S SAMPLER NAME: {self.gen.sampler_name}, {self.gen.scheduler}")
-
+        logger.info(self.gen.use_init, self.gen.init_image)
         if self.gen.prev_img is not None:
             # TODO: cleanup init_sample remains later
-            img = cv2.cvtColor(self.gen.prev_img, cv2.COLOR_BGR2RGB)
-            init_image = img
+            init_image = cv2.cvtColor(self.gen.prev_img, cv2.COLOR_BGR2RGB)
+            # init_image = img
+        if self.gen.frame_idx > 0:
+            self.gen.use_init = False
+        if self.gen.use_init and self.gen.init_image:
+            print("Actually using:", self.gen.init_image)
+            if not isinstance(self.gen.init_image, PIL.Image.Image):
+                self.gen.init_image = Image.open(self.gen.init_image)
+            init_image = np.array(self.gen.init_image).astype(np.uint8)
+
         gen_args = {
             "prompt": prompt,
             "negative_prompt": negative_prompt,
@@ -798,7 +817,7 @@ class DeforumAnimationPipeline(DeforumBase):
             "sampler_name": self.gen.sampler_name,
             "reset_noise": False if self.gen.strength < 1.0 else True
         }
-        if self.gen.frame_idx == 0:
+        if self.gen.frame_idx == 0 and not self.gen.use_init:
             gen_args["reset_noise"] = True
         if hasattr(self.gen, "style"):
             if self.gen.style != "(No Style)" and self.gen.style in STYLE_NAMES:
@@ -827,7 +846,9 @@ class DeforumAnimationPipeline(DeforumBase):
             phase = frame_idx % cycle_length
             return phase / (cycle_length - 1)
         if not self.gen.dry_run:
+
             processed = self.generator(**gen_args)
+
         else:
             # Get the path to the default image or use the previous image
             if self.gen.prev_img is None:
