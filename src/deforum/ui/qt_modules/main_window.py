@@ -9,6 +9,8 @@ import time
 
 import imageio.v2 as imageio
 import numpy as np
+from PyQt6.QtCore import QCoreApplication
+from PyQt6.QtMultimedia import QAudioSource
 from PyQt6.QtWidgets import QDockWidget, QMenu
 from qtpy import QtWidgets
 from qtpy.QtCore import Qt, Slot, QUrl, QSize, Signal
@@ -29,7 +31,6 @@ from deforum.ui.qt_modules.custom_ui import ResizableImageLabel, JobDetailPopup,
 from deforum.ui.qt_modules.ref import TimeLineQDockWidget
 from deforum.utils.constants import root_path
 from deforum.ui.qt_modules.viz_thread import VisualGeneratorThread
-# from deforum.ui.qt_modules.viz_thread import VideoAssemblerThread
 
 DEFAULT_MILK = ""
 
@@ -39,9 +40,6 @@ def list_milk_presets(folder):
 os.makedirs(os.path.join(root_path, 'milks'), exist_ok=True)
 
 known_dropdowns = {"milk_path":list_milk_presets(os.path.join(root_path, 'milks'))}
-
-
-
 
 class MainWindow(DeforumCore):
     def __init__(self):
@@ -60,6 +58,11 @@ class MainWindow(DeforumCore):
         self.timelineDock.hide()
         self.newProject()
         self.loadWindowState()
+
+        preset_path = os.path.join(self.presets_folder, 'default.txt')
+        if os.path.exists(preset_path):
+            self.loadPreset(preset_path)
+
 
     def defaults(self):
         self.current_job = None  # To keep track of the currently running job
@@ -199,11 +202,14 @@ class MainWindow(DeforumCore):
                 self.params[key] = value
         self.updateUIFromParams()  # Reflect updates
 
-    def playVideo(self, data):
-        self.cleanupVizThread()
-        if 'video_path' in data:
-            self.player.setSource(QUrl.fromLocalFile(data['video_path']))
-            self.player.play()
+    # def playVideo(self, data):
+    #     self.cleanupVizThread()
+    #     if 'video_path' in data:
+    #         self.player.pause()
+    #         self.player.stop()
+    #         self.player.setSource(QUrl())
+    #         self.player.setSource(QUrl.fromLocalFile(data['video_path']))
+            #self.player.play()
     def setupMenu(self):
         menuBar = self.menuBar()
 
@@ -230,6 +236,23 @@ class MainWindow(DeforumCore):
         # self.presetsDropdown.triggered.connect(self.loadPresetsDropdown)
         self.loadPresetsDropdown()
         menuBar.addMenu(self.presetsDropdown)
+        layoutsMenu = menuBar.addMenu('&Layouts')
+        self.setupLayoutsMenu(layoutsMenu)
+
+    def setupLayoutsMenu(self, layoutsMenu):
+        saveLayoutAction = QAction('&Save Current Layout', self)
+        saveLayoutAction.triggered.connect(self.saveCurrentLayout)
+
+        setDefaultLayoutAction = QAction('Set as Default Layout', self)
+        setDefaultLayoutAction.triggered.connect(self.saveDefaultLayout)
+
+        # Submenu for available layouts
+        self.layoutsSubmenu = QMenu('Load Layout', self)
+        self.updateLayoutsSubmenu()
+
+        layoutsMenu.addAction(saveLayoutAction)
+        layoutsMenu.addAction(setDefaultLayoutAction)
+        layoutsMenu.addMenu(self.layoutsSubmenu)
 
     def setupDynamicUI(self):
         # Initialize the tabbed control layout docked on the left
@@ -278,6 +301,32 @@ class MainWindow(DeforumCore):
 
             self.tabWidget.addTabWithDetachButton(scroll, category)  # Add the scroll area to the tab widget
 
+    def saveCurrentLayout(self):
+        filename, _ = QFileDialog.getSaveFileName(self, 'Save Layout', os.path.join(root_path, 'ui', 'layouts'),
+                                                  'Layout Files (*.dlay)')
+        if filename:
+            if not filename.endswith('.dlay'):
+                filename += '.dlay'
+            self.saveWindowState(filename)
+            self.updateLayoutsSubmenu()
+
+    def saveDefaultLayout(self):
+        default_layout_path = os.path.join(root_path, 'ui', 'layouts', 'default.dlay')
+        self.saveWindowState(default_layout_path)
+
+
+    def updateLayoutsSubmenu(self):
+        self.layoutsSubmenu.clear()
+        layouts_dir = os.path.join(root_path, 'ui', 'layouts')
+        if not os.path.exists(layouts_dir):
+            os.makedirs(layouts_dir)
+
+        for filename in os.listdir(layouts_dir):
+            if filename.endswith('.dlay'):
+                action = QAction(filename[:-5], self)
+                action.triggered.connect(
+                    lambda checked, path=os.path.join(layouts_dir, filename): self.loadWindowState(path))
+                self.layoutsSubmenu.addAction(action)
 
 
     def setupPreviewArea(self):
@@ -368,6 +417,7 @@ class MainWindow(DeforumCore):
 
         self.videoSubWindow.widget().setLayout(mainLayout)
         self.videoSlider.valueChanged.connect(self.setResumeFrom)
+        self.player.mediaStatusChanged.connect(self.onMediaStatusChanged)
     def create_console_widget(self):
         # Create a text widget for stdout and stderr
         self.text_widget = NodesConsole()
@@ -380,6 +430,7 @@ class MainWindow(DeforumCore):
         sys.stderr = self.stderr_redirect
 
         self.console = QDockWidget()
+        self.console.setObjectName('console_widget')
         self.console.setWindowTitle("Console")
         self.console.setAllowedAreas(Qt.DockWidgetArea.AllDockWidgetAreas)
         widget = QtWidgets.QWidget()
@@ -410,10 +461,13 @@ class MainWindow(DeforumCore):
         self.mdiArea.tileSubWindows()
     def closeEvent(self, event):
         self.saveWindowState()
+        self.savePresetToFile('default.txt')
         super().closeEvent(event)
 
-    def saveWindowState(self):
-        with open(self.state_file, 'w') as f:
+    def saveWindowState(self, file=None):
+        if not file:
+            file = self.state_file
+        with open(file, 'w') as f:
             geometry_base64 = self.saveGeometry().toBase64().data().decode('utf-8')
             state_base64 = self.saveState().toBase64().data().decode('utf-8')
             f.write(geometry_base64 + '\n')
@@ -429,6 +483,7 @@ class MainWindow(DeforumCore):
                     'is_detached': dock.isFloating(),  # or any other logic you determine
                     'dock_area': str(self.dockWidgetArea(dock)).split('.')[1]
                 }
+
                 json.dump(dock_state, f)
                 f.write('\n')
             for textbox in self.findChildren(CustomTextBox):
@@ -439,9 +494,11 @@ class MainWindow(DeforumCore):
                 json.dump(textbox_state, f)
                 f.write('\n')
 
-    def loadWindowState(self):
+    def loadWindowState(self, file=None):
+        if not file:
+            file = self.state_file
         try:
-            with open(self.state_file, 'r') as f:
+            with open(file, 'r') as f:
                 self.restoreGeometry(bytes(f.readline().strip(), 'utf-8'))
                 self.restoreState(bytes(f.readline().strip(), 'utf-8'))
 
@@ -472,6 +529,14 @@ class MainWindow(DeforumCore):
                             dock.restoreGeometry(bytes(dock_state['geometry'], 'utf-8'))
                             self.addDockWidget(area_map[dock_state['dock_area']], dock)
                             dock.setFloating(False)
+                # # Second pass: restore tabbing relationships
+                # for dock_info in dock_state:
+                #     dock = self.findChild(QDockWidget, dock_info['name'])
+                #     if dock and dock_info['tabified_with']:
+                #         for tab_name in dock_info['tabified_with']:
+                #             tab_dock = self.findChild(QDockWidget, tab_name)
+                #             if tab_dock:
+                #                 self.tabifyDockWidget(dock, tab_dock)
         except FileNotFoundError:
             print("No saved state to load.")
         except Exception as e:
@@ -676,6 +741,8 @@ class MainWindow(DeforumCore):
 
     def savePreset(self):
         preset_name, _ = QFileDialog.getSaveFileName(self, 'Save Preset', self.presets_folder, 'Text Files (*.txt)')
+        self.savePresetToFile(preset_name)
+    def savePresetToFile(self, preset_name=None):
         if preset_name:
             preset_name = os.path.splitext(os.path.basename(preset_name))[0] + '.txt'
             preset_path = os.path.join(self.presets_folder, preset_name)
@@ -683,45 +750,6 @@ class MainWindow(DeforumCore):
                 json.dump(self.params, file, indent=4)
             self.loadPresetsDropdown()  # Reload presets dropdown without restoring as it uses QMenu
 
-    # def loadPresetsDropdown(self, restore=None):
-    #     if not isinstance(restore, str):
-    #         current_text = self.presetsDropdown.currentText()  # Remember current text
-    #     else:
-    #         current_text = restore
-    #     if not os.path.exists(self.presets_folder):
-    #         os.makedirs(self.presets_folder)
-    #
-    #     preset_files = sorted([f for f in os.listdir(self.presets_folder) if f.endswith('.txt')])
-    #     self.presetsDropdown.clear()
-    #     self.presetsDropdown.addItems(preset_files)
-    #
-    #     # Re-select the current text if it exists in the new list
-    #     if current_text in preset_files:
-    #         index = self.presetsDropdown.findText(current_text)
-    #         self.presetsDropdown.setCurrentIndex(index)
-    #
-    # def loadPreset(self):
-    #     selected_preset = self.presetsDropdown.currentText()
-    #     #self.loadPresetsDropdown(restore=selected_preset)
-    #     preset_path = os.path.join(self.presets_folder, selected_preset)
-    #     try:
-    #         with open(preset_path, 'r') as file:
-    #             config = json.load(file)
-    #             for key, value in config.items():
-    #                 if key in self.params:
-    #                     self.params[key] = value
-    #         self.updateUIFromParams()
-    #     except:
-    #         pass
-    #
-    # def savePreset(self):
-    #     preset_name, _ = QFileDialog.getSaveFileName(self, 'Save Preset', self.presets_folder, 'Text Files (*.txt)')
-    #     if preset_name:
-    #         preset_name = os.path.splitext(os.path.basename(preset_name))[0] + '.txt'
-    #         preset_path = os.path.join(self.presets_folder, preset_name)
-    #         with open(preset_path, 'w') as file:
-    #             json.dump(self.params, file, indent=4)
-    #         self.loadPresetsDropdown(restore=preset_name)
 
     def setResumeFrom(self, position):
         # Assuming the frame rate is stored in self.frameRate
@@ -756,59 +784,37 @@ class MainWindow(DeforumCore):
 
     @Slot(dict)
     def playVideo(self, data):
-        try:
-            # Update status label
-            self.statusLabel.setText("Preparing video...")
-
-            # Stop the player and clear current source
+        # Ensure the player stops properly before setting a new source
+        if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
             self.player.stop()
-            self.player.setSource(QUrl())
 
-            # Check if the video path is in the data dictionary
-            if 'video_path' in data:
-                original_path = data['video_path']
-                temp_dir = tempfile.gettempdir()  # Get the system's temporary directory
-                temp_video_path = os.path.join(temp_dir, os.path.basename(original_path))
+        # Wait for the player to be in the stopped state before proceeding
+        while self.player.playbackState() != QMediaPlayer.PlaybackState.StoppedState:
+            QCoreApplication.processEvents()  # Process existing events to avoid freezing the UI
 
-                # Copy the video file to the temporary directory
-                shutil.copy2(original_path, temp_video_path)
+        # Clear the current source
+        self.player.setSource(QUrl())
 
-                # Give the system some time to release any handles on the file if needed
-                time.sleep(0.5)
+        if 'video_path' in data:
+            original_path = data['video_path']
 
-                # Set the copied video file as the new source
-                self.player.setSource(QUrl.fromLocalFile(temp_video_path))
+            # Reinitialize the audio output if it exists
+            if hasattr(self, 'audioOutput'):
+                self.audioOutput.deleteLater()  # Properly dispose of the old output
+                self.audioOutput = QAudioOutput()
+
+            self.player.setAudioOutput(self.audioOutput)  # Set the new audio output
+            self.player.setSource(QUrl.fromLocalFile(original_path))
+            # self.player.play()
+
+    def onMediaStatusChanged(self, status):
+        try:
+            if status == QMediaPlayer.MediaStatus.LoadedMedia:
                 self.player.play()
-                self.statusLabel.setText("Playing video...")
-
+            elif status in (QMediaPlayer.MediaStatus.NoMedia, QMediaPlayer.MediaStatus.InvalidMedia):
+                print("Failed to load video")
         except Exception as e:
-            self.statusLabel.setText(f"Failed to load video: {str(e)}")
-            print(f"Error playing video: {str(e)}")
-    # @Slot(dict)
-    # def playVideo(self, data):
-    #
-    #
-    #     try:
-    #
-    #
-    #         self.statusLabel.setText("Ready")
-    #         # Stop the player and reset its state before loading a new video
-    #         self.player.stop()
-    #         self.player.setSource(QUrl())  # Reset the source to clear buffers
-    #         time.sleep(0.5)
-    #         if 'video_path' in data:
-    #             self.player.setSource(QUrl.fromLocalFile(data['video_path']))
-    #             self.player.play()
-    #         # if 'timestring' in data:
-    #         #     self.updateWidgetValue('resume_timestring', data['timestring'])
-    #         #     self.updateWidgetValue('resume_path', data['resume_path'])
-    #         #     self.updateWidgetValue('resume_from', data['resume_from'])
-    #         #
-    #         #     self.saveCurrentProjectAsSettingsFile()
-    #         #     self.updateRenderDropdown()
-    #     except:
-    #         pass
-
+            print(f"Error in media status change: {e}")
     def startBackendProcess(self):
         #params = {key: widget.value() for key, widget in self.params.items() if hasattr(widget, 'value')}
         # if not self.thread:
@@ -826,7 +832,6 @@ class MainWindow(DeforumCore):
         self.thread.start()
     def stopBackendProcess(self):
         self.statusLabel.setText("Stopped")
-
         try:
             from deforum.shared_storage import models
             models["deforum_pipe"].gen.max_frames = len(models["deforum_pipe"].images)
@@ -842,8 +847,6 @@ class MainWindow(DeforumCore):
 
     def runNextJob(self):
         if self.job_queue:
-
-
 
             self.current_job = self.job_queue.pop(0)
             try:
@@ -956,7 +959,6 @@ class MainWindow(DeforumCore):
         self.generateViz({'output_path':directory_path})
 
 
-
     def generateViz(self, data):
         if self.params['generate_viz']:
             if self.params['audio_path'] is not "":
@@ -965,23 +967,7 @@ class MainWindow(DeforumCore):
                 self.vizGenThread.finished.connect(self.playVideo)
                 self.vizGenThread.start()
     def cleanupVizThread(self):
-
         if hasattr(self, 'vizGenThread'):
-            self.vizGenThread.finished.disconnect(self.playVideo)
-            # self.vizGenThread.finished.disconnect(self.cleanupVizThread)
+            # self.vizGenThread.finished.disconnect(self.playVideo)
             self.vizGenThread.terminate()  # Ensure the thread has finished
             self.vizGenThread.deleteLater()  # Properly dispose of the thread object
-            # self.thread = None  # Remove the reference, allowing garbage collection
-            # # Encourage garbage collection
-            # del self.vizGenThread
-
-            # Optional: Explicitly collect garbage if experiencing issues with lingering objects
-            # import gc
-            # gc.collect()
-
-
-    def handleFinishedVizGen(self, path):
-        pass
-        # self.vizAssemblerThread = VideoAssemblerThread(path, 24, self.params['audio_path'])
-        # self.vizAssemblerThread.finished.connect(self.playVideo)
-        # self.vizAssemblerThread.start()

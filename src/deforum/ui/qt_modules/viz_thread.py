@@ -1,3 +1,5 @@
+import tempfile
+import time
 
 from qtpy.QtCore import QThread, Signal
 
@@ -232,6 +234,9 @@ from pathlib import Path
 import imageio
 from multiprocessing import Process, Queue
 
+from deforum.utils.constants import root_path
+
+
 class VisualGeneratorThread(QThread):
     finished = Signal(dict)
 
@@ -245,48 +250,68 @@ class VisualGeneratorThread(QThread):
         self.height = height
 
     def run(self):
-        queue = Queue()
-        processes = [
-            Process(target=self.run_subprocess, args=(self.build_viz_command(), queue)),
-            Process(target=self.compile_images_to_video, args=(queue,)),
-            Process(target=self.combine_audio_with_video, args=(queue,))
-        ]
+        temp_path = os.path.join(self.output_path, 'temp')
+        os.makedirs(temp_path, exist_ok=True)
 
-        # Start and join processes sequentially to ensure one completes before the next starts
-        for process in processes:
-            process.start()
-            process.join()  # This ensures the process has finished before moving on
+        temp_file = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False, dir=temp_path)
+        self.temp_video_path = temp_file.name
+        temp_file.close()
 
-            # Check for process success via queue
-            if queue.get() != 'success':
-                self.finished.emit({'error': f'{process.name} failed'})
-                return  # Exit if a process fails
+        # queue = Queue()
+        # process = Process(target=self.run_subprocess, args=(self.build_viz_command(), queue))
+        # process.start()
+        # process.join()  # Ensure the process has finished
 
-        # Emit the finished signal with success
-        output_path = os.path.join(self.output_path, 'output.mp4')
-        self.finished.emit({'video_path': output_path})
+        subprocess.run(self.build_viz_command(), shell=True)
+        # self.run_subprocess(self.build_viz_command())
+
+        # Wait for a small delay to allow file system updates (if necessary)
+        # time.sleep(0.5)
+
+        # Check if the video file was actually created
+        if os.path.exists(self.temp_video_path):
+            print("Video generated:", self.temp_video_path)
+            self.finished.emit({'video_path': self.temp_video_path})
+        else:
+            print("Failed to generate video.")
+            self.finished.emit({'error': 'Failed to generate video.'})
 
     def build_viz_command(self):
+
+        print("MILK:", self.preset_path)
+
         base_command = "EGL_PLATFORM=surfaceless projectMCli"
-        return f'{base_command} -a "{self.audio_path}" --presetFile "{self.preset_path}" --outputType image --outputPath "{self.output_path}/" --fps {self.fps} --width {self.width} --height {self.height}'
+        return f'{base_command} -a "{self.audio_path}" --presetFile "{self.preset_path}" --outputType video --outputPath "{self.temp_video_path}" --fps 24 --width {self.width} --height {self.height}'
 
     def run_subprocess(self, command, queue):
         try:
-            proc = subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            proc.wait(timeout=600)  # Optional timeout in seconds
-            if proc.poll() is None:  # Check if process has finished
-                proc.kill()  # Force kill if still running
-            queue.put('success')
+            proc = subprocess.run(command, shell=True, text=True, capture_output=True)
+            print(proc.stderr, proc.stdout)
+            if proc.returncode != 0:
+                print(f"Subprocess ended with return code {proc.returncode}")
+            queue.put('finished')
         except Exception as e:
             print(f"Error in subprocess: {e}")
-            queue.put('failure')
+            queue.put('error')
 
     def compile_images_to_video(self, queue):
         try:
-            temp_video_path = os.path.join(self.output_path, 'temp_video.mp4')
+
+            temp_path = os.path.join(root_path, 'temp')
+            os.makedirs(temp_path, exist_ok=True)
+
+            temp_file = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False,
+                                                    dir=temp_path)
+
+            # We get the path and then close the file handle. The file itself remains.
+            self.temp_video_path = temp_file.name
+            temp_file.close()
+            os.remove(self.temp_video_path)
+
+            # temp_video_path = os.path.join(self.output_path, 'temp', 'temp_video.mp4')
             images_folder = Path(self.output_path)
             image_files = sorted(images_folder.glob('*.jpg'), key=lambda x: int(x.stem))
-            with imageio.get_writer(temp_video_path, fps=self.fps) as writer:
+            with imageio.get_writer(self.temp_video_path, fps=24) as writer:
                 for image_path in image_files:
                     image = imageio.imread(image_path)
                     writer.append_data(image)
@@ -297,22 +322,34 @@ class VisualGeneratorThread(QThread):
 
     def combine_audio_with_video(self, queue):
         try:
-            temp_video_path = os.path.join(self.output_path, 'temp_video.mp4')
-            output_path = os.path.join(self.output_path, 'output.mp4')
+            temp_path = os.path.join(root_path, 'temp')
+            os.makedirs(temp_path, exist_ok=True)
+
+            temp_file = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False,
+                                                    dir=temp_path)
+
+            # We get the path and then close the file handle. The file itself remains.
+            temp_video_path = temp_file.name
+            temp_file.close()
+            os.remove(temp_video_path)
+
+            # temp_video_path = os.path.join(self.output_path, 'temp_video.mp4')
+            #output_path = os.path.join(self.output_path, 'output.mp4')
             ffmpeg_command = [
                 'ffmpeg', '-y',
-                '-i', temp_video_path,
+                '-i', self.temp_video_path,
                 '-i', self.audio_path,
                 '-c:v', 'copy',
                 '-c:a', 'aac',
                 '-strict', 'experimental',
                 '-shortest',
-                output_path
+                temp_video_path
             ]
-            proc = subprocess.Popen(ffmpeg_command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            proc.wait(timeout=300)  # Optional timeout in seconds
-            if proc.poll() is None:  # Check if process has finished
-                proc.kill()  # Force kill if still running
+            proc = subprocess.run(ffmpeg_command)
+            self.result_path = temp_video_path
+            # proc.wait(timeout=300)  # Optional timeout in seconds
+            # if proc.poll() is None:  # Check if process has finished
+            #     proc.kill()  # Force kill if still running
             queue.put('success')
         except Exception as e:
             print(f"Error combining audio and video: {e}")
