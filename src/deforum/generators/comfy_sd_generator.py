@@ -516,6 +516,9 @@ class ComfyDeforumGenerator:
             except:
                 self.optimize = False
                 self.optimized = False
+
+            # self.load_lora_from_civitai('413566', 1.0, 1.0)
+
         if seed_resize_from_h == 0:
             seed_resize_from_h = 1024
         if seed_resize_from_w == 0:
