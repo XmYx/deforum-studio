@@ -538,9 +538,9 @@ class MainWindow(DeforumCore):
                 #             if tab_dock:
                 #                 self.tabifyDockWidget(dock, tab_dock)
         except FileNotFoundError:
-            print("No saved state to load.")
+            logger.info("No saved state to load.")
         except Exception as e:
-            print(f"Failed to load state: {e}")
+            logger.info(f"Failed to load state: {e}")
 
 
     def newProject(self):
@@ -679,7 +679,7 @@ class MainWindow(DeforumCore):
                 job_name = f"{batch_name} {timestamp}"
                 self.addCurrentParamsAsJob(job_name, job_data)
         except json.JSONDecodeError as e:
-            print(f"Error loading {file_path}: {e}")
+            logger.info(f"Error loading {file_path}: {e}")
             QMessageBox.warning(self, "Loading Error", f"Failed to load {file_path}: {e}")
 
     def addCurrentParamsAsJob(self, job_name=None, job_params=None):
@@ -787,12 +787,9 @@ class MainWindow(DeforumCore):
     @Slot(dict)
     def playVideo(self, data):
         # Ensure the player stops properly before setting a new source
-        print(self.player.playbackState())
         if self.player.playbackState() == QMediaPlayer.PlaybackState.StoppedState:
             # self.player.pause()
             self.player.stop()
-        print(self.player.playbackState())
-
         # # Wait for the player to be in the stopped state before proceeding
         # while self.player.playbackState() != QMediaPlayer.PlaybackState.PausedState:
         #     print(self.player.playbackState())
@@ -807,14 +804,8 @@ class MainWindow(DeforumCore):
             if hasattr(self, 'audioOutput'):
                 self.audioOutput.deleteLater()  # Properly dispose of the old output
                 self.audioOutput = QAudioOutput()
-            #
-            # self.player.setAudioOutput(self.audioOutput)  # Set the new audio output
-
-            print("DUMMY CHECKING", data['video_path'])
-
+                self.player.setAudioOutput(self.audioOutput)  # Set the new audio output
             self.player.setSource(QUrl.fromLocalFile(data['video_path']))
-
-
             self.player.play()
 
     def onMediaStatusChanged(self, status):
@@ -952,7 +943,6 @@ class MainWindow(DeforumCore):
                 p = copy.deepcopy(self.params)
                 _ = p.pop('max_frames')
                 models["deforum_pipe"].live_update_from_kwargs(**p)
-                print(p['animation_prompts'])
         except:
             pass
 
@@ -966,7 +956,7 @@ class MainWindow(DeforumCore):
                 elif os.path.isdir(file_path):
                     shutil.rmtree(file_path)  # Remove the directory recursively
             except Exception as e:
-                print('Failed to delete %s. Reason: %s' % (file_path, e))
+                logger.info('Failed to delete %s. Reason: %s' % (file_path, e))
         self.generateViz({'output_path':directory_path})
 
 

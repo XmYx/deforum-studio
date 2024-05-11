@@ -234,6 +234,7 @@ from pathlib import Path
 import imageio
 from multiprocessing import Process, Queue
 
+from deforum import logger
 from deforum.utils.constants import config
 
 
@@ -279,20 +280,18 @@ class VisualGeneratorThread(QThread):
 
     def build_viz_command(self):
 
-        print("MILK:", self.preset_path)
-
         base_command = "EGL_PLATFORM=surfaceless projectMCli"
         return f'{base_command} -a "{self.audio_path}" --presetFile "{self.preset_path}" --outputType video --outputPath "{self.temp_video_path}" --fps 24 --width {self.width} --height {self.height}'
 
     def run_subprocess(self, command, queue):
         try:
             proc = subprocess.run(command, shell=True, text=True, capture_output=True)
-            print(proc.stderr, proc.stdout)
+            # print(proc.stderr, proc.stdout)
             if proc.returncode != 0:
-                print(f"Subprocess ended with return code {proc.returncode}")
+                logger.info(f"Subprocess ended with return code {proc.returncode}")
             queue.put('finished')
         except Exception as e:
-            print(f"Error in subprocess: {e}")
+            logger.info(f"Error in subprocess: {e}")
             queue.put('error')
 
     def compile_images_to_video(self, queue):
@@ -318,7 +317,7 @@ class VisualGeneratorThread(QThread):
                     writer.append_data(image)
             queue.put('success')
         except Exception as e:
-            print(f"Error compiling images: {e}")
+            logger.info(f"Error compiling images: {e}")
             queue.put('failure')
 
     def combine_audio_with_video(self, queue):
@@ -353,5 +352,5 @@ class VisualGeneratorThread(QThread):
             #     proc.kill()  # Force kill if still running
             queue.put('success')
         except Exception as e:
-            print(f"Error combining audio and video: {e}")
+            logger.info(f"Error combining audio and video: {e}")
             queue.put('failure')

@@ -80,20 +80,17 @@ class BackendThread(QThread):
                         with open(file_path, 'r') as file:
                             # Attempt to load the JSON data
                             job_data = json.load(file)
-                            print("JOB DATA", job_data)
                             for k, v in job_data.items():
                                 self.params[k] = v
                     except json.JSONDecodeError:
                         # Handle the case where the file is not valid JSON
-                        print("Error: The file is not valid JSON.")
+                        logger.info("Error: The file is not valid JSON.")
                     except FileNotFoundError:
                         # Handle the case where the file does not exist
-                        print("Error: The file was not found.")
+                        logger.info("Error: The file was not found.")
                 else:
-                    print("Error: The file is not a .txt file.")
+                    logger.info("Error: The file is not a .txt file.")
 
-        print(self.params)
-        print(self.params['batch_name'])
         timestring = time.strftime('%Y%m%d%H%M%S')
 
         self.params['batch_name'] = f"{self.params['batch_name']}"
@@ -119,8 +116,6 @@ class BackendThread(QThread):
             base_command = "EGL_PLATFORM=surfaceless projectMCli"
             # Assemble the command with arguments
             command = f'{base_command} -a "{self.params["audio_path"]}" --presetFile "{os.path.join(config.root_path, "milks", self.params["milk_path"])}" --outputType image --outputPath "{str(output_path)}/" --fps 24 --width {self.params["width"]} --height {self.params["height"]}'
-
-            print(command)
 
             self.process = subprocess.run(command, shell=True)
             if self.params["extract_nth_frame"] > 1:
@@ -161,7 +156,6 @@ class BackendThread(QThread):
                   "resume_from":animation.image_count}
         if hasattr(animation, 'video_path'):
             result["video_path"] = animation.video_path
-        print("Emitting", result)
         if self.process:
             del self.process  # Ensure process is terminated
             self.process = None

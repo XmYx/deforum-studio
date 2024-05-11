@@ -219,7 +219,6 @@ class DeforumAnimationPipeline(DeforumBase):
         if not self.gen.skip_hybrid_paths:
             if self.gen.hybrid_composite != 'None' or self.gen.hybrid_motion in hybrid_motion_modes:
                 self.gen = hybrid_generation(self.gen)
-                logger.info(self.gen.use_init, self.gen.init_image)
                 self.gen.hybrid_frame_path = os.path.join(self.gen.outdir, 'hybridframes')
 
         if not hasattr(self.gen, 'parseq_non_schedule_overrides'):

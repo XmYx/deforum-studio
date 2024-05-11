@@ -63,7 +63,7 @@ class ApplicationManager(QObject):
 
     def run_backend_thread(self, settings_file):
         if not os.path.exists(settings_file):
-            print(f"File {settings_file} does not exist. Please enter a valid file path.")
+            # print(f"File {settings_file} does not exist. Please enter a valid file path.")
             return
 
         params = {

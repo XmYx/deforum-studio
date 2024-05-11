@@ -508,7 +508,8 @@ class TimelineWidget(QWidget):
             self.selectedTrack.add_image(pixmap)
             self.handle.setPos(self.handle.x() + 105, 0)
         else:
-            print("No track selected!")
+            pass
+            # logger.info("No track selected!")
 
     def addTrack(self, name=""):
         y = len(self.tracks) * 55 + 30

@@ -258,7 +258,7 @@ class DeforumCore(QMainWindow):
                     json.dump(self.params, f, indent=4)
                 self.populatePresetsDropdown()
         except Exception as e:
-            print("Failed to save preset:", str(e))
+            logger.info("Failed to save preset:", str(e))
 
     def loadPreset(self, index):
         try:
@@ -270,7 +270,7 @@ class DeforumCore(QMainWindow):
                 for key, value in settings.items():
                     self.updateWidgetValue(key, value)
         except Exception as e:
-            print("Failed to load preset:", str(e))
+            logger.info("Failed to load preset:", str(e))
 
     def updateWidgetValue(self, key, value):
         widget = self.widgets.get(key)
