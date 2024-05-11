@@ -177,8 +177,7 @@ def start_deforum_cli() -> None:
             for file_path in txt_files:
                 try:
                     logger.info(f"Settings file path: {file_path}")
-
-                    batch_name = file_path.split('.')[0].split("/")[-1]
+                    batch_name = os.path.splitext(os.path.basename(file_path))[0]
                     logger.info(f"Batch Name: {batch_name}")
 
                     extra_args["settings_file"] = file_path
@@ -267,7 +266,7 @@ def start_deforum_cli() -> None:
             # Assuming 'deforum' is in the parent directory of the current file
             deforum_directory = os.path.dirname(parent_directory)
             # Construct the path to main.py
-            print(extra_args["settings_file"])
+            logger.info(f"Using settings file: {extra_args['settings_file']}")
 
             main_script_path = os.path.join(deforum_directory, "ui", "process_only.py")
             # try:
