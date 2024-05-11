@@ -33,6 +33,7 @@ import os
 import random
 import subprocess
 import sys
+import traceback
 
 from deforum.commands.deforum_run_unit_test import run_unit_test
 from deforum.docutils.decorator import deforumdoc
@@ -166,16 +167,14 @@ def start_deforum_cli() -> None:
             deforum.generator.optimize = True
 
             preset_dir = "presets"
-            files = []
-            for root, _, filenames in os.walk(preset_dir):
-                for file in filenames:
-
-                    files.append(os.path.join(root, file))
+            txt_files = [os.path.join(root, file)
+                        for root, _, files in os.walk(preset_dir)
+                        for file in files if file.endswith(".txt")]
 
             if options.get("randomize_files", False):
-                random.shuffle(files)
+                random.shuffle(txt_files)
 
-            for file_path in files:
+            for file_path in txt_files:
                 try:
                     logger.info(f"Settings file path: {file_path}")
 
@@ -192,7 +191,7 @@ def start_deforum_cli() -> None:
 
                     deforum(**extra_args, **options)
                 except Exception as e:
-                    logger.error(f"Error running settings file: {file_path}")
+                    logger.error(traceback.format_exc())
 
         elif args_main.mode == "api":
             from fastapi import FastAPI, WebSocket
@@ -212,7 +211,7 @@ def start_deforum_cli() -> None:
 
                 # Assuming data contains the necessary information for deforum to run
                 async def callback(data):
-                    print("deforum callback")
+                    logger.info("deforum callback")
                     image = data.get('image')
                     if image is not None:
                         await websocket.send_text("image")
@@ -237,7 +236,7 @@ def start_deforum_cli() -> None:
             # Start the Uvicorn server
             uvicorn.run(app, host="localhost", port=8000)
         elif args_main.mode == "setup":
-            print("SETUP")
+            logger.info("Installing stable-fast and its dependencies...")
             from deforum.utils.install_sfast import install_sfast
             install_sfast()
         elif args_main.mode == "ui":
@@ -291,4 +290,6 @@ def start_deforum_cli() -> None:
     else:
         from deforum import DeforumAnimationPipeline
         deforum = DeforumAnimationPipeline.from_civitai()
-        _ = deforum(**extra_args, **options)
+        deforum.generator.optimize = False
+        gen = deforum(**extra_args, **options)
+        logger.info(f"Output video: {gen.video_path} ")

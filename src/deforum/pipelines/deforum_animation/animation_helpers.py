@@ -1139,13 +1139,14 @@ def make_cadence_frames(cls: Any) -> None:
                 # saving cadence frames
                 if not cls.gen.store_frames_in_ram:
                     filename = f"{cls.gen.timestring}_{tween_frame_idx:09}.png"
-                    cv2.imwrite(os.path.join(cls.gen.outdir, filename), cls.gen.img)
-                    cls.gen.image_paths.append(os.path.join(cls.gen.outdir, filename))
-
+                    image_full_path = os.path.join(cls.gen.outdir, filename)
+                    cv2.imwrite(image_full_path, cls.gen.img)
+                    cls.gen.image_paths.append(image_full_path)
+                else:
+                    image_full_path = "ram"
 
                 callback_img = cv2.cvtColor(cls.gen.img.astype(np.uint8), cv2.COLOR_BGR2RGB)
-                done = cls.datacallback({"image": Image.fromarray(callback_img), "operation_id":cls.gen.operation_id, "frame_idx":cls.gen.frame_idx})
-                # done = cls.datacallback({"image": Image.fromarray(cv2.cvtColor(cls.gen.img, cv2.COLOR_BGR2RGB))})
+                done = cls.datacallback({"image": Image.fromarray(callback_img), "operation_id":cls.gen.operation_id, "frame_idx":tween_frame_idx, "image_path": image_full_path})
                 cls.images.append(callback_img)
 
                 if cls.gen.save_depth_maps:
@@ -1307,7 +1308,7 @@ def rife_interpolate_cls(cls):
         cls.gen.image_paths = []
 
 def save_video_cls(cls):
-    dir_path = os.path.join(config.root_path, 'output/video')
+    dir_path = os.path.join(config.output_dir, 'video')
     os.makedirs(dir_path, exist_ok=True)
     if cls.gen.timestring not in cls.gen.batch_name:
         name = f'{cls.gen.batch_name}_{cls.gen.timestring}'
