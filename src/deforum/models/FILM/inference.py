@@ -7,7 +7,7 @@ import torch
 from tqdm import tqdm
 
 from .film_util import load_image
-from ...utils.constants import root_path
+from ...utils.constants import config
 
 
 def poorman_wget(url, filename):
@@ -37,9 +37,9 @@ class FilmModel():
 
     def __init__(self):
         super().__init__()
-        model_dir = os.path.join(root_path, "models/other")
+        model_dir = os.path.join(config.root_path, "models/other")
         os.makedirs(model_dir, exist_ok=True)
-        self.model_path = os.path.join(root_path, model_dir, "film_net_fp16.pt")
+        self.model_path = os.path.join(config.root_path, model_dir, "film_net_fp16.pt")
         url = 'https://github.com/dajes/frame-interpolation-pytorch/releases/download/v1.0.0/film_net_fp16.pt'
         if not os.path.isfile(self.model_path):
             poorman_wget(url, self.model_path)

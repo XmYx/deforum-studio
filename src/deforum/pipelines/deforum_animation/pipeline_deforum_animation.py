@@ -59,7 +59,7 @@ from ... import ComfyDeforumGenerator
 from deforum.docutils.decorator import deforumdoc
 from ...models import DepthModel, RAFT
 from ...pipeline_utils import DeforumGenerationObject, pairwise_repl, isJson
-from ...utils.constants import root_path, config 
+from ...utils.constants import config
 from ...utils.deforum_hybrid_animation import hybrid_generation
 from ...utils.deforum_logger_util import Logger
 from ...utils.image_utils import load_image_with_mask, prepare_mask, check_mask_for_errors, load_image
@@ -108,7 +108,7 @@ class DeforumAnimationPipeline(DeforumBase):
         self.generator = generator
 
         if logger is None:
-            self.logger = Logger(root_path)
+            self.logger = Logger(config.root_path)
         else:
             self.logger = logger
 
@@ -367,7 +367,7 @@ class DeforumAnimationPipeline(DeforumBase):
         if hasattr(self.gen, "deforum_save_gen_info_as_srt"):
             if self.gen.deforum_save_gen_info_as_srt:
                 self.shoot_fns.append(cls_subtitle_handler)
-        if self.gen.frame_interpolation_engine is not None:
+        if self.gen.frame_interpolation_engine is not "None":
             if self.gen.max_frames > 3:
                 if self.gen.frame_interpolation_engine == "FILM":
                     self.post_fns.append(film_interpolate_cls)
@@ -457,7 +457,7 @@ class DeforumAnimationPipeline(DeforumBase):
             batch_name = self.gen.resume_path.split('/')[-1]
             self.gen.timestring = resume_timestring
             self.gen.batch_name = batch_name
-            self.gen.outdir = os.path.join(root_path, f"output/deforum/{batch_name}")
+            self.gen.outdir = os.path.join(config.root_path, f"output/deforum/{batch_name}")
 
             if self.gen.turbo_steps > 1:
                 self.gen.turbo_prev_image, self.gen.turbo_prev_frame_idx = prev_img, prev_frame
@@ -528,7 +528,7 @@ class DeforumAnimationPipeline(DeforumBase):
         #     batch_name = self.gen.resume_path.split('/')[-1]
         #     self.gen.timestring = resume_timestring
         #     self.gen.batch_name = batch_name
-        #     self.gen.outdir = os.path.join(root_path, f"output/deforum/{batch_name}")
+        #     self.gen.outdir = os.path.join(config.root_path, f"output/deforum/{batch_name}")
         #
         #     # set up turbo step vars
         #     if self.gen.turbo_steps > 1:
@@ -787,7 +787,6 @@ class DeforumAnimationPipeline(DeforumBase):
                 self.gen.scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
 
         # logger.info(f"GENERATE'S SAMPLER NAME: {self.gen.sampler_name}, {self.gen.scheduler}")
-        logger.info(self.gen.use_init, self.gen.init_image)
         if self.gen.prev_img is not None:
             # TODO: cleanup init_sample remains later
             init_image = cv2.cvtColor(self.gen.prev_img, cv2.COLOR_BGR2RGB)
@@ -795,7 +794,6 @@ class DeforumAnimationPipeline(DeforumBase):
         if self.gen.frame_idx > 0:
             self.gen.use_init = False
         if self.gen.use_init and self.gen.init_image:
-            print("Actually using:", self.gen.init_image)
             if not isinstance(self.gen.init_image, PIL.Image.Image):
                 self.gen.init_image = Image.open(self.gen.init_image)
             init_image = np.array(self.gen.init_image).astype(np.uint8)

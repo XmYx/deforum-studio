@@ -7,17 +7,17 @@ from logging import info, warning
 import torch
 
 from .exporter import get_cc
-from ...utils.constants import root_path
+from ...utils.constants import config
 
 #from modules import paths_internal
 
-ONNX_MODEL_DIR = os.path.join(root_path, "models", "Unet-onnx")
+ONNX_MODEL_DIR = os.path.join(config.root_path, "models", "Unet-onnx")
 if not os.path.exists(ONNX_MODEL_DIR):
     os.makedirs(ONNX_MODEL_DIR)
-TRT_MODEL_DIR = os.path.join(root_path, "models", "Unet-trt")
+TRT_MODEL_DIR = os.path.join(config.root_path, "models", "Unet-trt")
 if not os.path.exists(TRT_MODEL_DIR):
     os.makedirs(TRT_MODEL_DIR)
-LORA_MODEL_DIR = os.path.join(root_path, "models", "Lora")
+LORA_MODEL_DIR = os.path.join(config.root_path, "models", "Lora")
 NVIDIA_CACHE_URL = ""
 
 MODEL_FILE = os.path.join(TRT_MODEL_DIR, "model.json")

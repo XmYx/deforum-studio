@@ -12,7 +12,7 @@ from .comfy_utils import ensure_comfy
 from .rng_noise_generator import ImageRNGNoise, slerp
 from deforum.utils.deforum_cond_utils import blend_tensors
 from deforum.utils.logging_config import logger
-from ..utils.constants import root_path
+from ..utils.constants import config
 from ..utils.model_download import (
     download_from_civitai,
     download_from_civitai_by_version_id,
@@ -391,7 +391,7 @@ class ComfyDeforumGenerator:
 
     def load_lora_from_civitai(self, lora_id="", model_strength=0.0, clip_strength=0.0):
 
-        cache_dir = os.path.join(root_path, "models")
+        cache_dir = os.path.join(config.root_path, "models")
         os.makedirs(cache_dir, exist_ok=True)
 
         try:
@@ -451,7 +451,7 @@ class ComfyDeforumGenerator:
         #
         # from deforum.lcm.lcm_scheduler import LCMScheduler
         # self.scheduler = LCMScheduler.from_pretrained(
-        #     os.path.join(root_path, "configs/lcm_scheduler.json"))
+        #     os.path.join(config.root_path, "configs/lcm_scheduler.json"))
         #
         # self.pipe = LatentConsistencyModelPipeline.from_pretrained(
         #     pretrained_model_name_or_path="SimianLuo/LCM_Dreamshaper_v7",

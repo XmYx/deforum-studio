@@ -29,7 +29,7 @@ from deforum.ui.qt_modules.core import DeforumCore
 from deforum.ui.qt_modules.custom_ui import ResizableImageLabel, JobDetailPopup, JobQueueItem, AspectRatioMdiSubWindow, \
     DetachableTabWidget, AutoReattachDockWidget, CustomTextBox
 from deforum.ui.qt_modules.ref import TimeLineQDockWidget
-from deforum.utils.constants import root_path
+from deforum.utils.constants import config
 from deforum.ui.qt_modules.viz_thread import VisualGeneratorThread
 
 DEFAULT_MILK = ""
@@ -37,9 +37,9 @@ DEFAULT_MILK = ""
 def list_milk_presets(folder):
     return [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
 
-os.makedirs(os.path.join(root_path, 'milks'), exist_ok=True)
+os.makedirs(os.path.join(config.root_path, 'milks'), exist_ok=True)
 
-known_dropdowns = {"milk_path":list_milk_presets(os.path.join(root_path, 'milks'))}
+known_dropdowns = {"milk_path":list_milk_presets(os.path.join(config.root_path, 'milks'))}
 
 class MainWindow(DeforumCore):
     def __init__(self):
@@ -149,7 +149,7 @@ class MainWindow(DeforumCore):
         self.toolbar.addWidget(statusWidget)
 
     def updateRenderDropdown(self):
-        root_dir = os.path.join(root_path, 'output', 'deforum')
+        root_dir = os.path.join(config.root_path, 'output', 'deforum')
         if not os.path.exists(root_dir):
             os.makedirs(root_dir)
 
@@ -159,7 +159,7 @@ class MainWindow(DeforumCore):
 
     def loadSelectedRender(self):
         selected_folder = self.renderDropdown.currentText()
-        root_dir = os.path.join(root_path, 'output', 'deforum', selected_folder)
+        root_dir = os.path.join(config.root_path, 'output', 'deforum', selected_folder)
         image_files = [os.path.join(root_dir, f) for f in os.listdir(root_dir) if f.endswith('.png')]
         image_files.sort()  # Ensure the files are sorted correctly
 
@@ -184,7 +184,7 @@ class MainWindow(DeforumCore):
         self.updateUIFromParams()
 
     def createTempVideo(self, image_files):
-        video_path = os.path.join(root_path, 'output', 'deforum', 'temp_video.mp4')
+        video_path = os.path.join(config.root_path, 'output', 'deforum', 'temp_video.mp4')
         writer = imageio.get_writer(video_path, fps=24, codec='libx264', quality=9,
                                     pixelformat='yuv420p')  # High quality
 
@@ -302,7 +302,7 @@ class MainWindow(DeforumCore):
             self.tabWidget.addTabWithDetachButton(scroll, category)  # Add the scroll area to the tab widget
 
     def saveCurrentLayout(self):
-        filename, _ = QFileDialog.getSaveFileName(self, 'Save Layout', os.path.join(root_path, 'ui', 'layouts'),
+        filename, _ = QFileDialog.getSaveFileName(self, 'Save Layout', os.path.join(config.root_path, 'ui', 'layouts'),
                                                   'Layout Files (*.dlay)')
         if filename:
             if not filename.endswith('.dlay'):
@@ -311,13 +311,13 @@ class MainWindow(DeforumCore):
             self.updateLayoutsSubmenu()
 
     def saveDefaultLayout(self):
-        default_layout_path = os.path.join(root_path, 'ui', 'layouts', 'default.dlay')
+        default_layout_path = os.path.join(config.root_path, 'ui', 'layouts', 'default.dlay')
         self.saveWindowState(default_layout_path)
 
 
     def updateLayoutsSubmenu(self):
         self.layoutsSubmenu.clear()
-        layouts_dir = os.path.join(root_path, 'ui', 'layouts')
+        layouts_dir = os.path.join(config.root_path, 'ui', 'layouts')
         if not os.path.exists(layouts_dir):
             os.makedirs(layouts_dir)
 
@@ -395,7 +395,7 @@ class MainWindow(DeforumCore):
         self.playButton.clicked.connect(self.player.play)
         self.pauseButton.clicked.connect(self.player.pause)
         self.stopButton.clicked.connect(self.player.stop)
-        # self.volumeSlider.valueChanged.connect(lambda value: self.audioOutput.setVolume(value / 100))
+        self.volumeSlider.valueChanged.connect(lambda value: self.audioOutput.setVolume(value / 100))
         self.videoSlider = QSlider(Qt.Orientation.Horizontal)
         # self.videoSlider.sliderMoved.connect(self.setPosition)
         # self.player.positionChanged.connect(self.updatePosition)
@@ -789,7 +789,7 @@ class MainWindow(DeforumCore):
         # Ensure the player stops properly before setting a new source
         print(self.player.playbackState())
         if self.player.playbackState() == QMediaPlayer.PlaybackState.StoppedState:
-            self.player.pause()
+            # self.player.pause()
             self.player.stop()
         print(self.player.playbackState())
 
@@ -804,9 +804,9 @@ class MainWindow(DeforumCore):
 
         if 'video_path' in data:
             # Reinitialize the audio output if it exists
-            # if hasattr(self, 'audioOutput'):
-            #     self.audioOutput.deleteLater()  # Properly dispose of the old output
-            #     self.audioOutput = QAudioOutput()
+            if hasattr(self, 'audioOutput'):
+                self.audioOutput.deleteLater()  # Properly dispose of the old output
+                self.audioOutput = QAudioOutput()
             #
             # self.player.setAudioOutput(self.audioOutput)  # Set the new audio output
 
@@ -957,7 +957,7 @@ class MainWindow(DeforumCore):
             pass
 
     def generateVizData(self):
-        directory_path = os.path.join(root_path, 'temp_viz_images')
+        directory_path = os.path.join(config.root_path, 'temp_viz_images')
         for filename in os.listdir(directory_path):
             file_path = os.path.join(directory_path, filename)
             try:
@@ -973,8 +973,8 @@ class MainWindow(DeforumCore):
     def generateViz(self, data):
         if self.params['generate_viz']:
             if self.params['audio_path'] is not "":
-                milk = os.path.join(root_path, 'milks', self.params["milk_path"])
-                print(milk)
+                milk = os.path.join(config.root_path, 'milks', self.params["milk_path"])
+                # print(milk)
 
                 self.vizGenThread = VisualGeneratorThread(self.params['audio_path'], data['output_path'], milk, self.params['fps'], self.params['width'], self.params['height'])
                 self.vizGenThread.preset_path = milk

@@ -18,7 +18,7 @@ from deforum.shared_storage import models
 from deforum.utils.file_utils.extract_nth_files import extract_nth_files
 
 if 'deforum_pipe' not in models:
-    models['deforum_pipe'] = DeforumAnimationPipeline.from_civitai(model_id="125703")
+    models['deforum_pipe'] = DeforumAnimationPipeline.from_civitai(model_id="125703")#125703 424460
     # _ = models['deforum_pipe'](callback=None, max_frames=1, skip_save_video=True, store_frames_in_ram=True,
     #                               batch_name='temp', timestring='temp')
 
@@ -108,8 +108,8 @@ class BackendThread(QThread):
             # from deforum.utils.constants import config
             # config.allow_blocking_input_frame_lists = True
             import os
-            from deforum.utils.constants import root_path
-            output_path = os.path.join(root_path, 'output', 'deforum', f"{self.params['batch_name']}_{timestring}", 'inputframes')
+            from deforum.utils.constants import config
+            output_path = os.path.join(config.root_path, 'output', 'deforum', f"{self.params['batch_name']}_{timestring}", 'inputframes')
             self.params['max_frames'] = int(math.floor(self.params['fps'] * get_audio_duration(self.params['audio_path'])) / self.params["extract_nth_frame"])
             os.makedirs(output_path, exist_ok=True)
 
@@ -118,20 +118,21 @@ class BackendThread(QThread):
             # Define the base command
             base_command = "EGL_PLATFORM=surfaceless projectMCli"
             # Assemble the command with arguments
-            command = f'{base_command} -a "{self.params["audio_path"]}" --presetFile "{os.path.join(root_path, "milks", self.params["milk_path"])}" --outputType image --outputPath "{str(output_path)}/" --fps 24 --width {self.params["width"]} --height {self.params["height"]}'
+            command = f'{base_command} -a "{self.params["audio_path"]}" --presetFile "{os.path.join(config.root_path, "milks", self.params["milk_path"])}" --outputType image --outputPath "{str(output_path)}/" --fps 24 --width {self.params["width"]} --height {self.params["height"]}'
+
+            print(command)
+
             self.process = subprocess.run(command, shell=True)
             if self.params["extract_nth_frame"] > 1:
                 extract_nth_files(output_path, self.params["extract_nth_frame"])
-            self.output_path = os.path.join(root_path, 'output.mp4')
-            self.temp_video_path = os.path.join(root_path, 'temp_video.mp4')
+            self.output_path = os.path.join(config.root_path, 'output.mp4')
+            self.temp_video_path = os.path.join(config.root_path, 'temp_video.mp4')
             os.makedirs(os.path.dirname(self.output_path), exist_ok=True)
 
             images_folder = Path(str(output_path))
             image_files = sorted(images_folder.glob('*.jpg'), key=lambda x: int(x.stem))
 
-            fps = 24 / self.params["extract_nth_frame"]
-
-            writer = imageio.get_writer(self.temp_video_path, fps=fps)
+            writer = imageio.get_writer(self.temp_video_path, fps=24)
 
             for image_path in image_files:
                 image = imageio.imread(image_path)
@@ -150,7 +151,7 @@ class BackendThread(QThread):
             ]
 
             process = subprocess.run(ffmpeg_command, text=True)
-            self.finished.emit({'video_path': self.temp_video_path})
+            self.finished.emit({'video_path': self.output_path})
 
 
         animation = models['deforum_pipe'](callback=datacallback, **self.params)

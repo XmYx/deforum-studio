@@ -11,7 +11,7 @@ import torchvision.transforms.functional as transform
 #from comfy.model_management import soft_empty_cache, get_torch_device
 import numpy as np
 
-from deforum.utils.constants import root_path
+from deforum.utils.constants import config
 
 BASE_MODEL_DOWNLOAD_URLS = [
     "https://github.com/styler00dollar/VSGAN-tensorrt-docker/releases/download/models/",
@@ -65,7 +65,7 @@ class MakeInterpolationStateList:
 
 
 def get_ckpt_container_path(model_type):
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.join(root_path, 'models', 'other'), model_type))
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.join(config.root_path, 'models', 'other'), model_type))
 
 
 def load_file_from_url(url, model_dir=None, progress=True, file_name=None):

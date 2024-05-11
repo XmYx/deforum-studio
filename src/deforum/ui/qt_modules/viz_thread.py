@@ -36,8 +36,8 @@ from qtpy.QtCore import QThread, Signal
 #             del viz_process
 #             viz_process = None
 #
-#             from deforum.utils.constants import root_path
-#             self.temp_video_path = os.path.join(root_path, 'temp_video.mp4')
+#             from deforum.utils.constants import config.root_path
+#             self.temp_video_path = os.path.join(config.root_path, 'temp_video.mp4')
 #             os.makedirs(os.path.dirname(self.output_path), exist_ok=True)
 #
 #             images_folder = Path(self.output_path)
@@ -49,7 +49,7 @@ from qtpy.QtCore import QThread, Signal
 #                 writer.append_data(image)
 #             writer.close()
 #
-#             self.output_path = os.path.join(root_path, 'output.mp4')
+#             self.output_path = os.path.join(config.root_path, 'output.mp4')
 #
 #             ffmpeg_command = [
 #                 'ffmpeg', '-y',
@@ -130,8 +130,8 @@ from qtpy.QtCore import QThread, Signal
 # #         Assembles images into a video at the specified fps using imageio-ffmpeg.
 # #         """
 # #         try:
-# #             from deforum.utils.constants import root_path
-# #             self.output_path = os.path.join(root_path, 'temp.mp4')
+# #             from deforum.utils.constants import config.root_path
+# #             self.output_path = os.path.join(config.root_path, 'temp.mp4')
 # #             # Ensure the output directory exists
 # #             # os.makedirs(os.path.dirname(self.output_path), exist_ok=True)
 # #
@@ -174,9 +174,9 @@ from qtpy.QtCore import QThread, Signal
 #     def run(self):
 #         try:
 #             print("ASSEMBLER CALLED NOW")
-#             from deforum.utils.constants import root_path
-#             self.output_path = os.path.join(root_path, 'output.mp4')
-#             self.temp_video_path = os.path.join(root_path, 'temp_video.mp4')
+#             from deforum.utils.constants import config.root_path
+#             self.output_path = os.path.join(config.root_path, 'output.mp4')
+#             self.temp_video_path = os.path.join(config.root_path, 'temp_video.mp4')
 #             os.makedirs(os.path.dirname(self.output_path), exist_ok=True)
 #
 #             images_folder = Path(self.images_folder)
@@ -234,7 +234,7 @@ from pathlib import Path
 import imageio
 from multiprocessing import Process, Queue
 
-from deforum.utils.constants import root_path
+from deforum.utils.constants import config
 
 
 class VisualGeneratorThread(QThread):
@@ -250,7 +250,7 @@ class VisualGeneratorThread(QThread):
         self.height = height
 
     def run(self):
-        temp_path = os.path.join(root_path, 'temp')
+        temp_path = os.path.join(config.root_path, 'temp')
         os.makedirs(temp_path, exist_ok=True)
 
         temp_file = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False, dir=temp_path)
@@ -298,7 +298,7 @@ class VisualGeneratorThread(QThread):
     def compile_images_to_video(self, queue):
         try:
 
-            temp_path = os.path.join(root_path, 'temp')
+            temp_path = os.path.join(config.root_path, 'temp')
             os.makedirs(temp_path, exist_ok=True)
 
             temp_file = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False,
@@ -323,7 +323,7 @@ class VisualGeneratorThread(QThread):
 
     def combine_audio_with_video(self, queue):
         try:
-            temp_path = os.path.join(root_path, 'temp')
+            temp_path = os.path.join(config.root_path, 'temp')
             os.makedirs(temp_path, exist_ok=True)
 
             temp_file = tempfile.NamedTemporaryFile(suffix='.mp4', delete=False,
