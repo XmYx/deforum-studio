@@ -31,15 +31,14 @@ Raises:
 import argparse
 import os
 import random
-import time
 import subprocess
 import sys
 import traceback
 
 from deforum.commands.deforum_run_unit_test import run_unit_test
 from deforum.docutils.decorator import deforumdoc
+from deforum.utils.constants import config
 from deforum.utils.logging_config import logger
-
 @deforumdoc
 def install_qtpy() -> None:
     """
@@ -76,6 +75,14 @@ def install_qtpy() -> None:
                 "-m" "pip",
                 "install",
                 "qtpy==2.4.1",
+            ]
+        )
+        subprocess.run(
+            [
+                "python3",
+                "-m" "pip",
+                "install",
+                "pyqtgraph==0.13.7",
             ]
         )
 @deforumdoc
@@ -138,15 +145,15 @@ def start_deforum_cli() -> None:
             options[key] = value
 
     if args_main.mode:
-
         if args_main.mode == "version":
             import deforum
             print(deforum.__version__)
-        
-        if args_main.mode == "webui":
+            logger.info(str(deforum.__version__))
+        elif args_main.mode == "webui":
             import streamlit.web.cli as stcli
             stcli.main(["run", f"{config.src_path}/webui/deforum_webui.py", "--server.headless", "true"])
-
+            # root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            # stcli.main(["run", f"{root_path}/webui/deforum_webui.py", "--server.headless", "true"])
         elif args_main.mode == "animatediff":
             from deforum.pipelines.animatediff_animation.pipeline_animatediff_animation import DeforumAnimateDiffPipeline
             modelid = str(options.get("modelid", "132632"))
@@ -158,6 +165,7 @@ def start_deforum_cli() -> None:
             modelid = str(options.get("modelid", "125703"))
 
             deforum = DeforumAnimationPipeline.from_civitai(model_id=modelid)
+            deforum.generator.optimize = True
 
             preset_dir = "presets"
             txt_files = [os.path.join(root, file)
@@ -174,14 +182,15 @@ def start_deforum_cli() -> None:
                     logger.info(f"Batch Name: {batch_name}")
 
                     extra_args["settings_file"] = file_path
+
                     options.update({
                         "prompts": {"0": "A solo delorean speeding on an ethereal highway through time jumps, like in the iconic movie back to the future."},
                         "seed": 420,
+                        "batch_name": batch_name
                     })
 
                     deforum(**extra_args, **options)
                 except Exception as e:
-                    logger.error(f"Error running settings file: {file_path}")
                     logger.error(traceback.format_exc())
 
         elif args_main.mode == "api":
@@ -195,7 +204,6 @@ def start_deforum_cli() -> None:
 
             async def image_callback(websocket, image):
                 await websocket.send_text(image)
-                
             @app.websocket("/ws")
             async def websocket_endpoint(websocket: WebSocket):
                 await websocket.accept()

@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import os
 from pathlib import Path
+
+from deforum import logger
 from .miniViT import mViT
 #from modules.shared import opts
 
@@ -124,7 +126,7 @@ class UnetAdaptiveBins(nn.Module):
         DEBUG_MODE = True
         basemodel_name = 'tf_efficientnet_b5_ap'
         
-        print('Loading AdaBins model...')
+        logger.info('Loading AdaBins model...')
         predicted_torch_model_cache_path = str(Path.home()) + '\\.cache\\torch\\hub\\rwightman_gen-efficientnet-pytorch_master' 
         predicted_gep_cache_testilfe = Path(predicted_torch_model_cache_path + '\\hubconf.py')
         #print(f"predicted_gep_cache_testilfe:  {predicted_gep_cache_testilfe}")
@@ -134,20 +136,20 @@ class UnetAdaptiveBins(nn.Module):
         else:
             basemodel = torch.hub.load('rwightman/gen-efficientnet-pytorch', basemodel_name, pretrained=True)
         if DEBUG_MODE:
-            print('Done.')
+            logger.info('Done.')
 
         # Remove last layer
         if DEBUG_MODE:
-            print('Removing last two layers (global_pool & classifier).')
+            logger.info('Removing last two layers (global_pool & classifier).')
         basemodel.global_pool = nn.Identity()
         basemodel.classifier = nn.Identity()
 
         # Building Encoder-Decoder model
         if DEBUG_MODE:
-            print('Building Encoder-Decoder model..', end='')
+            logger.info('Building Encoder-Decoder model..', end='')
         m = cls(basemodel, n_bins=n_bins, **kwargs)
         if DEBUG_MODE:
-            print('Done.')
+            logger.info('Done.')
         return m
 
 

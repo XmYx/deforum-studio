@@ -191,18 +191,14 @@ class DeforumGenerationObject(DeforumDataObject):
         self.resume_timestring = None
         self.resume_from_timestring = False
 
-        self.timestring = time.strftime('%Y%m%d%H%M%S')
-        self.batch_name = kwargs.get('batch_name', f"deforum_{self.timestring}")
+        self.timestring = kwargs.get('timestring', time.strftime('%Y%m%d%H%M%S'))
+        self.batch_name = kwargs.get('batch_name', f"deforum_")
         # current_arg_list = [deforum.args, deforum.anim_args, deforum.video_args, deforum.parseq_args]
         full_base_folder_path = config.output_dir
         self.raw_batch_name = self.batch_name
         # self.batch_name = substitute_placeholders(deforum.args.batch_name, current_arg_list,
         #                                                  full_base_folder_path)
-        if self.timestring not in self.batch_name:
-            self.outdir = os.path.join(full_base_folder_path, f"{self.batch_name}_{self.timestring}")
-        else:
-            self.outdir = os.path.join(full_base_folder_path, f"{self.batch_name}")
-
+        self.outdir = os.path.join(full_base_folder_path, f"{self.batch_name}_{self.timestring}")
 
         # os.makedirs(self.outdir, exist_ok=True)
 
@@ -249,6 +245,7 @@ class DeforumGenerationObject(DeforumDataObject):
         self.dry_run = False
         self.animation_prompts_positive = ""
         self.animation_prompts_negative = ""
+        self.audio_path = ""
 
         # Set all provided keyword arguments as attributes
         for key, value in kwargs.items():

@@ -1,5 +1,4 @@
 import time
-
 from deforum import DeforumAnimationPipeline
 
 pipeline = DeforumAnimationPipeline.from_civitai("125703")

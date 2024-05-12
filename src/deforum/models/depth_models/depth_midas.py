@@ -7,6 +7,7 @@ from .midas.dpt_depth import DPTDepthModel
 from .midas.transforms import Resize, NormalizeImage, PrepareForNet
 import torchvision.transforms as T
 
+from ... import logger
 from ...utils.file_dl_util import download_file_with_checksum
 
 class MidasDepth:
@@ -40,7 +41,7 @@ class MidasDepth:
             
     def load_midas_model(self, models_path, midas_model_filename):
         model_file = os.path.join(models_path, midas_model_filename)
-        print(f"Loading MiDaS model from {midas_model_filename}...")
+        logger.info(f"Loading MiDaS model from {midas_model_filename}...")
         self.midas_model = DPTDepthModel(
             path=model_file,
             backbone=self.backbone,

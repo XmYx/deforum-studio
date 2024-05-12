@@ -7,7 +7,7 @@ import torch
 from tqdm import tqdm
 
 from .film_util import load_image
-from deforum.utils.constants import config
+from ...utils.constants import config
 
 
 def poorman_wget(url, filename):

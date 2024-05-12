@@ -40,6 +40,7 @@ from ..deforum_animation.pipeline_deforum_animation import (DeforumAnimationPipe
 from ...generators.deforum_flow_generator import get_reliable_flow_from_images
 
 from ...pipeline_utils import DeforumGenerationObject
+from ...utils.constants import config
 from ...utils.deforum_logger_util import Logger
 from deforum.utils.logging_config import logger
 

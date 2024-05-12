@@ -21,17 +21,6 @@ from ..utils.model_download import (
 cfg_guider = None
 
 
-def prepare_sampling(model, noise_shape, conds):
-    # device = model.load_device
-    # real_model = None
-    # models, inference_memory = get_additional_models(conds, model.model_dtype())
-    # comfy.model_management.load_models_gpu([model] + models, model.memory_required(
-    #     [noise_shape[0] * 2] + list(noise_shape[1:])) + inference_memory)
-    # real_model = model.model
-
-    return model.model, conds, []
-
-
 class HIJackCFGGuider:
     def __init__(self, model_patcher):
         # print("BIG HOOOORAAAAY\n\n\n\n\n")
@@ -124,31 +113,12 @@ class HIJackCFGGuider:
         disable_pbar=False,
         seed=None,
     ):
-        # if sigmas.shape[-1] == 0:
-        #     return latent_image
-        #
         self.conds = self.original_conds
-        import comfy
-
-        # self.conds = {}
-        # for k in self.original_conds:
-        #     self.conds[k] = list(map(lambda a: a.copy(), self.original_conds[k]))
-        #
-        # self.model_patcher.model, self.conds, self.loaded_models = comfy.sampler_helpers.prepare_sampling(
-        #     self.model_patcher, noise.shape, self.conds)
-        # device = self.model_patcher.load_device
-        #
-        # # if denoise_mask is not None:
-        # #     denoise_mask = comfy.sampler_helpers.prepare_mask(denoise_mask, noise.shape, device)
         device = torch.device("cuda")
-        # noise = noise.to(device)
-        # latent_image = latent_image.to(device)
         sigmas = sigmas.to(device)
-
         output = self.inner_sample(
             noise, latent_image, device, sampler, sigmas, denoise_mask, None, False, seed
         )
-
         return output
 
 
@@ -169,7 +139,6 @@ def sampleDeforum(
     seed=None,
 ):
     global cfg_guider
-    # print("Hooray here too")
     if cfg_guider is None:
         cfg_guider = HIJackCFGGuider(model)
     cfg_guider.set_conds(positive, negative)
@@ -180,31 +149,25 @@ def sampleDeforum(
 
 
 class ComfyDeforumGenerator:
-
-    def __init__(self, model_path: str = None, lcm=False, trt=False):
-
+    def __init__(self, model_path: str = None, *args, **kwargs):
         ensure_comfy()
         import comfy.samplers
         import comfy
-
         comfy.samplers.CFGGuider = HIJackCFGGuider
         comfy.samplers.sample = sampleDeforum
         self.optimize = None
-        # from deforum.datafunctions.ensure_comfy import ensure_comfy
-        # ensure_comfy()
-        # from deforum.datafunctions import comfy_functions
-        # from comfy import model_management, controlnet
-
-        # model_management.vram_state = model_management.vram_state.HIGH_VRAM
+        import importlib
+        # Construct the module name based on your package structure
+        module_name = 'ComfyUI.custom_nodes.ComfyUI_smZNodes.__init__'
+        # Import the module dynamically
+        init_module = importlib.import_module(module_name)
+        logger.info(str(init_module))
         self.clip_skip = 0
         self.device = "cuda"
-
         self.prompt = ""
         self.n_prompt = ""
-
         self.cond = None
         self.n_cond = None
-
         self.model = None
         self.clip = None
         self.vae = None
@@ -212,30 +175,10 @@ class ComfyDeforumGenerator:
         self.loaded_lora = None
         self.model_loaded = None
         self.model_path = model_path
-        # if not lcm:
-        #     # if model_path is None:
-        #     #     models_dir = os.path.join(default_cache_folder)
-        #     #     fetch_and_download_model("125703", default_cache_folder)
-        #     #     model_path = os.path.join(models_dir, "protovisionXLHighFidelity3D_release0620Bakedvae.safetensors")
-        #     #     # model_path = os.path.join(models_dir, "SSD-1B.safetensors")
-        #
-        #     self.load_model(model_path, trt)
-        #
-        #     self.pipeline_type = "comfy"
-        # if lcm:
-        #     self.load_lcm()
-        #     self.pipeline_type = "diffusers_lcm"
-
-        # self.controlnet = controlnet.load_controlnet(model_name)
+        self.onediff_avail = False
         self.pipeline_type = "comfy"
         self.rng = None
         self.optimized = False
-
-        import comfy.model_management
-        comfy.model_management.VAE_DTYPE = torch.float16
-
-
-
     def optimize_model(self):
         from nodes import NODE_CLASS_MAPPINGS
 
@@ -263,15 +206,6 @@ class ComfyDeforumGenerator:
             latent = latent.to(torch.float16)
             latent = vae.encode_tiled(latent[:, :, :, :3])
             latent = latent.to("cuda")
-        # if self.rng is None or reset_noise:
-        #     self.rng = ImageRNGNoise(shape=latent[0].shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
-        #                              seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
-        #     noise = self.rng.first()
-        # #     noise = slerp(subseed_strength, noise, latent)
-        # else:
-        #     noise = self.rng.next()
-        #     noise = slerp(subseed_strength, noise, latent)
-        #     noise = latent
         return {"samples": latent}
 
     def generate_latent(
@@ -290,7 +224,7 @@ class ComfyDeforumGenerator:
             self.rng = ImageRNGNoise(shape=shape, seeds=[seed], subseeds=[subseed], subseed_strength=subseed_strength,
                                      seed_resize_from_h=seed_resize_from_h, seed_resize_from_w=seed_resize_from_w)
         noise = self.rng.first()
-
+        # noise = torch.zeros([1, 4, height // 8, width // 8])
         return {"samples": noise.to("cuda")}
 
     def get_conds(self, clip, prompt, width, height, target_width, target_height):
@@ -303,9 +237,9 @@ class ComfyDeforumGenerator:
             prompt,
             parser="A1111",
             mean_normalization=True,
-            multi_conditioning=False,
+            multi_conditioning=True,
             use_old_emphasis_implementation=False,
-            with_SDXL=True,
+            with_SDXL=False,
             ascore=6.0,
             width=width,
             height=height,
@@ -318,11 +252,6 @@ class ComfyDeforumGenerator:
             smZ_steps=1,
         )[0]
         return conds
-        # with torch.inference_mode():
-        #     # clip.clip_layer(0)
-        #     tokens = clip.tokenize(prompt)
-        #     cond, pooled = clip.encode_from_tokens(tokens, return_pooled=True)
-        #     return [[cond, {"pooled_output": pooled}]]
 
     def load_model(self):
         if self.vae is None:
@@ -338,13 +267,9 @@ class ComfyDeforumGenerator:
                     output_clipvision=False,
                 )
             )
-            #print(self.model.offload_device)
             self.clip.patcher.offload_device = torch.device("cuda")
             self.vae.patcher.offload_device = torch.device("cuda")
-            #print(self.clip.patcher.offload_device)
-            #print(self.vae.patcher.offload_device)
             self.vae.first_stage_model.cuda()
-
             settings_node = NODE_CLASS_MAPPINGS["smZ Settings"]()
             settings_dict = {}
             for k, v in settings_node.INPUT_TYPES()["optional"].items():
@@ -366,32 +291,21 @@ class ComfyDeforumGenerator:
             settings_dict["t_max"] = 0.0
             self.model = settings_node.run(self.model, **settings_dict)[0]
             self.clip = settings_node.run(self.clip, **settings_dict)[0]
-            self.onediff_avail = False
-
-
+            self.clip.clip_layer(-2)
             try:
                 from custom_nodes.onediff_comfy_nodes._nodes import BasicBoosterExecutor
                 from custom_nodes.onediff_comfy_nodes.modules import BoosterScheduler
-                from custom_nodes.onediff_comfy_nodes.modules.oneflow.booster_quantization import \
-                    OnelineQuantizationBoosterExecutor
-                custom_booster = BoosterScheduler(OnelineQuantizationBoosterExecutor())
+                # from custom_nodes.onediff_comfy_nodes.modules.oneflow.booster_quantization import \
+                #     OnelineQuantizationBoosterExecutor
+                custom_booster = BoosterScheduler(BasicBoosterExecutor())
                 self.model = custom_booster(self.model, ckpt_name=self.model_path)
-                self.vae = BoosterScheduler(OnelineQuantizationBoosterExecutor())(self.vae, ckpt_name=self.model_path)
+                self.vae = BoosterScheduler(BasicBoosterExecutor())(self.vae, ckpt_name=self.model_path)
                 self.model.weight_inplace_update = True
                 self.onediff_avail = True
             except:
                 logger.info("ONEDIFF NOT AVAILABLE IN YOUR BUILD (YET")
-            if not self.onediff_avail:
-              try:
-                  self.optimize_model()
-                  self.optimize = True
-              except:
-                  self.optimize = False
-                  logger.info("Could not apply Stable-Fast Unet patch.")
-
 
             self.model_loaded = True
-
             # from ..optimizations.deforum_comfy_trt.deforum_trt_comfyunet import TrtUnet
             # self.model.model.diffusion_model = TrtUnet()
 
@@ -450,33 +364,6 @@ class ComfyDeforumGenerator:
         )
         return model_lora, clip_lora
 
-    @staticmethod
-    def load_lcm():
-        logger.info("Deprecated for now")
-        # from deforum.lcm.lcm_pipeline import LatentConsistencyModelPipeline
-        #
-        # from deforum.lcm.lcm_scheduler import LCMScheduler
-        # self.scheduler = LCMScheduler.from_pretrained(
-        #     os.path.join(root_path, "configs/lcm_scheduler.json"))
-        #
-        # self.pipe = LatentConsistencyModelPipeline.from_pretrained(
-        #     pretrained_model_name_or_path="SimianLuo/LCM_Dreamshaper_v7",
-        #     scheduler=self.scheduler
-        # ).to("cuda")
-        # from deforum.lcm.lcm_i2i_pipeline import LatentConsistencyModelImg2ImgPipeline
-        # # self.img2img_pipe = LatentConsistencyModelImg2ImgPipeline(
-        # #     unet=self.pipe.unet,
-        # #     vae=self.pipe.vae,
-        # #     text_encoder=self.pipe.text_encoder,
-        # #     tokenizer=self.pipe.tokenizer,
-        # #     scheduler=self.pipe.scheduler,
-        # #     feature_extractor=self.pipe.feature_extractor,
-        # #     safety_checker=None,
-        # # )
-        # self.img2img_pipe = LatentConsistencyModelImg2ImgPipeline.from_pretrained(
-        #     pretrained_model_name_or_path="SimianLuo/LCM_Dreamshaper_v7",
-        #     safety_checker=None,
-        # ).to("cuda")
 
     @torch.inference_mode()
     def __call__(
@@ -515,7 +402,14 @@ class ComfyDeforumGenerator:
 
         if not self.model_loaded:
             self.load_model()
-            # self.load_lora_from_civitai('413566', 1.0, 1.0)
+            # self.load_lora_from_civitai('477721', 1.0, 1.0)
+        if self.optimize and not (self.optimized or self.onediff_avail):
+            try:
+                self.optimize_model()
+                self.optimized = True
+            except:
+                self.optimize = False
+                self.optimized = False
         if seed_resize_from_h == 0:
             seed_resize_from_h = 1024
         if seed_resize_from_w == 0:
@@ -523,32 +417,22 @@ class ComfyDeforumGenerator:
         if seed == -1:
             seed = secrets.randbelow(18446744073709551615)
 
-        if strength <= 0.05 or strength >= 1.0:
+        if strength <= 0.01 or strength >= 1.0:
             strength = 1.0
-            # reset_noise = True
-            # init_image = None
         else:
             strength = 1 - strength if strength != 1.0 else strength
-
-        if self.optimize:
-            self.optimize_model()
-            self.optimize = False
-
         if subseed == -1:
             subseed = secrets.randbelow(18446744073709551615)
-
         if cnet_image is not None:
             cnet_image = torch.from_numpy(
                 np.array(cnet_image).astype(np.float16) / 255.0
             ).unsqueeze(0)
-
         if init_image is None or reset_noise:
             logger.info(
                 f"reset_noise: {reset_noise}; resetting strength to 1.0 from: {strength}"
             )
             strength = 1.0
             if latent is None:
-
                 if width is None:
                     width = 1024
                 if height is None:
@@ -587,8 +471,6 @@ class ComfyDeforumGenerator:
                 seed_resize_from_h,
                 seed_resize_from_w,
             )
-
-        # cond = []
         if self.prompt != prompt or self.cond is None:
             self.prompt = prompt
             if pooled_prompts is None and prompt is not None:
@@ -602,7 +484,6 @@ class ComfyDeforumGenerator:
                 )
             elif pooled_prompts is not None:
                 self.cond = pooled_prompts
-
         cond = self.cond
         if use_areas and areas is not None:
             from nodes import ConditioningSetArea
@@ -612,7 +493,6 @@ class ComfyDeforumGenerator:
                 logger.info(f"AREA TO USE: {area}")
                 prompt = area.get("prompt", None)
                 if prompt:
-
                     new_cond = self.get_conds(
                         self.clip,
                         area["prompt"],
@@ -665,11 +545,7 @@ class ComfyDeforumGenerator:
         if not hasattr(self, "sampler_node"):
             from nodes import NODE_CLASS_MAPPINGS
             self.sampler_node = NODE_CLASS_MAPPINGS['KSampler //Inspire']()
-
         steps = round(strength * steps)
-        # if subseed_strength > 0:
-        #     subseed_strength = subseed_strength * 10
-
         if hasattr(self.sampler_node, "sample"):
             sample_fn = self.sampler_node.sample
         elif hasattr(self.sampler_node, "doit"):
@@ -692,16 +568,14 @@ class ComfyDeforumGenerator:
             variation_strength=subseed_strength,
         )[0]
         sample = [{"samples": sample["samples"]}]
-
+        torch.cuda.synchronize('cuda')
         if sample[0]["samples"].shape[0] == 1:
             decoded = self.decode_sample(self.vae, sample[0]["samples"])
             np_array = np.clip(255.0 * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[
                 0
             ]
             image = Image.fromarray(np_array)
-            # image = Image.fromarray(np.clip(255. * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[0])
             image = image.convert("RGB")
-
             if return_latent:
                 return sample[0]["samples"], image
             else:
@@ -709,24 +583,21 @@ class ComfyDeforumGenerator:
         else:
             logger.info("decoding multi images")
             images = []
-            x_samples = self.vae.decode_tiled(sample[0]["samples"])
+            x_samples = self.decode_sample(sample[0]["samples"])
             for sample in x_samples:
                 np_array = np.clip(255.0 * sample.cpu().numpy(), 0, 255).astype(
                     np.uint8
                 )
                 image = Image.fromarray(np_array)
-                # image = Image.fromarray(np.clip(255. * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[0])
                 image = image.convert("RGB")
                 images.append(image)
-
             return images
 
     def decode_sample(self, vae, sample):
-        with torch.inference_mode():
-            sample = sample.to(torch.float16)
-            decoded = vae.decode(sample).detach()
-
-        return decoded
+        # with torch.inference_mode():
+        #     #sample = sample.to(torch.float16)
+        #     decoded = vae.decode(sample).detach()
+        return vae.decode(sample).detach()
 
     def cleanup(self):
         self.optimized = False

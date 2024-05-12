@@ -93,6 +93,11 @@
       "label": "Steps",
       "accessible_name": "Diffusion Steps"
     },
+    "enable_steps_scheduling": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Steps Scheduling"},
+
     "show_info_on_ui": {
       "widget_type": "dropdown",
       "options": [true, false],
@@ -104,7 +109,7 @@
       "widget_type": "number",
       "default": -1,
       "min": -1,
-      "max": 1000000,
+      "max": 2147483647,
       "label": "Seed",
       "accessible_name": "Random Seed for Generation"
     },
@@ -121,6 +126,11 @@
       "label": "Seed Behavior",
       "accessible_name": "Seed Behavior"
     },
+    "enable_subseed_scheduling": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Subseed Scheduling"},
+
     "subseed_schedule": {
       "widget_type": "text box",
       "default": "0: (-1)",
@@ -286,6 +296,11 @@
       "max": 1000,
       "label": "Cadence"
     },
+    "enable_temporal_flow": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Enable Temporal Flow"
+    },
     "optical_flow_cadence": {
       "widget_type": "dropdown",
       "options": ["None", "RAFT", "DIS Medium", "DIS Fine", "Farneback"],
@@ -318,7 +333,6 @@
       "default": "",
       "label": "Init Video Path"
     },
-
     "extract_nth_frame": {
       "widget_type": "number",
       "default": 1,
@@ -345,6 +359,11 @@
       "default": "0:(1)",
       "label": "Hybrid Flow Factor"
     },
+    "hybrid_use_first_frame_as_init_image": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Hybrid Use First as Init"
+    },
     "hybrid_generate_inputframes": {
       "widget_type": "checkbox",
       "default": false,
@@ -366,15 +385,45 @@
       "options": ["None", "RAFT", "DIS Medium", "DIS Fine", "Farneback"],
       "default": "RAFT",
       "label": "Hybrid motion"
-    },    
+    },
+    "hybrid_composite": {
+      "widget_type": "dropdown",
+      "options": ["None", "Normal", "Before Motion", "After Generation"],
+      "default": "None",
+      "label": "Hybrid Composite"
+    },
+    "hybrid_use_init_image": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Hybrid Use Init Image"
+    },
     "hybrid_flow_consistency": {
       "widget_type": "checkbox",
       "default": false,
       "label": "Flow consistency mask"
     }
   },
+  "Audio": {
+    "audio_path": {
+      "widget_type": "text input",
+      "default": "",
+      "label": "Audio Path"
+    },
+    "milk_path": {
+      "widget_type": "dropdown",
+      "options": [],
+      "default": "",
+      "label": "Milk Path"
+    },
+    "generate_viz": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Generate Viz"
+    }
+
+
+  },
   "Image & Mask Settings": {
-    
     "color_coherence": {
       "widget_type": "dropdown",
       "options": ["None", "HSV", "LAB", "RGB", "Video Input", "Image"],

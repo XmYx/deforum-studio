@@ -14,6 +14,7 @@ import pandas as pd
 import torch
 from PIL import Image, ImageOps, ImageEnhance, ImageChops
 
+
 from deforum.utils.blocking_file_list import BlockingFileList
 
 from ... import FILMInterpolator
@@ -22,7 +23,6 @@ from ...generators.deforum_flow_generator import (get_flow_for_hybrid_motion_pre
                                                   abs_flow_to_rel_flow,
                                                   rel_flow_to_abs_flow, get_flow_from_images)
 from ...generators.deforum_noise_generator import add_noise
-from ...models.RIFE.rife_model import RIFEInterpolator
 from ...pipeline_utils import next_seed
 from ...utils import py3d_tools as p3d
 from ...utils.constants import config
@@ -214,8 +214,9 @@ def hybrid_composite_cls(cls: Any) -> None:
             inputfiles = BlockingFileList(video_frame_path, cls.gen.max_frames)
             video_frame = inputfiles[cls.gen.frame_idx]
         else: 
-            video_frame = os.path.join(cls.gen.outdir, 'inputframes',
-                                    get_frame_name(cls.gen.video_init_path) + f"{cls.gen.frame_idx:09}.jpg")
+            # video_frame = os.path.join(cls.gen.outdir, 'inputframes',
+            #                         get_frame_name(cls.gen.video_init_path) + f"{cls.gen.frame_idx:09}.jpg")
+            video_frame = cls.gen.inputfiles[cls.gen.frame_idx]
         video_depth_frame = os.path.join(cls.gen.outdir, 'hybridframes',
                                          get_frame_name(
                                              cls.gen.video_init_path) + f"_vid_depth{cls.gen.frame_idx:09}.jpg")
@@ -229,10 +230,10 @@ def hybrid_composite_cls(cls: Any) -> None:
         cls.gen.prev_img = cv2.cvtColor(cls.gen.prev_img, cv2.COLOR_BGR2RGB)
         prev_img_hybrid = Image.fromarray(cls.gen.prev_img)
         if cls.gen.hybrid_use_init_image:
-            video_image = load_image(cls.gen.init_image, cls.gen.init_image_box)
+            video_image = load_image(cls.gen.init_image)
         else:
             video_image = Image.open(video_frame)
-        video_image = video_image.resize((cls.gen.width, cls.gen.height), Image.LANCZOS)
+        video_image = video_image.resize((cls.gen.width, cls.gen.height), Image.Resampling.LANCZOS)
         hybrid_mask = None
 
         # composite mask types
@@ -354,6 +355,19 @@ def optical_flow_motion(cls: Any) -> None:
 
     return
 
+def apply_temporal_flow_cls(cls):
+
+    # def apply_flow(self, image, flow_image, flow_method, flow_factor, deforum_frame_data={}):
+    # global deforum_models
+
+    if not hasattr(cls, 'raft'):
+        from deforum.models import RAFT
+        cls.raft_model = RAFT()
+
+    if cls.gen.prev_img is not None:
+        flow = get_flow_from_images(np.array(cls.gen.image), np.array(cls.gen.prev_img), 'RAFT', cls.raft_model)
+        cls.gen.prev_img = image_transform_optical_flow(np.array(cls.gen.prev_img), flow, cls.gen.cadence_flow_factor)
+    return
 
 def color_match_cls(cls: Any) -> None:
     """
@@ -365,11 +379,37 @@ def color_match_cls(cls: Any) -> None:
     Returns:
         None: Modifies the class instance attributes in place.
     """
-    if cls.gen.color_match_sample is None and cls.gen.image is not None:
-        cls.gen.color_match_sample = cls.gen.prev_img.copy()
-    elif cls.gen.prev_img is not None and cls.gen.color_match_sample is not None:
+    if cls.gen.color_match_sample is None and cls.gen.opencv_image is not None:
+        cls.gen.color_match_sample = cls.gen.opencv_image.copy()
+
+    elif cls.gen.prev_img is not None:
         cls.gen.prev_img = maintain_colors(cls.gen.prev_img, cls.gen.color_match_sample, cls.gen.color_coherence)
+
     return
+
+
+def post_gen_color_correction(cls: Any) -> None:
+    """
+
+    """
+    from blendmodes.blend import blendLayers
+    from blendmodes.blendtype import BlendType
+    if cls.gen.color_match_sample is None and cls.gen.prev_img is not None:
+        cls.gen.color_match_sample = cv2.cvtColor(copy.deepcopy(cls.gen.prev_img))
+
+    if cls.gen.color_match_sample is not None:
+        from skimage import exposure
+        image = Image.fromarray(cv2.cvtColor(exposure.match_histograms(
+            cv2.cvtColor(
+                cv2.cvtColor(np.asarray(cls.gen.image), cv2.COLOR_RGB2LAB),
+                cv2.COLOR_RGB2LAB
+            ),
+            cls.gen.color_match_sample,
+            channel_axis=2
+        ), cv2.COLOR_LAB2RGB).astype("uint8"))
+
+        cls.gen.image = blendLayers(image, cls.gen.image, BlendType.LUMINOSITY)
+
 
 
 def set_contrast_image(cls: Any) -> None:
@@ -523,6 +563,8 @@ def get_generation_params(cls: Any) -> None:
     if cls.gen.enable_subseed_scheduling:
         cls.gen.subseed = int(cls.gen.keys.subseed_schedule_series[cls.gen.frame_idx])
         cls.gen.subseed_strength = float(cls.gen.keys.subseed_strength_schedule_series[cls.gen.frame_idx])
+    else:
+        cls.gen.subseed_strength = 0.0
 
     if cls.parseq_adapter.manages_seed():
         cls.gen.enable_subseed_scheduling = True
@@ -565,23 +607,6 @@ def get_generation_params(cls: Any) -> None:
     cls.gen.use_looper = cls.gen.loopSchedulesAndData.use_looper
     cls.gen.imagesToKeyframe = cls.gen.loopSchedulesAndData.imagesToKeyframe
 
-    # if 'img2img_fix_steps' in opts.data and opts.data[
-    #     "img2img_fix_steps"]:  # disable "with img2img do exactly x steps" from general setting, as it *ruins* deforum animations
-    #     opts.data["img2img_fix_steps"] = False
-    # if scheduled_clipskip is not None:
-    #     opts.data["CLIP_stop_at_last_layers"] = scheduled_clipskip
-    # if scheduled_noise_multiplier is not None:
-    #     opts.data["initial_noise_multiplier"] = scheduled_noise_multiplier
-    # if scheduled_ddim_eta is not None:
-    #     opts.data["eta_ddim"] = scheduled_ddim_eta
-    # if scheduled_ancestral_eta is not None:
-    #     opts.data["eta_ancestral"] = scheduled_ancestral_eta
-
-    # if cls.gen.animation_mode == '3D' and (cmd_opts.lowvram or cmd_opts.medvram):
-    #     if predict_depths: depth_model.to('cpu')
-    #     devices.torch_gc()
-    #     lowvram.setup_for_low_vram(sd_model, cmd_opts.medvram)
-    #     sd_hijack.model_hijack.hijack(sd_model)
     return
 
 
@@ -788,7 +813,6 @@ def post_gen_cls(cls: Any) -> None:
             # cls.logger(f"                                   [ frame_idx incremented ]", True)
         if cls.gen.turbo_steps < 2:
             done = cls.datacallback({"image": cls.gen.image, "operation_id":cls.gen.operation_id, "frame_idx":cls.gen.frame_idx, "image_path": image_full_path})
-        # cls.logger(f"                                   [ datacallback executed ]", True)
 
         cls.gen.seed = next_seed(cls.gen, cls.gen)
         # cls.logger(f"                                   [ next seed generated ]", True)
@@ -930,10 +954,6 @@ def generate_interpolated_frames(cls):
             # get prev_img during cadence
             prev_img = copy.deepcopy(img)
 
-
-            # current image update for cadence frames (left commented because it doesn't currently update the preview)
-            # state.current_image = Image.fromarray(cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB))
-
             # saving cadence frames
             filename = f"{cls.gen.timestring}_{tween_frame_idx:09}.png"
             image_full_path = os.path.join(cls.gen.outdir, filename)
@@ -941,6 +961,7 @@ def generate_interpolated_frames(cls):
             # cv2.imwrite("current_cadence.png", img)
             cb_img = Image.fromarray(cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB))
             cls.datacallback({"image":cb_img, "operation_id":cls.gen.operation_id, "frame_idx":tween_frame_idx, "image_path": image_full_path})
+
             cls.images.append(copy.deepcopy(cb_img))
 
 
@@ -1129,11 +1150,11 @@ def make_cadence_frames(cls: Any) -> None:
                     image_full_path = os.path.join(cls.gen.outdir, filename)
                     cv2.imwrite(image_full_path, cls.gen.img)
                     cls.gen.image_paths.append(image_full_path)
-
+                else:
+                    image_full_path = "ram"
 
                 callback_img = cv2.cvtColor(cls.gen.img.astype(np.uint8), cv2.COLOR_BGR2RGB)
                 done = cls.datacallback({"image": Image.fromarray(callback_img), "operation_id":cls.gen.operation_id, "frame_idx":tween_frame_idx, "image_path": image_full_path})
-                # done = cls.datacallback({"image": Image.fromarray(cv2.cvtColor(cls.gen.img, cv2.COLOR_BGR2RGB))})
                 cls.images.append(callback_img)
 
                 if cls.gen.save_depth_maps:
@@ -1181,13 +1202,6 @@ def film_interpolate_cls(cls: Any) -> None:
     Returns:
         None: Modifies the class instance attributes in place and saves the interpolated video.
     """
-    # "frame_interpolation_engine": "FILM",
-    # "frame_interpolation_x_amount": 2,
-    # "frame_interpolation_slow_mo_enabled": false,
-    # "frame_interpolation_slow_mo_amount": 2,
-    # "frame_interpolation_keep_imgs": false,
-    # "frame_interpolation_use_upscaled": false,
-
     interpolator = FILMInterpolator()
 
     film_in_between_frames_count = calculate_frames_to_add(len(cls.images), cls.gen.frame_interpolation_x_amount)
@@ -1198,6 +1212,7 @@ def film_interpolate_cls(cls: Any) -> None:
     return
 
 rife_interpolator = None
+
 
 def rife_interpolate_cls(cls):
     """
@@ -1212,84 +1227,49 @@ def rife_interpolate_cls(cls):
     Returns:
         None: Modifies the cls.images attribute in place.
     """
-    # global rife_interpolator
-    # if rife_interpolator is None:
-    #     from deforum.models.vfi_rife import RIFE_VFI
-    #     rife_interpolator = RIFE_VFI()
-    #
-    # def pil2tensor(image):
-    #     return torch.from_numpy(np.array(image).astype(np.float32) / 255.0).unsqueeze(0)
-    #
-    # def tensor2pil(image):
-    #     return Image.fromarray(np.clip(255. * image.cpu().numpy(), 0, 255).astype(np.uint8))
-    #
-    # new_images = []
-    # print(len(cls.images))
-    # for i in range(len(cls.images) - 1):
-    #     img1 = pil2tensor(cls.images[i])
-    #     img2 = pil2tensor(cls.images[i + 1])
-    #
-    #     # Interpolate between each pair
-    #     interpolated_frames = rife_interpolator.vfi(
-    #         ckpt_name = "rife49.pth",
-    #         frames =torch.stack([img1[0], img2[0]], dim=0),
-    #         clear_cache_after_n_frames=10,
-    #         multiplier= cls.gen.frame_interpolation_x_amount,
-    #         fast_mode=False,
-    #         ensemble=False,
-    #         scale_factor=1.0)[0]
-    #
-    #     for frame in interpolated_frames[:-1]:  # Exclude the last interpolated frame in the current pair
-    #         new_images.append(tensor2pil(frame))
-    #
-    # # Append the last frame from the last interpolated sequence
-    # if interpolated_frames is not None:
-    #     new_images.append(tensor2pil(interpolated_frames[-1]))
-    #
-    # print(f"Interpolated frame count: {len(new_images)}")
-    # # Replace the original images with the new, interpolated ones
-    # cls.images = new_images
-    # # Optionally clear image paths if no longer needed
-    # if hasattr(cls, 'gen') and hasattr(cls.gen, 'image_paths'):
-    #     cls.gen.image_paths = []
-
     global rife_interpolator
     if rife_interpolator is None:
         from deforum.models.vfi_rife import RIFE_VFI
         rife_interpolator = RIFE_VFI()
 
     def pil2tensor(image):
-        return torch.from_numpy(np.array(image).astype(np.float32) / 255.0).unsqueeze(0)
+        return torch.from_numpy(np.array(image).astype(np.float32) / 255.0).unsqueeze(0)  # CHW format for PyTorch
 
-    def tensor2pil(image):
-        return Image.fromarray(np.clip(255. * image.cpu().numpy(), 0, 255).astype(np.uint8))
-    print(len(cls.images))
     new_images = []
+    interp_batch_size = getattr(cls, 'interp_batch_size', 16)  # default batch size
+    num_images = len(cls.images)
+    input_tensor = torch.Tensor()  # Initialize an empty tensor for concatenation
 
-    if isinstance(cls.images[0], np.ndarray):
-        first_image = Image.fromarray(cls.images[0])
-    else:
-        first_image = cls.images[0]
-    if isinstance(first_image, Image.Image):
-        new_images.append(first_image)
-    input_list = [pil2tensor(i)[0] for i in cls.images]
-    input_tensor = torch.stack(input_list, dim=0)
+    for i in range(num_images - 1):
+        current_tensor = pil2tensor(cls.images[i])
+        input_tensor = torch.cat((input_tensor, current_tensor),
+                                 dim=0) if input_tensor.nelement() != 0 else current_tensor
 
-    interpolated_frames = rife_interpolator.vfi(
-        ckpt_name="rife49.pth",
-        frames=input_tensor,
-        clear_cache_after_n_frames=10,
-        multiplier=cls.gen.frame_interpolation_x_amount,
-        fast_mode=False,
-        ensemble=False,
-        scale_factor=1.0)[0]
+        if (i % (interp_batch_size - 1) == 0 and i != 0) or i == num_images - 2:
+            # Process the current batch
+            interpolated_frames = rife_interpolator.vfi(
+                ckpt_name="rife49.pth",
+                frames=input_tensor,
+                clear_cache_after_n_frames=10,
+                multiplier=cls.gen.frame_interpolation_x_amount,
+                fast_mode=True,
+                ensemble=False,
+                scale_factor=1.0)
 
-    for frame in interpolated_frames:  # add interpolated frames, excluding the last
-        new_images.append(tensor2pil(frame))
-    # new_images.append(cls.images[-1])
+            if i == interp_batch_size - 1:
+                new_images.append(
+                    interpolated_frames[0])  # Append the first interpolated image only for the first batch
+            for frame in interpolated_frames[1:]:
+                new_images.append(frame)
 
-    print(f"Interpolated frame count: {len(new_images)}")
-    cls.images = new_images
+            # Reset input_tensor after processing a batch
+            input_tensor = torch.Tensor()
+
+    if cls.images:  # append last image if not included
+        new_images.append(cls.images[-1])
+
+    cls.images = new_images  # Convert back to PIL Image format
+    logger.info(f"Interpolated frame count: {len(new_images)}")
 
     if hasattr(cls, 'gen') and hasattr(cls.gen, 'image_paths'):
         cls.gen.image_paths = []
@@ -1302,14 +1282,20 @@ def save_video_cls(cls):
     else:
         name = f'{cls.gen.batch_name}'
     output_filename_base = os.path.join(dir_path, name)
-    if cls.gen.frame_interpolation_engine is not "None":
+    if cls.gen.frame_interpolation_engine != "None":
         cls.gen.fps = float(cls.gen.fps) * int(cls.gen.frame_interpolation_x_amount)
         if cls.gen.frame_interpolation_slow_mo_enabled:
             cls.gen.fps /= int(cls.gen.frame_interpolation_slow_mo_amount)
     audio_path = None
     if hasattr(cls.gen, 'video_init_path'):
         audio_path = cls.gen.video_init_path
-
+    if hasattr(cls.gen, 'audio_path'):
+        if cls.gen.audio_path != "":
+            audio_path = cls.gen.audio_path
+    if cls.gen.frame_interpolation_engine != "None":
+        cls.gen.fps = float(cls.gen.fps) * int(cls.gen.frame_interpolation_x_amount)
+        if cls.gen.frame_interpolation_slow_mo_enabled:
+            cls.gen.fps /= int(cls.gen.frame_interpolation_slow_mo_amount)
     fps = getattr(cls.gen, "fps", 24)  # Using getattr to simplify fetching attributes with defaults
     try:
         save_as_h264(cls.images, output_filename_base + ".mp4", audio_path=audio_path, fps=fps)
