@@ -9,6 +9,7 @@ from qtpy.QtWidgets import QMainWindow, QHBoxLayout, QSpinBox, QDoubleSpinBox, Q
     QDockWidget
 from qtpy.QtWidgets import QWidget, QTextEdit, QLabel, QPushButton
 
+from deforum import logger
 from deforum.ui.qt_modules.custom_ui import CustomTextBox
 
 

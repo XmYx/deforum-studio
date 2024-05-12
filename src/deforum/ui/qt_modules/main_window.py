@@ -9,9 +9,11 @@ import time
 
 import imageio.v2 as imageio
 import numpy as np
-from PyQt6.QtCore import QCoreApplication
-from PyQt6.QtMultimedia import QAudioSource
-from PyQt6.QtWidgets import QDockWidget, QMenu
+from PyQt6.QtGui import QIcon
+from qtpy.QtCore import QCoreApplication, QTimer
+from qtpy.QtGui import QKeyEvent
+from qtpy.QtMultimedia import QAudioSource
+from qtpy.QtWidgets import QDockWidget, QMenu
 from qtpy import QtWidgets
 from qtpy.QtCore import Qt, Slot, QUrl, QSize, Signal
 from qtpy.QtGui import QAction
@@ -22,6 +24,7 @@ from qtpy.QtWidgets import QWidget, QVBoxLayout, QSlider, QLabel, QMdiArea, \
     QListWidgetItem, QMessageBox, QScrollArea, QProgressBar, QSizePolicy
 
 from deforum import logger
+from deforum.pipelines.deforum_animation.animation_helpers import FrameInterpolator
 from deforum.ui.qt_helpers.qt_image import npArrayToQPixmap
 from deforum.ui.qt_modules.backend_thread import BackendThread
 from deforum.ui.qt_modules.console_widget import NodesConsole, StreamRedirect
@@ -41,6 +44,32 @@ os.makedirs(os.path.join(config.root_path, 'milks'), exist_ok=True)
 
 known_dropdowns = {"milk_path":list_milk_presets(os.path.join(config.root_path, 'milks'))}
 
+
+class AnimationEngine:
+    def __init__(self):
+        self.parameters = {
+            'translation_x': 0.0,
+            'translation_y': 0.0,
+            'translation_z': 0.0,
+            'rotation_3d_x': 0.0,
+            'rotation_3d_y': 0.0,
+            'rotation_3d_z': 0.0
+        }
+        self.max_value = 10.0
+        self.acceleration = 0.01
+
+    def update_parameter(self, param, direction):
+        if direction == 'increase' and self.parameters[param] < self.max_value:
+            self.parameters[param] += self.acceleration
+        elif direction == 'decrease' and self.parameters[param] > -10.0:
+            self.parameters[param] -= self.acceleration
+        # Clamp the values within the allowed range
+        self.parameters[param] = round(min(max(self.parameters[param], -10.0), self.max_value), 3)
+
+    def get_parameter(self, param):
+        return self.parameters[param]
+
+
 class MainWindow(DeforumCore):
     def __init__(self):
         super().__init__()
@@ -58,6 +87,7 @@ class MainWindow(DeforumCore):
         self.timelineDock.hide()
         self.newProject()
         self.loadWindowState()
+        self.initAnimEngine()
 
         preset_path = os.path.join(self.presets_folder, 'default.txt')
         if os.path.exists(preset_path):
@@ -115,7 +145,7 @@ class MainWindow(DeforumCore):
         self.toolbar.addAction(self.renderVizButton)
         self.toolbar.addAction(self.stopRenderButton)
         # self.toolbar.addWidget(self.presetsDropdown)
-        self.toolbar.addAction(self.loadPresetAction)
+        # self.toolbar.addAction(self.loadPresetAction)
         self.toolbar.addAction(self.tileSubWindowsAction)
         self.toolbar.addAction(self.savePresetAction)
         self.toolbar.addAction(self.addJobButton)
@@ -126,7 +156,11 @@ class MainWindow(DeforumCore):
         self.loadRenderButton = QPushButton("Load Render")
         self.loadRenderButton.clicked.connect(self.loadSelectedRender)
         self.toolbar.addWidget(self.loadRenderButton)
-
+        self.controlToggleButton = QAction(QIcon(), 'Enable Controls', self)
+        self.controlToggleButton.setCheckable(True)
+        self.controlToggleButton.setChecked(False)
+        self.controlToggleButton.triggered.connect(self.toggleControlListening)
+        self.toolbar.addAction(self.controlToggleButton)
         self.updateRenderDropdown()  # Populate the dropdown
 
         # Adding the progress bar and status label
@@ -147,6 +181,31 @@ class MainWindow(DeforumCore):
         spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.toolbar.addWidget(spacer)
         self.toolbar.addWidget(statusWidget)
+
+
+
+    def toggleControlListening(self, checked):
+        if checked:
+            self.controlToggleButton.setIcon(QIcon())  # Set an icon or change color
+            self.controlToggleButton.setText('Disable Controls')
+            self.startListening()
+        else:
+            self.controlToggleButton.setIcon(QIcon())
+            self.controlToggleButton.setText('Enable Controls')
+            self.stopListening()
+
+    def startListening(self):
+        self.listen_to_controls = True
+        self.updateStatusBar("Controls Enabled", "green")
+
+    def stopListening(self):
+        self.listen_to_controls = False
+        self.updateStatusBar("Controls Disabled", "red")
+
+    def updateStatusBar(self, message, color):
+        self.statusBar().setStyleSheet(f"background-color: {color};")
+        self.statusBar().showMessage(message)
+
 
     def updateRenderDropdown(self):
         root_dir = os.path.join(config.root_path, 'output', 'deforum')
@@ -533,7 +592,22 @@ class MainWindow(DeforumCore):
         except Exception as e:
             logger.info(f"Failed to load state: {e}")
 
+    def initAnimEngine(self):
+        self.engine = AnimationEngine()
 
+        self.axis_bindings = {
+            'translation_x': ('A', 'D'),  # Increase, Decrease
+            'translation_y': ('W', 'S'),
+            'translation_z': ('R', 'F'),
+            'rotation_3d_x': ('J', 'L'),
+            'rotation_3d_y': ('I', 'K'),
+            'rotation_3d_z': ('Y', 'H')
+        }
+        self.keys_pressed = {key: False for axis in self.axis_bindings for key in self.axis_bindings[axis]}
+        self.listen_to_controls = False
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_animation)
+        self.timer.start(50)  # Update interval in milliseconds
     def newProject(self):
         self.project = {
             'params': {},  # Global parameters if any
@@ -794,9 +868,8 @@ class MainWindow(DeforumCore):
             self.updateWidgetValue('resume_timestring', data['timestring'])
             self.updateWidgetValue('resume_path', data['resume_path'])
             self.updateWidgetValue('resume_from', data['resume_from'])
-
             self.saveCurrentProjectAsSettingsFile()
-            self.updateRenderDropdown()
+            # self.updateRenderDropdown()
 
     def onMediaStatusChanged(self, status):
         pass
@@ -965,3 +1038,58 @@ class MainWindow(DeforumCore):
             # self.vizGenThread.finished.disconnect(self.playVideo)
             self.vizGenThread.terminate()  # Ensure the thread has finished
             self.vizGenThread.deleteLater()  # Properly dispose of the thread object
+
+
+    def update_animation(self):
+        if self.listen_to_controls:
+            for axis, (decrease_key, increase_key) in self.axis_bindings.items():
+                if self.keys_pressed[increase_key]:
+                    self.engine.update_parameter(axis, 'increase')
+                elif self.keys_pressed[decrease_key]:
+                    self.engine.update_parameter(axis, 'decrease')
+                else:
+                    # Gradually return to 0 if no key is pressed
+                    current_value = self.engine.get_parameter(axis)
+                    if current_value != 0:
+                        direction = 'decrease' if current_value > 0 else 'increase'
+                        self.engine.update_parameter(axis, direction)
+                # print(f"{axis}: {self.engine.get_parameter(axis)}")
+            update_params = {}
+            for key, value in self.engine.parameters.items():
+                update_params[key] = str(f"0: ({value})")
+            from deforum.shared_storage import models
+            try:
+                self.fi = FrameInterpolator(models['deforum_pipe'].gen.max_frames, 1)
+                models['deforum_pipe'].gen.keys.translation_x_series = self.fi.get_inbetweens(
+                    self.fi.parse_key_frames(update_params['translation_x']))
+                models['deforum_pipe'].gen.keys.translation_y_series = self.fi.get_inbetweens(
+                    self.fi.parse_key_frames(update_params['translation_y']))
+                models['deforum_pipe'].gen.keys.translation_z_series = self.fi.get_inbetweens(
+                    self.fi.parse_key_frames(update_params['translation_y']))
+                models['deforum_pipe'].gen.keys.rotation_3d_x_series = self.fi.get_inbetweens(
+                    self.fi.parse_key_frames(update_params['rotation_3d_x']))
+                models['deforum_pipe'].gen.keys.rotation_3d_y_series = self.fi.get_inbetweens(
+                    self.fi.parse_key_frames(update_params['rotation_3d_y']))
+                models['deforum_pipe'].gen.keys.rotation_3d_z_series = self.fi.get_inbetweens(
+                    self.fi.parse_key_frames(update_params['rotation_3d_z']))
+            except:
+                pass
+                    # models['deforum_pipe'].live_update_from_kwargs(**update_params)
+
+    def keyPressEvent(self, event: QKeyEvent):
+        if self.listen_to_controls:
+            key = event.text().upper()
+            if key in self.keys_pressed:
+                self.keys_pressed[key] = True
+                event.accept()  # Mark the event as handled
+            else:
+                super().keyPressEvent(event)  # Pass unhandled key events to the base class
+
+    def keyReleaseEvent(self, event: QKeyEvent):
+        if self.listen_to_controls:
+            key = event.text().upper()
+            if key in self.keys_pressed:
+                self.keys_pressed[key] = False
+                event.accept()  # Mark the event as handled
+            else:
+                super().keyReleaseEvent(event)  # Pass unhandled key events to the base class
