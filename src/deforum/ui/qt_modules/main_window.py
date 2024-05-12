@@ -1,18 +1,19 @@
+from deforum import logger
+
 import copy
 import datetime
 import json
+import math
 import os
 import shutil
 import sys
-import tempfile
-import time
 
 import imageio.v2 as imageio
 import numpy as np
-from PyQt6.QtGui import QIcon
-from qtpy.QtCore import QCoreApplication, QTimer
+from qtpy.QtGui import QIcon, QPen, QBrush, QColor, QPainterPath
+from qtpy.QtWidgets import QGraphicsEllipseItem, QGraphicsScene, QGraphicsView, QGraphicsPathItem, QCheckBox
+from qtpy.QtCore import QTimer
 from qtpy.QtGui import QKeyEvent
-from qtpy.QtMultimedia import QAudioSource
 from qtpy.QtWidgets import QDockWidget, QMenu
 from qtpy import QtWidgets
 from qtpy.QtCore import Qt, Slot, QUrl, QSize, Signal
@@ -23,7 +24,6 @@ from qtpy.QtWidgets import QWidget, QVBoxLayout, QSlider, QLabel, QMdiArea, \
     QPushButton, QComboBox, QFileDialog, QHBoxLayout, QListWidget, \
     QListWidgetItem, QMessageBox, QScrollArea, QProgressBar, QSizePolicy
 
-from deforum import logger
 from deforum.pipelines.deforum_animation.animation_helpers import FrameInterpolator
 from deforum.ui.qt_helpers.qt_image import npArrayToQPixmap
 from deforum.ui.qt_modules.backend_thread import BackendThread
@@ -43,8 +43,36 @@ def list_milk_presets(folder):
 os.makedirs(os.path.join(config.root_path, 'milks'), exist_ok=True)
 
 known_dropdowns = {"milk_path":list_milk_presets(os.path.join(config.root_path, 'milks'))}
+try:
+    import pygame
 
+    class JoystickHandler:
+        def __init__(self):
+            pygame.init()
+            pygame.joystick.init()
+            self.joystick_count = pygame.joystick.get_count()
+            if self.joystick_count > 0:
+                self.joystick = pygame.joystick.Joystick(0)
+                self.joystick.init()
+            else:
+                self.joystick = None
 
+        def get_axis(self, axis):
+            pygame.event.pump()
+            if self.joystick:
+                return self.joystick.get_axis(axis)
+            return 0
+except:
+    class JoystickHandler:
+        def __init__(self):
+            self.joystick_count = 0
+            self.joystick = None
+
+        def get_axis(self, axis):
+            return 0
+
+# Usage in your main application
+joystick_handler = JoystickHandler()
 class AnimationEngine:
     def __init__(self):
         self.parameters = {
@@ -55,20 +83,296 @@ class AnimationEngine:
             'rotation_3d_y': 0.0,
             'rotation_3d_z': 0.0
         }
-        self.max_value = 10.0
-        self.acceleration = 0.01
+        self.velocity = {
+            'translation_x': 0.0,
+            'translation_y': 0.0,
+            'translation_z': 0.0,
+            'rotation_3d_x': 0.0,
+            'rotation_3d_y': 0.0,
+            'rotation_3d_z': 0.0
+        }
+        self.acceleration = {
+            'translation_x': 0.01,
+            'translation_y': 0.01,
+            'translation_z': 0.01,
+            'rotation_3d_x': 0.003,
+            'rotation_3d_y': 0.003,
+            'rotation_3d_z': 0.001
+        }
+        self.max_velocity = 1.0
+        self.easing_type = 'exponential'  # Default easing type
+        self.key_held_down = {
+            'translation_x': False,
+            'translation_y': False,
+            'translation_z': False,
+            'rotation_3d_x': False,
+            'rotation_3d_y': False,
+            'rotation_3d_z': False
+        }
+        self.auto_return = {
+            'translation_x': True,
+            'translation_y': True,
+            'translation_z': True,
+            'rotation_3d_x': True,
+            'rotation_3d_y': True,
+            'rotation_3d_z': True
+        }
 
+    def ease(self, x):
+        # You can also consider more aggressive easing functions here if needed
+        if self.easing_type == 'linear':
+            return x
+        elif self.easing_type == 'easeInSine':
+            return 1 - math.cos((x * math.pi) / 2)
+        elif self.easing_type == 'easeOutSine':
+            return math.sin((x * math.pi) / 2)
+        elif self.easing_type == 'easeInOutSine':
+            # Increase the impact as the parameter grows larger
+            return -(math.cos(math.pi * x) - 1) / 2
+        # Adding an exponential decay component for larger values
+        elif self.easing_type == 'exponential':
+            return x * math.exp(-0.1 * x)
     def update_parameter(self, param, direction):
-        if direction == 'increase' and self.parameters[param] < self.max_value:
-            self.parameters[param] += self.acceleration
-        elif direction == 'decrease' and self.parameters[param] > -10.0:
-            self.parameters[param] -= self.acceleration
-        # Clamp the values within the allowed range
-        self.parameters[param] = round(min(max(self.parameters[param], -10.0), self.max_value), 3)
+        if self.key_held_down[param]:
+            if direction == 'increase':
+                self.velocity[param] += self.acceleration[param]
+            elif direction == 'decrease':
+                self.velocity[param] -= self.acceleration[param]
+        else:
+            # Apply easing function to decelerate smoothly to zero
+            if abs(self.velocity[param]) > 0:
+                self.velocity[param] -= self.ease(abs(self.velocity[param])) * (1 if self.velocity[param] > 0 else -1)
+                if abs(self.velocity[param]) < 0.01:
+                    self.velocity[param] = 0
+
+        self.velocity[param] = max(min(self.velocity[param], self.max_velocity), -self.max_velocity)
+        self.parameters[param] += self.velocity[param]
+
+        # Enhanced auto-return logic
+        if self.auto_return[param] and not self.key_held_down[param] and abs(self.velocity[param]) < 0.01:
+            # Increase step size dynamically based on distance from zero
+            distance = abs(self.parameters[param])
+            step_multiplier = 0.1 if distance < 2 else 0.2  # More aggressive when far from zero
+            step = self.ease(distance) * step_multiplier * (1 if self.parameters[param] > 0 else -1)
+            self.parameters[param] -= step
+            # Ensure that it snaps to zero when very close to prevent endless tiny oscillations
+            if abs(self.parameters[param]) < 0.05:
+                self.parameters[param] = 0
+
+        self.parameters[param] = max(min(self.parameters[param], 10), -10)
+
+
+
+    def set_key_held_down(self, param, is_held_down):
+        self.key_held_down[param] = is_held_down
 
     def get_parameter(self, param):
         return self.parameters[param]
 
+    def set_easing_type(self, easing_type):
+        if easing_type in ['linear', 'easeInSine', 'easeOutSine', 'easeInOutSine']:
+            self.easing_type = easing_type
+        else:
+            raise ValueError("Invalid easing type specified")
+    def set_auto_return(self, param, value):
+        self.auto_return[param] = value
+
+
+class PointerCircle(QGraphicsView):
+    def __init__(self, radius=50, parent=None, param_x='translation_x', param_y='translation_y'):
+        super().__init__(parent)
+        self.scene = QGraphicsScene(self)
+        self.setScene(self.scene)
+        self.radius = radius
+        self.param_x = param_x
+        self.param_y = param_y
+        self.invert_x = False
+        self.invert_y = False
+        self.setFixedSize(radius * 2 + 10, radius * 2 + 10)
+        self.setSceneRect(0, 0, radius * 2, radius * 2)
+
+        # Draw the outer circle
+        self.circle = QGraphicsEllipseItem(0, 0, radius * 2, radius * 2)
+        self.circle.setPen(QPen(QColor(255, 255, 255), 2))
+        self.circle.setBrush(QBrush(QColor(255, 255, 255, 100)))
+        self.scene.addItem(self.circle)
+
+        # Draw the pointer as a smaller circle
+        self.pointer = QGraphicsEllipseItem(radius-5, radius-5, 10, 10)
+        self.pointer.setBrush(QBrush(QColor(255, 0, 0)))
+        self.scene.addItem(self.pointer)
+        # Initialize the rotation arrow
+        self.rotationArrow = QGraphicsPathItem()
+        self.rotationArrow.setPen(QPen(QColor(0, 255, 0, 128), 2, Qt.SolidLine, Qt.RoundCap))
+        self.scene.addItem(self.rotationArrow)
+
+    def update_pointer(self, param_x_value, param_y_value):
+        # Apply inversion based on state
+        x_value = -param_x_value if self.invert_x else param_x_value
+        y_value = -param_y_value if self.invert_y else param_y_value
+
+        # Scale parameter values to fit within the radius (-10 to 10 becomes -radius to radius)
+        scale = self.radius / 10.0
+        scaled_x = x_value * scale
+        scaled_y = y_value * scale
+
+        # Compute the vector length from the center to the pointer
+        vector_length = math.sqrt(scaled_x ** 2 + scaled_y ** 2)
+
+        # Clamp the vector length to not exceed the radius
+        if vector_length > self.radius:
+            scaled_x = (scaled_x / vector_length) * self.radius
+            scaled_y = (scaled_y / vector_length) * self.radius
+
+        # Calculate center positions
+        center_x = self.radius + scaled_x
+        center_y = self.radius + scaled_y
+
+        # Set the pointer's position
+        self.pointer.setRect(center_x - 5, center_y - 5, 10, 10)
+
+    def set_inversion(self, axis, state):
+        if axis == 'x':
+            self.invert_x = state
+        elif axis == 'y':
+            self.invert_y = state
+
+    def update_rotation_arrow(self, rotation_z_value):
+        # Clear the previous path
+        path = QPainterPath()
+        self.rotationArrow.setPath(path)
+
+        if rotation_z_value != 0:
+            # Determine the direction based on the sign of rotation_z_value
+            direction = -1 if rotation_z_value > 0 else 1
+
+            # Calculate the angle, adjusting the direction
+            angle = direction * abs(rotation_z_value) / 10.0 * 360  # Scale rotation to a full circle
+
+            # Start from the top (90 degrees) and draw the arc
+            path.moveTo(self.radius, self.radius)
+            path.arcTo(0, 0, self.radius * 2, self.radius * 2, 90, angle)
+            self.rotationArrow.setPath(path)
+
+class LiveControlDockWidget(QDockWidget):
+    def __init__(self, parent=None, engine=None):
+        super().__init__("Live Controls", parent)
+        self.setAllowedAreas(Qt.DockWidgetArea.RightDockWidgetArea)
+        self.engine = engine
+        # Main widget and layout
+        widget = QWidget()
+        layout = QVBoxLayout()
+        widget.setLayout(layout)
+
+        # Adding circles to display translation and rotation
+        self.translationCircle = PointerCircle(50)
+        self.translationCircle.invert_y = True
+        self.rotationCircle = PointerCircle(50)
+        self.rotationCircle.invert_y = True
+
+        layout.addWidget(self.translationCircle)
+        layout.addWidget(self.rotationCircle)
+        self.joystick_enabled = False
+        self.joystick_button = QPushButton("Enable Joystick")
+        self.joystick_button.setCheckable(True)
+        self.joystick_button.toggled.connect(self.toggle_joystick)
+        layout.addWidget(self.joystick_button)
+        # Status labels and sliders for translation and rotation
+        self.status_labels = {}
+        self.sliders = {}
+        self.joystick_axis_mapping = {axis: -1 for axis in self.engine.parameters}  # -1 means no axis assigned
+        self.invert_joystick = {axis: False for axis in self.engine.parameters}
+        for axis in ['translation_x', 'translation_y', 'translation_z', 'rotation_3d_x', 'rotation_3d_y',
+                     'rotation_3d_z']:
+            sublayout = QHBoxLayout()
+            # Label
+            label = QLabel(f"{axis}: 0.0")
+            sublayout.addWidget(label)
+            self.status_labels[axis] = label
+
+            # Slider for acceleration
+            slider = QSlider(Qt.Orientation.Horizontal)
+            slider.setRange(1, 200)  # acceleration factor range
+            slider.setValue(10)  # default value
+            slider.valueChanged.connect(lambda value, a=axis: self.adjust_acceleration(a, value))
+            sublayout.addWidget(slider)
+            self.sliders[axis] = slider
+            # Add checkbox for auto return
+            auto_return_chk = QCheckBox("Auto Return to Zero")
+            auto_return_chk.setChecked(True)
+            auto_return_chk.toggled.connect(lambda checked, a=axis: self.toggle_auto_return(a, checked))
+            sublayout.addWidget(auto_return_chk)
+
+            axis_dropdown = QComboBox()
+            axis_dropdown.addItems(['None'] + [f'Axis {i}' for i in range(joystick_handler.joystick.get_numaxes())])
+            axis_dropdown.currentIndexChanged.connect(lambda index, a=axis: self.set_joystick_axis(a, index-1))
+            sublayout.addWidget(axis_dropdown)
+
+            # Checkbox for inverting joystick input
+            invert_checkbox = QCheckBox("Invert")
+            invert_checkbox.toggled.connect(lambda checked, a=axis: self.set_invert_joystick(a, checked))
+            sublayout.addWidget(invert_checkbox)
+
+
+            layout.addLayout(sublayout)
+
+
+        # Control visibility button
+        self.toggleButton = QPushButton("Toggle Live Control View")
+        self.toggleButton.clicked.connect(self.toggle_visibility)
+        layout.addWidget(self.toggleButton)
+
+        self.setWidget(widget)
+        self.setVisible(False)
+
+    def update_status(self, axis, value):
+        self.status_labels[axis].setText(f"{axis}: {value:.2f}")
+
+        # Update pointer positions based on axis
+        if axis in ['translation_x', 'translation_y']:
+            self.translationCircle.update_pointer(self.engine.get_parameter('translation_x'),
+                                                  self.engine.get_parameter('translation_y'))
+        if axis in ['rotation_3d_x', 'rotation_3d_y']:
+            self.rotationCircle.update_pointer(self.engine.get_parameter('rotation_3d_y'),
+                                               self.engine.get_parameter('rotation_3d_x'))
+        if axis in ['rotation_3d_z']:
+            self.rotationCircle.update_rotation_arrow(self.engine.get_parameter('rotation_3d_z'))
+
+    def adjust_acceleration(self, axis, value):
+        # Convert slider value to a suitable acceleration factor
+        new_acceleration = value * 0.001
+        self.engine.acceleration[axis] = new_acceleration
+        # self.status_labels[axis].setText(f"{axis}: {self.engine.parameters[axis]:.2f} (Acc: {new_acceleration:.2f})")
+
+    def toggle_visibility(self):
+        self.setVisible(not self.isVisible())
+    def toggle_auto_return(self, axis, checked):
+        self.engine.set_auto_return(axis, checked)
+        # Update the status label to reflect the change
+        # self.status_labels[axis].setText(f"{axis}: {self.engine.get_parameter(axis):.2f} (Auto Return: {'On' if checked else 'Off'})")
+    def toggle_joystick(self, checked):
+        self.joystick_enabled = checked
+        self.joystick_button.setText("Disable Joystick" if checked else "Enable Joystick")
+
+    def set_joystick_axis(self, axis, joystick_index):
+        # Store the joystick axis linked to each parameter
+        self.joystick_axis_mapping[axis] = joystick_index
+
+    def set_invert_joystick(self, axis, invert):
+        # Store inversion state
+        self.invert_joystick[axis] = invert
+
+    # Periodically update parameters based on joystick input
+    def update_parameters_from_joystick(self):
+        if not self.joystick_enabled:
+            return
+        for axis, joystick_index in self.joystick_axis_mapping.items():
+            if joystick_index >= 0:
+                raw_input = joystick_handler.get_axis(joystick_index)
+                inverted = -1 if self.invert_joystick[axis] else 1
+                self.engine.parameters[axis] = (self.engine.acceleration[axis] * 1000) * raw_input * inverted
+                # self.engine.update_parameter(axis, 10 * raw_input * inverted)
+                self.status_labels[axis].setText(f"{axis}: {(self.engine.acceleration[axis] * 1000) * raw_input * inverted:.2f}")
 
 class MainWindow(DeforumCore):
     def __init__(self):
@@ -597,17 +901,22 @@ class MainWindow(DeforumCore):
 
         self.axis_bindings = {
             'translation_x': ('A', 'D'),  # Increase, Decrease
-            'translation_y': ('W', 'S'),
-            'translation_z': ('R', 'F'),
-            'rotation_3d_x': ('J', 'L'),
-            'rotation_3d_y': ('I', 'K'),
-            'rotation_3d_z': ('Y', 'H')
+            'translation_y': ('S', 'W'),
+            'translation_z': ('F', 'R'),
+            'rotation_3d_x': ('I', 'K'),
+            'rotation_3d_y': ('J', 'L'),
+            'rotation_3d_z': ('U', 'O')
         }
+        self.key_to_axis = {key: axis for axis, keys in self.axis_bindings.items() for key in keys}
         self.keys_pressed = {key: False for axis in self.axis_bindings for key in self.axis_bindings[axis]}
         self.listen_to_controls = False
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_animation)
         self.timer.start(50)  # Update interval in milliseconds
+        self.liveControlDock = LiveControlDockWidget(self, engine=self.engine)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.liveControlDock)
+        self.controlToggleButton.triggered.connect(self.liveControlDock.toggle_visibility)
+
     def newProject(self):
         self.project = {
             'params': {},  # Global parameters if any
@@ -1042,17 +1351,20 @@ class MainWindow(DeforumCore):
 
     def update_animation(self):
         if self.listen_to_controls:
-            for axis, (decrease_key, increase_key) in self.axis_bindings.items():
-                if self.keys_pressed[increase_key]:
-                    self.engine.update_parameter(axis, 'increase')
-                elif self.keys_pressed[decrease_key]:
-                    self.engine.update_parameter(axis, 'decrease')
-                else:
-                    # Gradually return to 0 if no key is pressed
-                    current_value = self.engine.get_parameter(axis)
-                    if current_value != 0:
-                        direction = 'decrease' if current_value > 0 else 'increase'
-                        self.engine.update_parameter(axis, direction)
+            if self.liveControlDock.joystick_enabled:
+                self.liveControlDock.update_parameters_from_joystick()
+            else:
+                for axis, (decrease_key, increase_key) in self.axis_bindings.items():
+                    if self.keys_pressed[increase_key]:
+                        self.engine.update_parameter(axis, 'increase')
+                    elif self.keys_pressed[decrease_key]:
+                        self.engine.update_parameter(axis, 'decrease')
+                    else:
+                        # Gradually return to 0 if no key is pressed
+                        current_value = self.engine.get_parameter(axis)
+                        if current_value != 0:
+                            direction = 'decrease' if current_value > 0 else 'increase'
+                            self.engine.update_parameter(axis, direction)
                 # print(f"{axis}: {self.engine.get_parameter(axis)}")
             update_params = {}
             for key, value in self.engine.parameters.items():
@@ -1065,7 +1377,7 @@ class MainWindow(DeforumCore):
                 models['deforum_pipe'].gen.keys.translation_y_series = self.fi.get_inbetweens(
                     self.fi.parse_key_frames(update_params['translation_y']))
                 models['deforum_pipe'].gen.keys.translation_z_series = self.fi.get_inbetweens(
-                    self.fi.parse_key_frames(update_params['translation_y']))
+                    self.fi.parse_key_frames(update_params['translation_z']))
                 models['deforum_pipe'].gen.keys.rotation_3d_x_series = self.fi.get_inbetweens(
                     self.fi.parse_key_frames(update_params['rotation_3d_x']))
                 models['deforum_pipe'].gen.keys.rotation_3d_y_series = self.fi.get_inbetweens(
@@ -1074,22 +1386,33 @@ class MainWindow(DeforumCore):
                     self.fi.parse_key_frames(update_params['rotation_3d_z']))
             except:
                 pass
+            if self.liveControlDock.isVisible():
+                for axis, label in self.liveControlDock.status_labels.items():
+                    label.setText(f"{axis}: {self.engine.get_parameter(axis):.2f}")
+                    self.liveControlDock.update_status(axis, self.engine.get_parameter(axis))
+
                     # models['deforum_pipe'].live_update_from_kwargs(**update_params)
 
     def keyPressEvent(self, event: QKeyEvent):
-        if self.listen_to_controls:
+        if self.listen_to_controls and not self.liveControlDock.joystick_enabled:
             key = event.text().upper()
             if key in self.keys_pressed:
                 self.keys_pressed[key] = True
+                axis = self.key_to_axis.get(key)
+                if axis:
+                    self.engine.set_key_held_down(axis, True)
                 event.accept()  # Mark the event as handled
             else:
                 super().keyPressEvent(event)  # Pass unhandled key events to the base class
 
     def keyReleaseEvent(self, event: QKeyEvent):
-        if self.listen_to_controls:
+        if self.listen_to_controls and not self.liveControlDock.joystick_enabled:
             key = event.text().upper()
             if key in self.keys_pressed:
                 self.keys_pressed[key] = False
+                axis = self.key_to_axis.get(key)
+                if axis:
+                    self.engine.set_key_held_down(axis, False)
                 event.accept()  # Mark the event as handled
             else:
                 super().keyReleaseEvent(event)  # Pass unhandled key events to the base class
