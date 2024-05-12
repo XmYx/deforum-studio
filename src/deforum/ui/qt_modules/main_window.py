@@ -69,9 +69,9 @@ class MainWindow(DeforumCore):
         self.currentTrack = None  # Store the currently selected track
         self.project_replay = False
         self.job_queue = []  # List to keep jobs to be processed
-        self.presets_folder = os.path.join(os.path.expanduser('~'), 'deforum', 'presets')
-        self.projects_folder = os.path.join(os.path.expanduser('~'), 'deforum', 'projects')
-        self.state_file = os.path.join(os.path.expanduser('~'), 'deforum', '.lastview')
+        self.presets_folder = os.path.join(config.root_path, 'presets')
+        self.projects_folder = os.path.join(config.root_path, 'projects')
+        self.state_file = os.path.join(config.root_path, '.lastview')
         os.makedirs(os.path.dirname(self.state_file), exist_ok=True)
         os.makedirs(self.presets_folder, exist_ok=True)
         os.makedirs(self.projects_folder, exist_ok=True)
@@ -202,14 +202,7 @@ class MainWindow(DeforumCore):
                 self.params[key] = value
         self.updateUIFromParams()  # Reflect updates
 
-    # def playVideo(self, data):
-    #     self.cleanupVizThread()
-    #     if 'video_path' in data:
-    #         self.player.pause()
-    #         self.player.stop()
-    #         self.player.setSource(QUrl())
-    #         self.player.setSource(QUrl.fromLocalFile(data['video_path']))
-            #self.player.play()
+
     def setupMenu(self):
         menuBar = self.menuBar()
 
@@ -397,9 +390,9 @@ class MainWindow(DeforumCore):
         self.stopButton.clicked.connect(self.player.stop)
         self.volumeSlider.valueChanged.connect(lambda value: self.audioOutput.setVolume(value / 100))
         self.videoSlider = QSlider(Qt.Orientation.Horizontal)
-        # self.videoSlider.sliderMoved.connect(self.setPosition)
-        # self.player.positionChanged.connect(self.updatePosition)
-        # self.player.durationChanged.connect(self.updateDuration)
+        self.videoSlider.sliderMoved.connect(self.setPosition)
+        self.player.positionChanged.connect(self.updatePosition)
+        self.player.durationChanged.connect(self.updateDuration)
         # Layout for the video player controls
         controlsLayout = QHBoxLayout()
         controlsLayout.addWidget(self.playButton)
@@ -786,15 +779,7 @@ class MainWindow(DeforumCore):
     def playVideo(self, data):
         # Ensure the player stops properly before setting a new source
         if self.player.playbackState() == QMediaPlayer.PlaybackState.StoppedState:
-            # self.player.pause()
             self.player.stop()
-        # # Wait for the player to be in the stopped state before proceeding
-        # while self.player.playbackState() != QMediaPlayer.PlaybackState.PausedState:
-        #     print(self.player.playbackState())
-        #
-        #     QCoreApplication.processEvents()  # Process existing events to avoid freezing the UI
-
-        # Clear the current source
         self.player.setSource(QUrl())
 
         if 'video_path' in data:
@@ -805,6 +790,13 @@ class MainWindow(DeforumCore):
                 self.player.setAudioOutput(self.audioOutput)  # Set the new audio output
             self.player.setSource(QUrl.fromLocalFile(data['video_path']))
             self.player.play()
+        if 'timestring' in data:
+            self.updateWidgetValue('resume_timestring', data['timestring'])
+            self.updateWidgetValue('resume_path', data['resume_path'])
+            self.updateWidgetValue('resume_from', data['resume_from'])
+
+            self.saveCurrentProjectAsSettingsFile()
+            self.updateRenderDropdown()
 
     def onMediaStatusChanged(self, status):
         pass

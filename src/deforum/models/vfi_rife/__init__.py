@@ -98,16 +98,12 @@ class RIFE_VFI:
             self.model.load_state_dict(torch.load(model_path))
             self.model.eval().half().to('cuda')
         frames = preprocess_frames(frames)
-
         def return_middle_frame(frame_0, frame_1, timestep, model, scale_list, in_fast_mode, in_ensemble):
             return model(frame_0, frame_1, timestep, scale_list, in_fast_mode, in_ensemble)
-
         scale_list = [8 / scale_factor, 4 / scale_factor, 2 / scale_factor, 1 / scale_factor]
-
         args = [self.model, scale_list, fast_mode, ensemble]
-        out = postprocess_frames(
-            generic_frame_loop(type(self).__name__, frames, clear_cache_after_n_frames, multiplier, return_middle_frame,
+        out = generic_frame_loop(type(self).__name__, frames, clear_cache_after_n_frames, multiplier, return_middle_frame,
                                *args,
                                interpolation_states=optional_interpolation_states, dtype=torch.float16)
-        )
-        return (out,)
+
+        return out

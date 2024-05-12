@@ -1,5 +1,7 @@
 import yaml
 import os
+
+from PIL import Image
 from torch.hub import download_url_to_file, get_dir
 from urllib.parse import urlparse
 import torch
@@ -120,12 +122,19 @@ def load_file_from_direct_url(model_type, url):
     return load_file_from_url(url, get_ckpt_container_path(model_type))
 
 
+# def preprocess_frames(frames):
+#     return einops.rearrange(frames[..., :3], "n h w c -> n c h w")
+#
+#
+# def postprocess_frames(frames):
+#     return einops.rearrange(frames, "n c h w -> n h w c")[..., :3]
 def preprocess_frames(frames):
-    return einops.rearrange(frames[..., :3], "n h w c -> n c h w")
-
+    # Assuming frames is a torch.Tensor
+    return frames[..., :3].permute(0, 3, 1, 2)  # Rearrange from N x H x W x C to N x C x H x W
 
 def postprocess_frames(frames):
-    return einops.rearrange(frames, "n c h w -> n h w c")[..., :3].cpu()
+    # Assuming frames is a torch.Tensor
+    return frames.permute(1,2,0)  # Rearrange from C x H x W to H x W x C
 
 
 def assert_batch_size(frames, batch_size=2, vfi_name=None):
@@ -134,6 +143,28 @@ def assert_batch_size(frames, batch_size=2, vfi_name=None):
         frames) >= batch_size, f"{subject_verb} at least {batch_size} frames to work with, only found {frames.shape[0]}. Please check the frame input using PreviewImage."
 
 
+def tensor2pil(image):
+    """
+    Convert a PyTorch tensor image to a PIL image, performing the tensor manipulations on the GPU.
+
+    Args:
+        image (torch.Tensor): The image tensor to convert. Assumes the image is in the format (C, H, W)
+                              and data is on GPU.
+
+    Returns:
+        PIL.Image: The resulting PIL Image.
+    """
+    # Ensure the image tensor is on GPU, then clamp and convert to uint8 before moving to CPU
+    if image.is_cuda:
+        # Clamp the values to ensure they are between 0 and 1, multiply by 255 and convert to uint8
+        image = image.clamp(0, 1) * 255
+        image = image.type(torch.uint8)
+    else:
+        raise ValueError("Image tensor is expected to be on GPU")
+
+    # Move the image to CPU and convert to numpy
+    image_np = image.cpu().numpy().transpose(1, 2, 0)  # Reorder dimensions to HWC for PIL compatibility
+    return Image.fromarray(image_np)
 def _generic_frame_loop(
         frames,
         clear_cache_after_n_frames,
@@ -156,7 +187,7 @@ def _generic_frame_loop(
         else:
             return [*first_half, *second_half]
 
-    output_frames = torch.zeros(multiplier * frames.shape[0], *frames.shape[1:], dtype=dtype, device="cpu")
+    output_frames = torch.zeros(multiplier * frames.shape[0], *frames.shape[1:], dtype=dtype, device="cuda")
     out_len = 0
 
     number_of_frames_processed_since_last_cleared_cuda_cache = 0
@@ -188,7 +219,7 @@ def _generic_frame_loop(
                 middle_frame_batches.append(middle_frame.to(dtype=dtype))
         else:
             middle_frames = non_timestep_inference(frame0.to(DEVICE), frame1.to(DEVICE), multiplier - 1)
-            middle_frame_batches.extend(torch.cat(middle_frames, dim=0).detach().to(dtype=dtype))
+            middle_frame_batches.extend(torch.cat(middle_frames, dim=0).to(dtype=dtype))
 
         # Copy middle frames to output
         for middle_frame in middle_frame_batches:
@@ -196,27 +227,11 @@ def _generic_frame_loop(
             out_len += 1
 
         number_of_frames_processed_since_last_cleared_cuda_cache += 1
-        # Try to avoid a memory overflow by clearing cuda cache regularly
-        # if number_of_frames_processed_since_last_cleared_cuda_cache >= clear_cache_after_n_frames:
-        #     print("Comfy-VFI: Clearing cache...", end=' ')
-        #     #soft_empty_cache()
-        #     number_of_frames_processed_since_last_cleared_cuda_cache = 0
-        #     print("Done cache clearing")
-
-        # gc.collect()
-
-    if final_logging:
-        print(f"Comfy-VFI done! {len(output_frames)} frames generated at resolution: {output_frames[0].shape}")
     # Append final frame
     output_frames[out_len] = frames[-1:]
     out_len += 1
-    # clear cache for courtesy
-    if final_logging:
-        print("Comfy-VFI: Final clearing cache...", end=' ')
-    #soft_empty_cache()
-    if final_logging:
-        print("Done cache clearing")
-    return output_frames[:out_len]
+
+    return [tensor2pil(i) for i in output_frames[:out_len]]
 
 
 def generic_frame_loop(
@@ -228,8 +243,9 @@ def generic_frame_loop(
         *return_middle_frame_function_args,
         interpolation_states: InterpolationStateList = None,
         use_timestep=True,
-        dtype=torch.float32):
+        dtype=torch.float16):
     assert_batch_size(frames, vfi_name=model_name.replace('_', ' ').replace('VFI', ''))
+    result = []
     if type(multiplier) == int:
         return _generic_frame_loop(
             frames,
@@ -261,10 +277,10 @@ def generic_frame_loop(
             )
             if frame_itr != len(frames) - 2:  # Not append last frame unless this batch is the last one
                 frame_batch = frame_batch[:-1]
-            frame_batches.append(frame_batch)
-        output_frames = torch.cat(frame_batches)
-        print(f"Comfy-VFI done! {len(output_frames)} frames generated at resolution: {output_frames[0].shape}")
-        return output_frames
+            result.extend(frame_batch)
+        #output_frames = torch.cat(frame_batches)
+        print(f"Comfy-VFI done! {len(result)} frames generated at resolution: {result[0].size}")
+        return result
     raise NotImplementedError(f"multipiler of {type(multiplier)}")
 
 

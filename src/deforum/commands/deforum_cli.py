@@ -148,6 +148,7 @@ def start_deforum_cli() -> None:
         if args_main.mode == "version":
             import deforum
             print(deforum.__version__)
+            logger.info(str(deforum.__version__))
         elif args_main.mode == "webui":
             import streamlit.web.cli as stcli
             stcli.main(["run", f"{config.src_path}/webui/deforum_webui.py", "--server.headless", "true"])

@@ -8,6 +8,8 @@ import torch.nn as nn
 from midas.base_model import BaseModel
 from midas.blocks import FeatureFusionBlock, Interpolate, _make_encoder
 
+from deforum import logger
+
 
 class MidasNet(BaseModel):
     """Network for monocular depth estimation.
@@ -21,7 +23,7 @@ class MidasNet(BaseModel):
             features (int, optional): Number of features. Defaults to 256.
             backbone (str, optional): Backbone network for encoder. Defaults to resnet50
         """
-        print("Loading weights: ", path)
+        logger.info("Loading weights: ", path)
 
         super(MidasNet, self).__init__()
 
