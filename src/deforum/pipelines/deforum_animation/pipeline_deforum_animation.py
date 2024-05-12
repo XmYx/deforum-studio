@@ -360,7 +360,7 @@ class DeforumAnimationPipeline(DeforumBase):
 
         self.shoot_fns.append(post_gen_cls)
         if hasattr(self.gen, 'enable_temporal_flow'):
-            if self.gen.enable_temporal_flow and self.gen.turbo_steps == 1:
+            if self.gen.enable_temporal_flow and self.gen.turbo_steps < 2:
                 self.shoot_fns.append(apply_temporal_flow_cls)
 
         if hasattr(self.gen, "deforum_save_gen_info_as_srt"):

@@ -109,7 +109,7 @@
       "widget_type": "number",
       "default": -1,
       "min": -1,
-      "max": 1000000,
+      "max": 2147483647,
       "label": "Seed",
       "accessible_name": "Random Seed for Generation"
     },
@@ -295,6 +295,11 @@
       "min": 1,
       "max": 1000,
       "label": "Cadence"
+    },
+    "enable_temporal_flow": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Enable Temporal Flow"
     },
     "optical_flow_cadence": {
       "widget_type": "dropdown",

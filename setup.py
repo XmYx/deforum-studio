@@ -73,7 +73,6 @@ _deps = [
     'librosa==0.10.0.post2',
     'numpy==1.24.2',
     'opencv-python-headless',
-    'basicsr==1.4.2',
     'timm==0.6.13',
     'transformers',
     'omegaconf==2.3.0',
@@ -100,7 +99,6 @@ _deps = [
     'kornia==0.7.2',
     'wheel==0.43.0',
     'loguru==0.7.2',
-    'kornia==0.6.7'
 ]
 
 # this is a lookup table with items like:
@@ -189,7 +187,6 @@ extras["dev"] = deps_list('torch',
                           'librosa',
                           'numpy',
                           'opencv-python-headless',
-                          'basicsr',
                           'timm',
                           'transformers',
                           'omegaconf',
@@ -214,7 +211,6 @@ extras["dev"] = deps_list('torch',
                           'kornia',
                           'wheel',
                           'loguru',
-                          'kornia'
                           )
 
 extras["cli"] = deps_list('torch',
@@ -232,7 +228,6 @@ extras["cli"] = deps_list('torch',
                           # 'librosa',
                           # 'numpy',
                           'opencv-python-headless',
-                          'basicsr',
                           'timm',
                           'transformers',
                           'omegaconf',

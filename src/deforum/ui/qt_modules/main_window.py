@@ -501,7 +501,6 @@ class MainWindow(DeforumCore):
             with open(file, 'r') as f:
                 self.restoreGeometry(bytes(f.readline().strip(), 'utf-8'))
                 self.restoreState(bytes(f.readline().strip(), 'utf-8'))
-
                 while True:
                     line = f.readline().strip()
                     if not line:
@@ -517,15 +516,14 @@ class MainWindow(DeforumCore):
                                 button.click()
 
                         dock = self.findChild(AutoReattachDockWidget, dock_state['name'])
-
-                        area_map = {
-                            "TopDockWidgetArea": Qt.DockWidgetArea.TopDockWidgetArea,
-                            "BottomDockWidgetArea": Qt.DockWidgetArea.BottomDockWidgetArea,
-                            "LeftDockWidgetArea": Qt.DockWidgetArea.LeftDockWidgetArea,
-                            "RightDockWidgetArea": Qt.DockWidgetArea.RightDockWidgetArea,
-                            "NoDockWidgetArea": Qt.DockWidgetArea.NoDockWidgetArea
-                        }
                         if dock:
+                            area_map = {
+                                "TopDockWidgetArea": Qt.DockWidgetArea.TopDockWidgetArea,
+                                "BottomDockWidgetArea": Qt.DockWidgetArea.BottomDockWidgetArea,
+                                "LeftDockWidgetArea": Qt.DockWidgetArea.LeftDockWidgetArea,
+                                "RightDockWidgetArea": Qt.DockWidgetArea.RightDockWidgetArea,
+                                "NoDockWidgetArea": Qt.DockWidgetArea.NoDockWidgetArea
+                            }
                             dock.restoreGeometry(bytes(dock_state['geometry'], 'utf-8'))
                             self.addDockWidget(area_map[dock_state['dock_area']], dock)
                             dock.setFloating(False)

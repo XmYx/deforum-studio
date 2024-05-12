@@ -18,9 +18,7 @@ from deforum.shared_storage import models
 from deforum.utils.file_utils.extract_nth_files import extract_nth_files
 
 if 'deforum_pipe' not in models:
-    models['deforum_pipe'] = DeforumAnimationPipeline.from_civitai(model_id="125703")#125703 424460
-    # _ = models['deforum_pipe'](callback=None, max_frames=1, skip_save_video=True, store_frames_in_ram=True,
-    #                               batch_name='temp', timestring='temp')
+    models['deforum_pipe'] = DeforumAnimationPipeline.from_civitai(model_id="125703")
 
 loaded_model_id = "125703"
 
@@ -37,19 +35,6 @@ class BackendThread(QThread):
 
     def run(self):
         global loaded_model_id
-        # try:
-        # from deforum.shared_storage import models
-        # if loaded_model_id != self.params.get('model_id', "125703") and 'deforum_pipe' in models:
-        #     try:
-        #         models['deforum_pipe'].generator.cleanup()
-        #     except:
-        #         pass
-        # # Load the deforum pipeline if not already loaded
-        # if "deforum_pipe" not in models or loaded_model_id != self.params.get('model_id', "125703"):
-        #     from deforum import DeforumAnimationPipeline
-        #     models['deforum_pipe'] = DeforumAnimationPipeline.from_civitai(model_id=self.params.get('model_id', "125703"))
-        #     loaded_model_id = self.params.get('model_id', "125703")
-                                                                        #generator_name='DeforumDiffusersGenerator')
         models['deforum_pipe'].generator.optimize = self.params.get('optimize', True)
         prom = self.params.get('prompts', 'cat sushi')
         key = self.params.get('keyframes', '0')
@@ -94,25 +79,15 @@ class BackendThread(QThread):
         timestring = time.strftime('%Y%m%d%H%M%S')
 
         self.params['batch_name'] = f"{self.params['batch_name']}"
-        self.params['timestring'] = timestring
-        # self.params['enable_subseed_scheduling'] = True
-        # self.params['enable_steps_scheduling'] = True
-        # self.params['color_coherence'] = False
-        # self.params['hybrid_use_first_frame_as_init_image'] = False
+        self.params['timestring'] = timestring if not self.params['resume_from_timestring'] else self.params['resume_timestring']
 
         self.should_wait = True
         if self.params.get('generate_viz'):
-            # from deforum.utils.constants import config
-            # config.allow_blocking_input_frame_lists = True
             import os
             from deforum.utils.constants import config
             output_path = os.path.join(config.root_path, 'output', 'deforum', f"{self.params['batch_name']}_{timestring}", 'inputframes')
             self.params['max_frames'] = int(math.floor(self.params['fps'] * get_audio_duration(self.params['audio_path'])) / self.params["extract_nth_frame"])
             os.makedirs(output_path, exist_ok=True)
-
-            # anim = models['deforum_pipe'](callback=datacallback, max_frames=1, skip_save_video=True, store_frames_in_ram=True, batch_name='temp', timestring='temp')
-            # time.sleep(2)
-            # Define the base command
             base_command = "EGL_PLATFORM=surfaceless projectMCli"
             # Assemble the command with arguments
             command = f'{base_command} -a "{self.params["audio_path"]}" --presetFile "{os.path.join(config.root_path, "milks", self.params["milk_path"])}" --outputType image --outputPath "{str(output_path)}/" --fps 24 --width {self.params["width"]} --height {self.params["height"]}'
@@ -153,18 +128,12 @@ class BackendThread(QThread):
         result = {"status":"Ready",
                   "timestring":animation.timestring,
                   "resume_path":animation.outdir,
-                  "resume_from":animation.image_count}
+                  "resume_from":animation.max_frames}
         if hasattr(animation, 'video_path'):
             result["video_path"] = animation.video_path
         if self.process:
             del self.process  # Ensure process is terminated
             self.process = None
         self.finished.emit(result)
-        # except Exception as e:
-        #     logger.info(repr(e))
-        #     self.finished.emit({"status": "Error"})
     def continueProcessing(self):
         pass
-        # self.mutex.lock()
-        # self.condition.wakeAll()
-        # self.mutex.unlock()
