@@ -14,6 +14,7 @@ def setup_file_logging(log_file, log_level, log_max_bytes, log_backup_count):
         retention=log_backup_count,
         backtrace=True,
         diagnose=True,
+        enqueue=True
     )
 
 def setup_console_logging(log_level):
@@ -23,6 +24,7 @@ def setup_console_logging(log_level):
         format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> - <cyan>{file}:{line}</cyan> - <lvl>{level}</lvl> - <lvl>{message}</lvl>",
         backtrace=True,
         diagnose=True,
+        enqueue=True
     )
 
 def setup_logging():
