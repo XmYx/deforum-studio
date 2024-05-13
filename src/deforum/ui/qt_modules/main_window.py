@@ -259,6 +259,7 @@ class LiveControlDockWidget(QDockWidget):
         super().__init__("Live Controls", parent)
         self.setAllowedAreas(Qt.DockWidgetArea.RightDockWidgetArea)
         self.engine = engine
+        self.setObjectName('live_control')
         # Main widget and layout
         widget = QWidget()
         layout = QVBoxLayout()
@@ -280,8 +281,11 @@ class LiveControlDockWidget(QDockWidget):
         # Status labels and sliders for translation and rotation
         self.status_labels = {}
         self.sliders = {}
+        self.dropdowns = {}
+        self.checkboxes = {}
         self.joystick_axis_mapping = {axis: -1 for axis in self.engine.parameters}  # -1 means no axis assigned
         self.invert_joystick = {axis: False for axis in self.engine.parameters}
+
         for axis in ['translation_x', 'translation_y', 'translation_z', 'rotation_3d_x', 'rotation_3d_y',
                      'rotation_3d_z']:
             sublayout = QHBoxLayout()
@@ -295,6 +299,7 @@ class LiveControlDockWidget(QDockWidget):
             slider.setRange(1, 200)  # acceleration factor range
             slider.setValue(10)  # default value
             slider.valueChanged.connect(lambda value, a=axis: self.adjust_acceleration(a, value))
+
             sublayout.addWidget(slider)
             self.sliders[axis] = slider
             # Add checkbox for auto return
@@ -307,12 +312,12 @@ class LiveControlDockWidget(QDockWidget):
             axis_dropdown.addItems(['None'] + [f'Axis {i}' for i in range(joystick_handler.joystick.get_numaxes())])
             axis_dropdown.currentIndexChanged.connect(lambda index, a=axis: self.set_joystick_axis(a, index-1))
             sublayout.addWidget(axis_dropdown)
-
+            self.dropdowns[axis] = axis_dropdown
             # Checkbox for inverting joystick input
             invert_checkbox = QCheckBox("Invert")
             invert_checkbox.toggled.connect(lambda checked, a=axis: self.set_invert_joystick(a, checked))
             sublayout.addWidget(invert_checkbox)
-
+            self.checkboxes[axis] = invert_checkbox
 
             layout.addLayout(sublayout)
 
@@ -390,8 +395,8 @@ class MainWindow(DeforumCore):
         self.tileMdiSubWindows()
         self.timelineDock.hide()
         self.newProject()
-        self.loadWindowState()
         self.initAnimEngine()
+        self.loadWindowState()
 
         preset_path = os.path.join(self.presets_folder, 'default.txt')
         if os.path.exists(preset_path):
@@ -849,6 +854,20 @@ class MainWindow(DeforumCore):
                 }
                 json.dump(textbox_state, f)
                 f.write('\n')
+            # Saving additional states for LiveControlDockWidget
+            live_dock = self.liveControlDock
+            if live_dock:
+                joystick_mappings = live_dock.joystick_axis_mapping
+                slider_values = {axis: slider.value() for axis, slider in live_dock.sliders.items()}
+                joystick_inversions = live_dock.invert_joystick
+
+                live_dock_state = {
+                    'joystick_mappings': joystick_mappings,
+                    'slider_values': slider_values,
+                    'joystick_inversions': joystick_inversions
+                }
+                json.dump(live_dock_state, f)
+                f.write('\n')
 
     def loadWindowState(self, file=None):
         if not file:
@@ -862,7 +881,24 @@ class MainWindow(DeforumCore):
                     if not line:
                         break
                     dock_state = json.loads(line)
-                    if 'scale' in dock_state:  # This identifies a CustomTextBox
+
+                    if 'joystick_mappings' in dock_state:  # Check if it's the joystick state
+                        live_dock = self.liveControlDock
+                        if live_dock:
+                            live_dock.joystick_axis_mapping = dock_state['joystick_mappings']
+
+                            for key, widget in live_dock.dropdowns.items():
+                                widget.setCurrentIndex(widget.findText(f"Axis {dock_state['joystick_mappings'].get(key, '99')}"))
+
+                            for axis, value in dock_state['slider_values'].items():
+                                live_dock.sliders[axis].setValue(value)
+                            for axis, inverted in dock_state['joystick_inversions'].items():
+                                live_dock.invert_joystick[axis] = inverted
+
+                            for key, widget in live_dock.checkboxes.items():
+                                widget.setChecked(dock_state['joystick_inversions'].get(key, False))
+
+                    elif 'scale' in dock_state:  # This identifies a CustomTextBox
                         textbox = self.findChild(CustomTextBox, dock_state['name'])
                         if textbox:
                             textbox.scale = dock_state['scale']
