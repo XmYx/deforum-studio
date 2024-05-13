@@ -7,6 +7,7 @@ import numpy as np
 from PIL import Image, ImageChops, ImageOps, ImageEnhance
 
 from deforum.utils.blocking_file_list import BlockingFileList
+from .file_utils.extract_nth_files import extract_nth_files
 
 from ..utils.deforum_human_masking import video2humanmasks
 from ..utils.image_utils import (get_resized_image_from_filename,
@@ -76,7 +77,8 @@ def hybrid_generation(cls):
         if config.allow_blocking_input_frame_lists:
             logger.info(f"Will wait for input frames to appear in {video_in_frame_path}")
             cls.inputfiles = BlockingFileList(video_in_frame_path, cls.max_frames)
-                    
+            if cls.extract_nth_frame > 1:
+                cls.inputfiles = extract_nth_files(video_in_frame_path, cls.extract_nth_frame)
         # determine max frames from length of input frames
         if cls.hybrid_use_full_video:
             cls.max_frames = len(cls.inputfiles)
@@ -86,7 +88,6 @@ def hybrid_generation(cls):
             raise Exception(
                 f"Error: No input frames found in {video_in_frame_path}! Please check your input video path and whether you've opted to extract input frames.")
         logger.info(f"Using {cls.max_frames} input frames from {video_in_frame_path}...")
-
     # use first frame as init
     if cls.hybrid_use_first_frame_as_init_image:
         for f in cls.inputfiles:
@@ -208,6 +209,8 @@ def get_matrix_for_hybrid_motion_prev_imgs(frame_idx, dimensions, goal_img, prev
         img = cv2.cvtColor(goal_img, cv2.COLOR_BGR2GRAY)
         M = get_transformation_matrix_from_images(prev_img_gray.astype(np.uint8), img.astype(np.uint8), hybrid_motion)
         return M
+
+
 
 
 def get_matrix_for_hybrid_motion_from_images(input_image, prev_img, hybrid_motion):

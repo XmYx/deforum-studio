@@ -62,11 +62,11 @@ class AdaBinsModel:
             adabins_depth_tensor = torch.from_numpy(adabins_depth)
 
             # Resize using F.interpolate
-            adabins_depth_resized = F.interpolate(adabins_depth_tensor, size=(h,w), mode='bicubic',
+            adabins_depth = F.interpolate(adabins_depth_tensor, size=(h,w), mode='bicubic',
                                                   align_corners=False)
 
             # Remove added dimensions and convert back to numpy array
-            adabins_depth = adabins_depth_resized.cpu().numpy()
+            # adabins_depth = adabins_depth_resized.cpu().numpy()
 
             # print("ADABINS SHAPE 1", adabins_depth.shape)
 
@@ -77,7 +77,7 @@ class AdaBinsModel:
         # except Exception as e:
         #     print("AdaBins exception encountered. Falling back to pure MiDaS/Zoe (only if running in Legacy Midas/Zoe+AdaBins mode)")
         #     use_adabins = False
-        torch.cuda.empty_cache()
+        # torch.cuda.empty_cache()
 
         return use_adabins, adabins_depth
         

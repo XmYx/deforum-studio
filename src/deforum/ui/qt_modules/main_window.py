@@ -1199,35 +1199,86 @@ class MainWindow(DeforumCore):
 
     @Slot(dict)
     def playVideo(self, data):
-        # Ensure the player stops properly before setting a new source
-        if self.player.playbackState() == QMediaPlayer.PlaybackState.StoppedState:
-            self.player.stop()
-        self.player.setSource(QUrl())
+        self.current_data = data
 
+        # Ensure the player stops properly before setting a new source
+        if self.player.playbackState() != QMediaPlayer.PlaybackState.StoppedState:
+            self.player.mediaStatusChanged.connect(self.on_media_status_changed)
+            self.player.stop()
+            self.seekToEnd()
+            self.player.play()
+        else:
+            self.loadNewVideo(data)
+
+    def loadNewVideo(self, data):
         if 'video_path' in data:
             # Reinitialize the audio output if it exists
             if hasattr(self, 'audioOutput'):
                 self.audioOutput.deleteLater()  # Properly dispose of the old output
                 self.audioOutput = QAudioOutput()
                 self.player.setAudioOutput(self.audioOutput)  # Set the new audio output
+
             self.player.setSource(QUrl.fromLocalFile(data['video_path']))
             self.player.play()
+
         if 'timestring' in data:
             self.updateWidgetValue('resume_timestring', data['timestring'])
             self.updateWidgetValue('resume_path', data['resume_path'])
             self.updateWidgetValue('resume_from', data['resume_from'])
-            self.saveCurrentProjectAsSettingsFile()
-            # self.updateRenderDropdown()
+            # Optionally save settings, commented out for now
 
-    def onMediaStatusChanged(self, status):
-        pass
-        # try:
-        #     if status == QMediaPlayer.MediaStatus.LoadedMedia:
-        #         self.player.play()
-        #     elif status in (QMediaPlayer.MediaStatus.NoMedia, QMediaPlayer.MediaStatus.InvalidMedia):
-        #         print("Failed to load video")
-        # except Exception as e:
-        #     print(f"Error in media status change: {e}")
+    def on_media_status_changed(self, status):
+        if status == QMediaPlayer.MediaStatus.EndOfMedia:
+            self.player.mediaStatusChanged.disconnect(self.on_media_status_changed)
+            self.loadNewVideo(self.current_data)  # Ensure `current_data` is stored as part of the call
+
+    def seekToEnd(self):
+        # Ensure the player has loaded the media
+        if self.player.mediaStatus() == QMediaPlayer.MediaStatus.LoadedMedia:
+            # Seek to a point near the end of the video
+            duration = self.player.duration()
+            self.player.setPosition(max(0, duration - 1000))
+
+    # QMediaPlayer.MediaStatus.NoMedia
+    # QMediaPlayer.MediaStatus.EndOfMedia
+    # QMediaPlayer.MediaStatus.InvalidMedia
+    # QMediaPlayer.MediaStatus.LoadingMedia
+    # QMediaPlayer.MediaStatus.LoadedMedia
+    # QMediaPlayer.MediaStatus.BufferedMedia
+    # QMediaPlayer.MediaStatus.BufferedMedia
+    # QMediaPlayer.MediaStatus.StalledMedia
+
+    # @Slot(dict)
+    # def playVideo(self, data):
+    #     # Ensure the player stops properly before setting a new source
+    #     if self.player.playbackState() != QMediaPlayer.PlaybackState.StoppedState:
+    #         self.player.stop()
+    #         self.player.waitForStopped(-1)  # Wait for the player to stop if necessary
+    #     self.player.setSource(QUrl())
+    #
+    #     if 'video_path' in data:
+    #         # Reinitialize the audio output if it exists
+    #         # if hasattr(self, 'audioOutput'):
+    #         #     self.audioOutput.deleteLater()  # Properly dispose of the old output
+    #         #     self.audioOutput = QAudioOutput()
+    #         #     self.player.setAudioOutput(self.audioOutput)  # Set the new audio output
+    #         self.player.setSource(QUrl.fromLocalFile(data['video_path']))
+    #         self.player.play()
+    #     if 'timestring' in data:
+    #         self.updateWidgetValue('resume_timestring', data['timestring'])
+    #         self.updateWidgetValue('resume_path', data['resume_path'])
+    #         self.updateWidgetValue('resume_from', data['resume_from'])
+    #         # self.saveCurrentProjectAsSettingsFile()
+
+    # def onMediaStatusChanged(self, status):
+    #     pass
+    #     # try:
+    #     #     if status == QMediaPlayer.MediaStatus.LoadedMedia:
+    #     #         self.player.play()
+    #     #     elif status in (QMediaPlayer.MediaStatus.NoMedia, QMediaPlayer.MediaStatus.InvalidMedia):
+    #     #         print("Failed to load video")
+    #     # except Exception as e:
+    #     #     print(f"Error in media status change: {e}")
     def startBackendProcess(self):
         #params = {key: widget.value() for key, widget in self.params.items() if hasattr(widget, 'value')}
         # if not self.thread:
@@ -1373,10 +1424,9 @@ class MainWindow(DeforumCore):
 
     def generateViz(self, data):
         if self.params['generate_viz']:
-            if self.params['audio_path'] is not "":
+            if self.params['audio_path'] != "":
                 milk = os.path.join(config.root_path, 'milks', self.params["milk_path"])
                 # print(milk)
-
                 self.vizGenThread = VisualGeneratorThread(self.params['audio_path'], data['output_path'], milk, self.params['fps'], self.params['width'], self.params['height'])
                 self.vizGenThread.preset_path = milk
                 self.vizGenThread.finished.connect(self.playVideo)

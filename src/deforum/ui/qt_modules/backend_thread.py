@@ -94,7 +94,7 @@ class BackendThread(QThread):
 
             self.process = subprocess.run(command, shell=True)
             if self.params["extract_nth_frame"] > 1:
-                extract_nth_files(output_path, self.params["extract_nth_frame"])
+                _ = extract_nth_files(output_path, self.params["extract_nth_frame"])
             self.output_path = os.path.join(config.root_path, 'output.mp4')
             self.temp_video_path = os.path.join(config.root_path, 'temp_video.mp4')
             os.makedirs(os.path.dirname(self.output_path), exist_ok=True)

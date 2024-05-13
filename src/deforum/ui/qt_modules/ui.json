@@ -180,7 +180,7 @@
     },
     "depth_algorithm": {
       "widget_type": "dropdown",
-      "options": ["Midas+AdaBins (old)", "Zoe+AdaBins (old)", "Midas-3-Hybrid", "AdaBins", "Zoe", "Leres"],
+      "options": ["Midas+AdaBins (old)", "Zoe+AdaBins (old)", "Midas-3-Hybrid", "AdaBins", "Zoe", "Leres", "Depth-Anything"],
       "default": "Midas-3-Hybrid",
       "label": "Depth Algorithm"
     },
@@ -432,7 +432,7 @@
     },
     "noise_type": {
       "widget_type": "dropdown",
-      "options": ["uniform", "perlin"],
+      "options": ["uniform", "perlin", "None"],
       "default": "perlin",
       "label": "Noise Type"
     },

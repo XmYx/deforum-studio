@@ -155,25 +155,27 @@ def anim_frame_warp_3d_cls(cls: Any, image: Union[None, Any]) -> Tuple[Any, Any]
     Returns:
         Tuple containing the processed image after 3D transformation and its mask.
     """
-    TRANSLATION_SCALE = 1.0 / 200.0  # matches Disco
-    translate_xyz = [
-        -cls.gen.keys.translation_x_series[cls.gen.frame_idx] * TRANSLATION_SCALE,
-        cls.gen.keys.translation_y_series[cls.gen.frame_idx] * TRANSLATION_SCALE,
-        -cls.gen.keys.translation_z_series[cls.gen.frame_idx] * TRANSLATION_SCALE
-    ]
-    rotate_xyz = [
-        math.radians(cls.gen.keys.rotation_3d_x_series[cls.gen.frame_idx]),
-        math.radians(cls.gen.keys.rotation_3d_y_series[cls.gen.frame_idx]),
-        math.radians(cls.gen.keys.rotation_3d_z_series[cls.gen.frame_idx])
-    ]
-    if cls.gen.enable_perspective_flip:
-        image = flip_3d_perspective(cls.gen, image, cls.gen.keys, cls.gen.frame_idx)
-    rot_mat = p3d.euler_angles_to_matrix(torch.tensor(rotate_xyz, device="cuda"), "XYZ").unsqueeze(0)
-
-
-    result = transform_image_3d_new(torch.device('cuda'), image, cls.gen.depth, rot_mat, translate_xyz,
-                                          cls.gen, cls.gen.keys, cls.gen.frame_idx)
-    return result, None
+    try:
+        TRANSLATION_SCALE = 1.0 / 200.0  # matches Disco
+        translate_xyz = [
+            -cls.gen.keys.translation_x_series[cls.gen.frame_idx] * TRANSLATION_SCALE,
+            cls.gen.keys.translation_y_series[cls.gen.frame_idx] * TRANSLATION_SCALE,
+            -cls.gen.keys.translation_z_series[cls.gen.frame_idx] * TRANSLATION_SCALE
+        ]
+        rotate_xyz = [
+            math.radians(cls.gen.keys.rotation_3d_x_series[cls.gen.frame_idx]),
+            math.radians(cls.gen.keys.rotation_3d_y_series[cls.gen.frame_idx]),
+            math.radians(cls.gen.keys.rotation_3d_z_series[cls.gen.frame_idx])
+        ]
+        if cls.gen.enable_perspective_flip:
+            image = flip_3d_perspective(cls.gen, image, cls.gen.keys, cls.gen.frame_idx)
+        rot_mat = p3d.euler_angles_to_matrix(torch.tensor(rotate_xyz, device="cuda"), "XYZ").unsqueeze(0)
+        result = transform_image_3d_new(torch.device('cuda'), image, cls.gen.depth, rot_mat, translate_xyz,
+                                              cls.gen, cls.gen.keys, cls.gen.frame_idx)
+        return result, None
+    except Exception as e:
+        print(repr(e))
+        return image, None
 
 
 def anim_frame_warp_3d_direct(cls, image, x, y, z, rx, ry, rz):
@@ -214,8 +216,6 @@ def hybrid_composite_cls(cls: Any) -> None:
             inputfiles = BlockingFileList(video_frame_path, cls.gen.max_frames)
             video_frame = inputfiles[cls.gen.frame_idx]
         else: 
-            # video_frame = os.path.join(cls.gen.outdir, 'inputframes',
-            #                         get_frame_name(cls.gen.video_init_path) + f"{cls.gen.frame_idx:09}.jpg")
             video_frame = cls.gen.inputfiles[cls.gen.frame_idx]
         video_depth_frame = os.path.join(cls.gen.outdir, 'hybridframes',
                                          get_frame_name(
@@ -435,6 +435,9 @@ def set_contrast_image(cls: Any) -> None:
             cls.gen.contrast_image = unsharp_mask(cls.gen.contrast_image, (cls.gen.kernel, cls.gen.kernel),
                                                   cls.gen.sigma, cls.gen.amount, cls.gen.threshold,
                                                   cls.gen.mask_image if cls.gen.use_mask else None)
+            if cls.gen.noise_type == 'None':
+                cls.gen.prev_img = cls.gen.contrast_image
+
     return
 
 
@@ -860,7 +863,7 @@ def generate_interpolated_frames(cls):
 
             logger.info(
                 f"Creating in-between {'' if cadence_flow is None else cls.gen.optical_flow_cadence + ' optical flow '}cadence frame: {tween_frame_idx}; tween:{tween:0.2f};")
-
+            depth = None
             if cls.depth_model is not None:
                 assert (turbo_next_image is not None)
                 with torch.inference_mode():
@@ -1292,10 +1295,7 @@ def save_video_cls(cls):
     if hasattr(cls.gen, 'audio_path'):
         if cls.gen.audio_path != "":
             audio_path = cls.gen.audio_path
-    if cls.gen.frame_interpolation_engine != "None":
-        cls.gen.fps = float(cls.gen.fps) * int(cls.gen.frame_interpolation_x_amount)
-        if cls.gen.frame_interpolation_slow_mo_enabled:
-            cls.gen.fps /= int(cls.gen.frame_interpolation_slow_mo_amount)
+
     fps = getattr(cls.gen, "fps", 24)  # Using getattr to simplify fetching attributes with defaults
     try:
         save_as_h264(cls.images, output_filename_base + ".mp4", audio_path=audio_path, fps=fps)

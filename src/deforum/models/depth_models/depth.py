@@ -77,9 +77,14 @@ class DepthModel:
             if depth_algo == 'midas+adabins (old)':
                 self.adabins_model = AdaBinsModel(self.models_path, keep_in_vram=self.keep_in_vram)
                 self.adabins_helper = self.adabins_model.adabins_helper
+        elif depth_algo.lower() == 'depth-anything':
+            from transformers import AutoImageProcessor
+            self.image_processor = AutoImageProcessor.from_pretrained("nielsr/depth-anything-small")
+            from transformers import AutoModelForDepthEstimation
+            self.model = AutoModelForDepthEstimation.from_pretrained("nielsr/depth-anything-small")
         else:
             raise Exception(f"Unknown depth_algorithm: {self.depth_algorithm}")
-
+    @torch.no_grad()
     def predict(self, prev_img_cv2, midas_weight, half_precision) -> torch.Tensor:
         if not isinstance(prev_img_cv2, PIL.Image.Image):
             img_pil = Image.fromarray(cv2.cvtColor(prev_img_cv2.astype(np.uint8), cv2.COLOR_RGB2BGR))
@@ -104,18 +109,48 @@ class DepthModel:
                 use_adabins, adabins_depth = AdaBinsModel._instance.predict(img_pil, prev_img_cv2)
                 if use_adabins:  # if there was no error in getting the adabins depth, align midas with adabins
                     depth_tensor = self.blend_and_align_with_adabins(depth_tensor, adabins_depth, midas_weight)
+        elif self.depth_algorithm.lower() == 'depth-anything':
+            inputs = self.image_processor(images=img_pil, return_tensors="pt")
+            with torch.no_grad():
+                outputs = self.model(**inputs)
+                predicted_depth = outputs.predicted_depth
+            # interpolate to original size
+            depth_tensor = torch.nn.functional.interpolate(
+                predicted_depth.unsqueeze(1),
+                size=img_pil.size[::-1],
+                mode="bicubic",
+                align_corners=False,
+            )[0]
+            # depth_tensor = -depth_tensor
         else:  # Unknown!
             raise Exception(f"Unknown depth_algorithm passed to depth.predict function: {self.depth_algorithm}")
 
         return depth_tensor
 
+    # def blend_and_align_with_adabins(self, depth_tensor, adabins_depth, midas_weight):
+    #     depth_tensor = torch.subtract(50.0,
+    #                                   depth_tensor) / 19.0  # align midas depth with adabins depth. Original alignment code from Disco Diffusion
+    #     blended_depth_map = (depth_tensor.cpu().numpy() * midas_weight + adabins_depth * (1.0 - midas_weight))
+    #     depth_tensor = torch.from_numpy(np.expand_dims(blended_depth_map, axis=0)).squeeze().to(self.device)
+    #     # debug_print(f"Blended Midas Depth with AdaBins Depth")
+    #     return depth_tensor
     def blend_and_align_with_adabins(self, depth_tensor, adabins_depth, midas_weight):
-        depth_tensor = torch.subtract(50.0,
-                                      depth_tensor) / 19.0  # align midas depth with adabins depth. Original alignment code from Disco Diffusion
-        blended_depth_map = (depth_tensor.cpu().numpy() * midas_weight + adabins_depth * (1.0 - midas_weight))
-        depth_tensor = torch.from_numpy(np.expand_dims(blended_depth_map, axis=0)).squeeze().to(self.device)
+        # Convert adabins_depth to a PyTorch tensor if it is not already
+        if not isinstance(adabins_depth, torch.Tensor):
+            adabins_depth = torch.tensor(adabins_depth, device=self.device)
+
+        # Align midas depth with adabins depth using in-place operations for better performance
+        depth_tensor = torch.subtract(50.0, depth_tensor) / 19.0
+
+        # Perform the blending of depth maps on the GPU
+        blended_depth_map = depth_tensor * midas_weight + adabins_depth * (1.0 - midas_weight)
+
+        # Ensure the blended depth map has the correct dimensions, using unsqueeze and squeeze if necessary
+        if blended_depth_map.dim() == 1:
+            blended_depth_map = blended_depth_map.unsqueeze(0).squeeze()
+
         # debug_print(f"Blended Midas Depth with AdaBins Depth")
-        return depth_tensor
+        return blended_depth_map
 
     def to(self, device):
         self.device = device

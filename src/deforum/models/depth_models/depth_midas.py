@@ -53,12 +53,10 @@ class MidasDepth:
         img_midas = prev_img_cv2.astype(np.float32) / 255.0
         img_midas_input = self.midas_transform({"image": img_midas})["image"]
         sample = torch.from_numpy(img_midas_input).float().to(self.device).unsqueeze(0)
-
         if self.device != "cpu":
             sample = sample.to(memory_format=torch.channels_last)
         if half_precision:
             sample = sample.half()
-
         with torch.no_grad():
             midas_depth = self.midas_model.forward(sample)
         midas_depth = torch.nn.functional.interpolate(
@@ -67,10 +65,7 @@ class MidasDepth:
             mode="bicubic",
             align_corners=False,
         ).squeeze().cpu().numpy()
-
-        torch.cuda.empty_cache()
         depth_tensor = torch.from_numpy(np.expand_dims(midas_depth, axis=0)).squeeze().to(self.device)
-
         return depth_tensor
         
     def to(self, device):

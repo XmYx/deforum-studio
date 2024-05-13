@@ -25,12 +25,15 @@ def extract_nth_files(folder, extract_nth_frame):
     for image in folder_path.glob('*'):
         if image.suffix.lower() in ['.jpg', '.png']:
             os.remove(image)
-
+    paths = []
     # Move back from temp and rename
     for index, image in enumerate(sorted(temp_folder.iterdir(), key=lambda x: int(re.search(r'\d+', x.stem).group())), 1):
         new_name = folder_path / f'{index:04d}{image.suffix}'
         move(str(image), new_name)
+        paths.append(new_name)
 
     # Remove the temporary directory
     os.rmdir(temp_folder)
+
+    return paths
 

@@ -203,24 +203,26 @@ def anim_frame_warp_2d(prev_img_cv2, args, anim_args, keys, frame_idx):
 
 
 def anim_frame_warp_3d(device, prev_img_cv2, depth, anim_args, keys, frame_idx):
-    TRANSLATION_SCALE = 1.0 / 200.0  # matches Disco
-    translate_xyz = [
-        -keys.translation_x_series[frame_idx] * TRANSLATION_SCALE,
-        keys.translation_y_series[frame_idx] * TRANSLATION_SCALE,
-        -keys.translation_z_series[frame_idx] * TRANSLATION_SCALE
-    ]
-    rotate_xyz = [
-        math.radians(keys.rotation_3d_x_series[frame_idx]),
-        math.radians(keys.rotation_3d_y_series[frame_idx]),
-        math.radians(keys.rotation_3d_z_series[frame_idx])
-    ]
-    if anim_args.enable_perspective_flip:
-        prev_img_cv2 = flip_3d_perspective(anim_args, prev_img_cv2, keys, frame_idx)
-    rot_mat = p3d.euler_angles_to_matrix(torch.tensor(rotate_xyz, device=device), "XYZ").unsqueeze(0)
-    result = transform_image_3d_switcher(torch.device('cuda'), prev_img_cv2, depth, rot_mat, translate_xyz,
-                                               anim_args, keys, frame_idx)
-    #torch.cuda.empty_cache()
-    return result, None
+    try:
+        TRANSLATION_SCALE = 1.0 / 200.0  # matches Disco
+        translate_xyz = [
+            -keys.translation_x_series[frame_idx] * TRANSLATION_SCALE,
+            keys.translation_y_series[frame_idx] * TRANSLATION_SCALE,
+            -keys.translation_z_series[frame_idx] * TRANSLATION_SCALE
+        ]
+        rotate_xyz = [
+            math.radians(keys.rotation_3d_x_series[frame_idx]),
+            math.radians(keys.rotation_3d_y_series[frame_idx]),
+            math.radians(keys.rotation_3d_z_series[frame_idx])
+        ]
+        if anim_args.enable_perspective_flip:
+            prev_img_cv2 = flip_3d_perspective(anim_args, prev_img_cv2, keys, frame_idx)
+        rot_mat = p3d.euler_angles_to_matrix(torch.tensor(rotate_xyz, device=device), "XYZ").unsqueeze(0)
+        result = transform_image_3d_switcher(torch.device('cuda'), prev_img_cv2, depth, rot_mat, translate_xyz,
+                                                   anim_args, keys, frame_idx)
+        return result, None
+    except:
+        return prev_img_cv2, None
 
 
 def transform_image_3d_switcher(device, prev_img_cv2, depth_tensor, rot_mat, translate, anim_args, keys, frame_idx):
@@ -306,8 +308,16 @@ def transform_image_3d_new(device, prev_img_cv2, depth_tensor, rot_mat, translat
         depth = 1
         depth_factor = 1
         depth_offset = 1
+    elif anim_args.depth_algorithm.lower() == "depth-anything":
+        depth = 1
+        depth_factor = 1
+        depth_offset = 1
     else:
-        raise Exception(f"Unknown depth_algorithm passed to transform_image_3d function: {anim_args.depth_algorithm}")
+        depth = 1
+        depth_factor = 1
+        depth_offset = 1
+
+        # raise Exception(f"Unknown depth_algorithm passed to transform_image_3d function: {anim_args.depth_algorithm}")
 
     w, h = prev_img_cv2.shape[1], prev_img_cv2.shape[0]
     # print("INSIDE", depth_tensor.shape)

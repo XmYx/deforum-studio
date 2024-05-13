@@ -126,6 +126,8 @@ class DeforumAnimationPipeline(DeforumBase):
 
         self.interrupt = False
         self.raft_model = None
+        self.loaded_depth_model = ""
+        self.depth_model = None
 
     @deforumdoc
     def __call__(self, settings_file: str = None, callback=None, *args, **kwargs) -> DeforumGenerationObject:
@@ -262,7 +264,7 @@ class DeforumAnimationPipeline(DeforumBase):
         self.gen.predict_depths = self.gen.use_depth_warping or self.gen.save_depth_maps
         self.gen.predict_depths = self.gen.predict_depths or (
                 self.gen.hybrid_composite and self.gen.hybrid_comp_mask_type in ['Depth', 'Video Depth'])
-        if self.gen.predict_depths:
+        if self.gen.predict_depths or self.depth_model is None or self.loaded_depth_model != self.gen.depth_algorithm.lower():
             # if self.opts is not None:
             #     self.keep_in_vram = self.opts.data.get("deforum_keep_3d_models_in_vram")
             # else:
@@ -280,10 +282,16 @@ class DeforumAnimationPipeline(DeforumBase):
                 
                 logger.info("Setting AdaBins usage")
             logger.info(f"[ Loaded Depth model ]")
+            self.loaded_depth_model = self.gen.depth_algorithm.lower()
             # depth-based hybrid composite mask requires saved depth maps
             if self.gen.hybrid_composite != 'None' and self.gen.hybrid_comp_mask_type == 'Depth':
                 self.gen.save_depth_maps = True
         else:
+            if self.depth_model is not None:
+                self.depth_model.to('cpu')
+                del self.depth_model
+                torch.cuda.empty_cache()
+                torch.cuda.ipc_collect()
             self.depth_model = None
             self.gen.save_depth_maps = False
 
@@ -315,7 +323,7 @@ class DeforumAnimationPipeline(DeforumBase):
         self.shoot_fns.append(get_generation_params)
 
         self.gen.turbo_steps = self.gen.get('diffusion_cadence', 1)
-        if self.gen.turbo_steps > 1 and self.gen.optical_flow_cadence is not 'None':
+        if self.gen.turbo_steps > 1 and self.gen.optical_flow_cadence != 'None':
             self.shoot_fns.append(generate_interpolated_frames)
         if self.gen.color_coherence == 'Video Input' and hybrid_available:
             self.shoot_fns.append(color_match_video_input)
@@ -341,8 +349,8 @@ class DeforumAnimationPipeline(DeforumBase):
 
         if self.gen.use_mask or self.gen.use_noise_mask:
             self.shoot_fns.append(handle_noise_mask)
-
-        self.shoot_fns.append(add_noise_cls)
+        if self.gen.noise_type in ['perlin', 'uniform']:
+            self.shoot_fns.append(add_noise_cls)
 
         if self.gen.optical_flow_redo_generation != 'None':
             self.shoot_fns.append(optical_flow_redo)
@@ -369,7 +377,7 @@ class DeforumAnimationPipeline(DeforumBase):
         if hasattr(self.gen, "deforum_save_gen_info_as_srt"):
             if self.gen.deforum_save_gen_info_as_srt:
                 self.shoot_fns.append(cls_subtitle_handler)
-        if self.gen.frame_interpolation_engine is not "None":
+        if self.gen.frame_interpolation_engine != "None":
             if self.gen.max_frames > 3:
                 if self.gen.frame_interpolation_engine == "FILM":
                     self.post_fns.append(film_interpolate_cls)
