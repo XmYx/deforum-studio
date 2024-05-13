@@ -1263,44 +1263,26 @@ def rife_interpolate_cls(cls):
         rife_interpolator = RIFE_VFI()
 
     def pil2tensor(image):
-        return torch.from_numpy(np.array(image).astype(np.float32) / 255.0).unsqueeze(0)  # CHW format for PyTorch
-
+        return torch.from_numpy(np.array(image).astype(np.float32) / 255.0).half()  # CHW format for PyTorch
     new_images = []
-    interp_batch_size = getattr(cls, 'interp_batch_size', 16)  # default batch size
-    num_images = len(cls.images)
-    input_tensor = torch.Tensor()  # Initialize an empty tensor for concatenation
-
-    for i in range(num_images - 1):
-        current_tensor = pil2tensor(cls.images[i])
-        input_tensor = torch.cat((input_tensor, current_tensor),
-                                 dim=0) if input_tensor.nelement() != 0 else current_tensor
-
-        if (i % (interp_batch_size - 1) == 0 and i != 0) or i == num_images - 2:
-            # Process the current batch
-            interpolated_frames = rife_interpolator.vfi(
-                ckpt_name="rife49.pth",
-                frames=input_tensor,
-                clear_cache_after_n_frames=10,
-                multiplier=cls.gen.frame_interpolation_x_amount,
-                fast_mode=True,
-                ensemble=False,
-                scale_factor=1.0)
-
-            if i == interp_batch_size - 1:
-                new_images.append(
-                    interpolated_frames[0])  # Append the first interpolated image only for the first batch
-            for frame in interpolated_frames[1:]:
-                new_images.append(frame)
-
-            # Reset input_tensor after processing a batch
-            input_tensor = torch.Tensor()
-
-    if cls.images:  # append last image if not included
+    input_tensor = torch.stack([pil2tensor(i) for i in cls.images], dim=0)
+    # Process all frames in one go
+    interpolated_frames = rife_interpolator.vfi(
+        ckpt_name="rife49.pth",
+        frames=input_tensor,
+        clear_cache_after_n_frames=64,
+        multiplier=cls.gen.frame_interpolation_x_amount,
+        fast_mode=True,
+        ensemble=False,
+        scale_factor=1.0)
+    # Collect the interpolated frames, skipping duplicates
+    for frame in interpolated_frames:
+        new_images.append(frame)
+    # Append the last frame
+    if cls.images:
         new_images.append(cls.images[-1])
-
-    cls.images = new_images  # Convert back to PIL Image format
+    cls.images = new_images  # Replace the images in cls with the new images
     logger.info(f"Interpolated frame count: {len(new_images)}")
-
     if hasattr(cls, 'gen') and hasattr(cls.gen, 'image_paths'):
         cls.gen.image_paths = []
 

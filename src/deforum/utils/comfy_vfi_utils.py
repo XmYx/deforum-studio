@@ -227,6 +227,10 @@ def _generic_frame_loop(
             out_len += 1
 
         number_of_frames_processed_since_last_cleared_cuda_cache += 1
+        if number_of_frames_processed_since_last_cleared_cuda_cache >= clear_cache_after_n_frames:
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
+            number_of_frames_processed_since_last_cleared_cuda_cache = 0
     # Append final frame
     output_frames[out_len] = frames[-1:]
     out_len += 1

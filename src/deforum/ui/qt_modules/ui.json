@@ -382,7 +382,7 @@
     },
     "hybrid_flow_method": {
       "widget_type": "dropdown",
-      "options": ["None", "RAFT", "DIS Medium", "DIS Fine", "Farneback"],
+      "options": ["None", "RAFT", "DIS Medium", "DIS Fine", "Farneback", "DenseRLOF", "SF", "DualTVL1", "DeepFlow", "PCAFlow", "Custom"],
       "default": "RAFT",
       "label": "Hybrid motion"
     },
