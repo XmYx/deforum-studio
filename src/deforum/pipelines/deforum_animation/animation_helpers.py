@@ -412,6 +412,33 @@ def post_gen_color_correction(cls: Any) -> None:
 
 
 
+# def set_contrast_image(cls: Any) -> None:
+#     """
+#     Adjusts the contrast of the previous image in the given class instance.
+#
+#     Args:
+#         cls: The class instance containing generation parameters, contrast settings, and other attributes.
+#
+#     Returns:
+#         None: Modifies the class instance attributes in place.
+#     """
+#     if cls.gen.prev_img is not None:
+#         # intercept and override to grayscale
+#         if cls.gen.color_force_grayscale:
+#             cls.gen.prev_img = cv2.cvtColor(cls.gen.prev_img, cv2.COLOR_BGR2GRAY)
+#             cls.gen.prev_img = cv2.cvtColor(cls.gen.prev_img, cv2.COLOR_GRAY2BGR)
+#
+#         # apply scaling
+#         cls.gen.contrast_image = (cls.gen.prev_img * cls.gen.contrast).round().astype(np.uint8)
+#         # anti-blur
+#         if cls.gen.amount > 0:
+#             cls.gen.contrast_image = unsharp_mask(cls.gen.contrast_image, (cls.gen.kernel, cls.gen.kernel),
+#                                                   cls.gen.sigma, cls.gen.amount, cls.gen.threshold,
+#                                                   cls.gen.mask_image if cls.gen.use_mask else None)
+#             if cls.gen.noise_type == 'None':
+#                 cls.gen.prev_img = cls.gen.contrast_image
+#
+#     return
 def set_contrast_image(cls: Any) -> None:
     """
     Adjusts the contrast of the previous image in the given class instance.
@@ -430,6 +457,7 @@ def set_contrast_image(cls: Any) -> None:
 
         # apply scaling
         cls.gen.contrast_image = (cls.gen.prev_img * cls.gen.contrast).round().astype(np.uint8)
+
         # anti-blur
         if cls.gen.amount > 0:
             cls.gen.contrast_image = unsharp_mask(cls.gen.contrast_image, (cls.gen.kernel, cls.gen.kernel),
@@ -439,7 +467,6 @@ def set_contrast_image(cls: Any) -> None:
                 cls.gen.prev_img = cls.gen.contrast_image
 
     return
-
 
 def handle_noise_mask(cls: Any) -> None:
     """

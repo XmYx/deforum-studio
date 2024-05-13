@@ -84,14 +84,14 @@ class InferenceHelper:
 
         model, _, _ = model_io.load_checkpoint(pretrained_path, model)
         model.eval()
-        self.model = model.half().to(self.device)
+        self.model = model.to(self.device)
 
     @torch.no_grad()
     def predict_pil(self, pil_image, visualized=False):
         # pil_image = pil_image.resize((640, 480))
-        img = np.asarray(pil_image) / 255.
+        img = np.asarray(pil_image) / 255.0
 
-        img = self.toTensor(img).unsqueeze(0).half().to(self.device)
+        img = self.toTensor(img).unsqueeze(0).float().to(self.device)
         bin_centers, pred = self.predict(img)
 
         if visualized:

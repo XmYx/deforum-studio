@@ -117,7 +117,7 @@ class HIJackCFGGuider:
         device = torch.device("cuda")
         sigmas = sigmas.to(device)
         output = self.inner_sample(
-            noise, latent_image, device, sampler, sigmas, denoise_mask, None, False, seed
+            noise, latent_image, device, sampler, sigmas, denoise_mask, None, True, seed
         )
         return output
 
@@ -258,15 +258,19 @@ class ComfyDeforumGenerator:
             import comfy.sd
             from nodes import NODE_CLASS_MAPPINGS
 
-            self.model, self.clip, self.vae, self.clipvision = (
+            self.model, self.clip, _, self.clipvision = (
                 comfy.sd.load_checkpoint_guess_config(
                     self.model_path,
-                    output_vae=True,
+                    output_vae=False,
                     output_clip=True,
                     embedding_directory="models/embeddings",
                     output_clipvision=False,
                 )
             )
+
+            vae_loader = NODE_CLASS_MAPPINGS['VAELoader']()
+            self.vae = vae_loader.load_vae('taesdxl')[0]
+
             self.clip.patcher.offload_device = torch.device("cuda")
             self.vae.patcher.offload_device = torch.device("cuda")
             self.vae.first_stage_model.cuda()
@@ -402,7 +406,7 @@ class ComfyDeforumGenerator:
 
         if not self.model_loaded:
             self.load_model()
-            # self.load_lora_from_civitai('477721', 1.0, 1.0)
+            # self.load_lora_from_civitai('391997', 1.0, 0.0)
         if self.optimize and not (self.optimized or self.onediff_avail):
             try:
                 self.optimize_model()

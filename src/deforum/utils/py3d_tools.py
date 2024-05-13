@@ -1501,7 +1501,7 @@ def _axis_angle_rotation(axis: str, angle: torch.Tensor) -> torch.Tensor:
     Returns:
         Rotation matrices as tensor of shape (..., 3, 3).
     """
-
+    angle.half().cuda()
     cos = torch.cos(angle)
     sin = torch.sin(angle)
     one = torch.ones_like(angle)
@@ -1519,14 +1519,41 @@ def _axis_angle_rotation(axis: str, angle: torch.Tensor) -> torch.Tensor:
     return torch.stack(R_flat, -1).reshape(angle.shape + (3, 3))
 
 
+# def euler_angles_to_matrix(euler_angles: torch.Tensor, convention: str) -> torch.Tensor:
+#     """
+#     Convert rotations given as Euler angles in radians to rotation matrices.
+#
+#     Args:
+#         euler_angles: Euler angles in radians as tensor of shape (..., 3).
+#         convention: Convention string of three uppercase letters from
+#             {"X", "Y", and "Z"}.
+#
+#     Returns:
+#         Rotation matrices as tensor of shape (..., 3, 3).
+#     """
+#     if euler_angles.dim() == 0 or euler_angles.shape[-1] != 3:
+#         raise ValueError("Invalid input euler angles.")
+#     if len(convention) != 3:
+#         raise ValueError("Convention must have 3 letters.")
+#     if convention[1] in (convention[0], convention[2]):
+#         raise ValueError(f"Invalid convention {convention}.")
+#     for letter in convention:
+#         if letter not in ("X", "Y", "Z"):
+#             raise ValueError(f"Invalid letter {letter} in convention string.")
+#     matrices = [
+#         _axis_angle_rotation(c, e)
+#         for c, e in zip(convention, torch.unbind(euler_angles, -1))
+#     ]
+#     # return functools.reduce(torch.matmul, matrices)
+#     return torch.matmul(torch.matmul(matrices[0], matrices[1]), matrices[2])
 def euler_angles_to_matrix(euler_angles: torch.Tensor, convention: str) -> torch.Tensor:
     """
-    Convert rotations given as Euler angles in radians to rotation matrices.
+    Convert rotations given as Euler angles in radians to rotation matrices,
+    optimized for GPU usage and float16 precision.
 
     Args:
         euler_angles: Euler angles in radians as tensor of shape (..., 3).
-        convention: Convention string of three uppercase letters from
-            {"X", "Y", and "Z"}.
+        convention: Convention string of three uppercase letters from {"X", "Y", "Z"}.
 
     Returns:
         Rotation matrices as tensor of shape (..., 3, 3).
@@ -1540,13 +1567,20 @@ def euler_angles_to_matrix(euler_angles: torch.Tensor, convention: str) -> torch
     for letter in convention:
         if letter not in ("X", "Y", "Z"):
             raise ValueError(f"Invalid letter {letter} in convention string.")
+
+    # Ensure the tensor is on the GPU and cast to float16
+    euler_angles = euler_angles.to(device='cuda', dtype=torch.float16)
+
+    # Compute individual rotation matrices
     matrices = [
         _axis_angle_rotation(c, e)
         for c, e in zip(convention, torch.unbind(euler_angles, -1))
     ]
-    # return functools.reduce(torch.matmul, matrices)
-    return torch.matmul(torch.matmul(matrices[0], matrices[1]), matrices[2])
 
+    # Combine rotation matrices
+    #result = functools.reduce(torch.matmul, matrices)
+
+    return torch.matmul(torch.matmul(matrices[0], matrices[1]), matrices[2])
 
 def _broadcast_bmm(a, b) -> torch.Tensor:
     """

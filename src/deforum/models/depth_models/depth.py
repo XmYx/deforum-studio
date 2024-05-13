@@ -81,7 +81,7 @@ class DepthModel:
             from transformers import AutoImageProcessor
             self.image_processor = AutoImageProcessor.from_pretrained("nielsr/depth-anything-small")
             from transformers import AutoModelForDepthEstimation
-            self.model = AutoModelForDepthEstimation.from_pretrained("nielsr/depth-anything-small")
+            self.model = AutoModelForDepthEstimation.from_pretrained("nielsr/depth-anything-small").to(self.device)
         else:
             raise Exception(f"Unknown depth_algorithm: {self.depth_algorithm}")
     @torch.no_grad()
@@ -111,6 +111,7 @@ class DepthModel:
                     depth_tensor = self.blend_and_align_with_adabins(depth_tensor, adabins_depth, midas_weight)
         elif self.depth_algorithm.lower() == 'depth-anything':
             inputs = self.image_processor(images=img_pil, return_tensors="pt")
+            inputs['pixel_values'] = inputs['pixel_values'].half().to(self.device)
             with torch.no_grad():
                 outputs = self.model(**inputs)
                 predicted_depth = outputs.predicted_depth
@@ -118,8 +119,8 @@ class DepthModel:
             depth_tensor = torch.nn.functional.interpolate(
                 predicted_depth.unsqueeze(1),
                 size=img_pil.size[::-1],
-                mode="bicubic",
-                align_corners=False,
+                mode="nearest-exact",
+                # align_corners=False,
             )[0]
             # depth_tensor = -depth_tensor
         else:  # Unknown!

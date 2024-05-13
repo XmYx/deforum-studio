@@ -18,12 +18,39 @@ def sample_from_cv2(sample: np.ndarray) -> torch.Tensor:
     return sample
 
 
-def sample_to_cv2(sample: torch.Tensor, dtype=np.uint8) -> np.ndarray:
-    sample_f32 = rearrange(sample.squeeze().cpu().numpy(), "c h w -> h w c").astype(np.float16)
-    sample_f32 = ((sample_f32 * 0.5) + 0.5).clip(0, 1)
-    sample_int8 = (sample_f32 * 255)
-    return sample_int8.astype(dtype)
+def sample_from_cv2(sample: np.ndarray) -> torch.Tensor:
+    # Convert to float32 directly and normalize
+    sample = torch.from_numpy(sample).float() / 255.0
 
+    # Rearrange dimensions from 'H W C' to 'C H W' using permute
+    sample = sample.permute(2, 0, 1)
+
+    # Normalize the data to range [-1, 1]
+    sample = sample * 2 - 1
+
+    # Add a batch dimension at the beginning
+    sample = sample.unsqueeze(0)
+
+    return sample
+# def sample_to_cv2(sample: torch.Tensor, dtype=np.uint8) -> np.ndarray:
+#     sample_f32 = rearrange(sample.squeeze().cpu().numpy(), "c h w -> h w c").astype(np.float16)
+#     sample_f32 = ((sample_f32 * 0.5) + 0.5).clip(0, 1)
+#     sample_int8 = (sample_f32 * 255)
+#     return sample_int8.astype(dtype)
+def sample_to_cv2(sample: torch.Tensor, dtype=np.uint8) -> np.ndarray:
+    # Ensure the tensor is in the correct format and device
+    sample = sample.squeeze()  # Remove unnecessary dimensions without copying data
+
+    # Normalize and scale the tensor on the GPU to utilize its computational power
+    sample = ((sample * 0.5) + 0.5).clip(0, 1) * 255
+
+    # Move the tensor to the CPU and convert to target dtype in one step
+    sample_np = sample.cpu().numpy().astype(dtype)
+
+    # Rearrange from 'C H W' to 'H W C' using np.transpose instead of rearrange for efficiency
+    sample_np = sample_np.transpose(1, 2, 0)
+
+    return sample_np
 
 def construct_RotationMatrixHomogenous(rotation_angles):
     assert (isinstance(rotation_angles, list) and len(rotation_angles) == 3)

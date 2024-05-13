@@ -251,27 +251,50 @@ def get_mask_from_file(mask_file, args):
     return prepare_mask(mask_file, (args.width, args.height), args.mask_contrast_adjust, args.mask_brightness_adjust)
 
 
+# def unsharp_mask(img, kernel_size=(5, 5), sigma=1.0, amount=1.0, threshold=0, mask=None):
+#     if amount == 0:
+#         return img
+#     # Return a sharpened version of the image, using an unsharp mask.
+#     # If mask is not None, only areas under mask are handled
+#     blurred = cv2.GaussianBlur(img, kernel_size, sigma)
+#     sharpened = float(amount + 1) * img - float(amount) * blurred
+#     sharpened = np.maximum(sharpened, np.zeros(sharpened.shape))
+#     sharpened = np.minimum(sharpened, 255 * np.ones(sharpened.shape))
+#     sharpened = sharpened.round().astype(np.uint8)
+#     if threshold > 0:
+#         low_contrast_mask = np.absolute(img - blurred) < threshold
+#         np.copyto(sharpened, img, where=low_contrast_mask)
+#     if mask is not None:
+#         mask = np.array(mask)
+#         masked_sharpened = cv2.bitwise_and(sharpened, sharpened, mask=mask)
+#         masked_img = cv2.bitwise_and(img, img, mask=255 - mask)
+#         sharpened = cv2.add(masked_img, masked_sharpened)
+#     return sharpened
+
 def unsharp_mask(img, kernel_size=(5, 5), sigma=1.0, amount=1.0, threshold=0, mask=None):
     if amount == 0:
         return img
-    # Return a sharpened version of the image, using an unsharp mask.
-    # If mask is not None, only areas under mask are handled
-    blurred = cv2.GaussianBlur(img, kernel_size, sigma)
-    sharpened = float(amount + 1) * img - float(amount) * blurred
-    sharpened = np.maximum(sharpened, np.zeros(sharpened.shape))
-    sharpened = np.minimum(sharpened, 255 * np.ones(sharpened.shape))
-    sharpened = sharpened.round().astype(np.uint8)
+
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    img_tensor = torch.from_numpy(img).float().to(device)
+    blurred_tensor = cv2.GaussianBlur(img, kernel_size, sigma)
+    blurred_tensor = torch.from_numpy(blurred_tensor).float().to(device)
+
+    sharpened_tensor = (amount + 1.0) * img_tensor - amount * blurred_tensor
+    sharpened_tensor = torch.clamp(sharpened_tensor, 0, 255).round().to(torch.uint8)
+
     if threshold > 0:
-        low_contrast_mask = np.absolute(img - blurred) < threshold
-        np.copyto(sharpened, img, where=low_contrast_mask)
+        low_contrast_mask = torch.abs(img_tensor - blurred_tensor) < threshold
+        sharpened_tensor = torch.where(low_contrast_mask, img_tensor, sharpened_tensor)
+
     if mask is not None:
-        mask = np.array(mask)
-        masked_sharpened = cv2.bitwise_and(sharpened, sharpened, mask=mask)
-        masked_img = cv2.bitwise_and(img, img, mask=255 - mask)
-        sharpened = cv2.add(masked_img, masked_sharpened)
-    return sharpened
+        mask_tensor = torch.from_numpy(np.array(mask)).to(device)
+        masked_sharpened = sharpened_tensor * mask_tensor
+        masked_img = img_tensor * (1 - mask_tensor)
+        sharpened_tensor = masked_sharpened + masked_img
 
-
+    return sharpened_tensor.cpu().numpy()
 def do_overlay_mask(args, anim_args, img, frame_idx, is_bgr_array=False):
     current_mask = None
     current_frame = None

@@ -59,10 +59,10 @@ class AdaBinsModel:
             # print("ADABINS SHAPE 0", adabins_depth.shape)
 
 
-            adabins_depth_tensor = torch.from_numpy(adabins_depth)
+            # adabins_depth_tensor = torch.from_numpy(adabins_depth)
 
             # Resize using F.interpolate
-            adabins_depth = F.interpolate(adabins_depth_tensor, size=(h,w), mode='bicubic',
+            adabins_depth = F.interpolate(adabins_depth, size=(h,w), mode='bicubic',
                                                   align_corners=False)
 
             # Remove added dimensions and convert back to numpy array
