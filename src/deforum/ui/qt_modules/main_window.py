@@ -1338,7 +1338,7 @@ class MainWindow(DeforumCore):
 
     def generateViz(self, data):
         if self.params['generate_viz']:
-            if self.params['audio_path'] is not "":
+            if self.params['audio_path']:
                 milk = os.path.join(config.root_path, 'milks', self.params["milk_path"])
                 # print(milk)
 

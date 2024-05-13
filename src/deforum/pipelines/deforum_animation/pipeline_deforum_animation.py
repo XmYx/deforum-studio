@@ -315,7 +315,7 @@ class DeforumAnimationPipeline(DeforumBase):
         self.shoot_fns.append(get_generation_params)
 
         self.gen.turbo_steps = self.gen.get('diffusion_cadence', 1)
-        if self.gen.turbo_steps > 1 and self.gen.optical_flow_cadence is not 'None':
+        if self.gen.turbo_steps > 1 and self.gen.optical_flow_cadence != 'None':
             self.shoot_fns.append(generate_interpolated_frames)
         if self.gen.color_coherence == 'Video Input' and hybrid_available:
             self.shoot_fns.append(color_match_video_input)
@@ -369,7 +369,7 @@ class DeforumAnimationPipeline(DeforumBase):
         if hasattr(self.gen, "deforum_save_gen_info_as_srt"):
             if self.gen.deforum_save_gen_info_as_srt:
                 self.shoot_fns.append(cls_subtitle_handler)
-        if self.gen.frame_interpolation_engine is not "None":
+        if self.gen.frame_interpolation_engine != "None":
             if self.gen.max_frames > 3:
                 if self.gen.frame_interpolation_engine == "FILM":
                     self.post_fns.append(film_interpolate_cls)
