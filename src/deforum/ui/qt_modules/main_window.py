@@ -304,7 +304,11 @@ class LiveControlDockWidget(QDockWidget):
             sublayout.addWidget(auto_return_chk)
 
             axis_dropdown = QComboBox()
-            axis_dropdown.addItems(['None'] + [f'Axis {i}' for i in range(joystick_handler.joystick.get_numaxes())])
+
+            if joystick_handler.joystick is not None:
+                axis_dropdown.addItems(['None'] + [f'Axis {i}' for i in range(joystick_handler.joystick.get_numaxes())])
+            else:
+                axis_dropdown.addItems(['None'])
             axis_dropdown.currentIndexChanged.connect(lambda index, a=axis: self.set_joystick_axis(a, index-1))
             sublayout.addWidget(axis_dropdown)
 
