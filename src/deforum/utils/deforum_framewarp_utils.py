@@ -1,10 +1,12 @@
 import math
 from functools import reduce
 
-import cv2
-import numpy as np
 import torch
+import torch.nn.functional as F
+import numpy as np
 from einops import rearrange
+import cv2
+
 
 from . import py3d_tools as p3d
 
@@ -32,11 +34,7 @@ def sample_from_cv2(sample: np.ndarray) -> torch.Tensor:
     sample = sample.unsqueeze(0)
 
     return sample
-# def sample_to_cv2(sample: torch.Tensor, dtype=np.uint8) -> np.ndarray:
-#     sample_f32 = rearrange(sample.squeeze().cpu().numpy(), "c h w -> h w c").astype(np.float16)
-#     sample_f32 = ((sample_f32 * 0.5) + 0.5).clip(0, 1)
-#     sample_int8 = (sample_f32 * 255)
-#     return sample_int8.astype(dtype)
+
 def sample_to_cv2(sample: torch.Tensor, dtype=np.uint8) -> np.ndarray:
     # Ensure the tensor is in the correct format and device
     sample = sample.squeeze()  # Remove unnecessary dimensions without copying data
@@ -257,7 +255,7 @@ def transform_image_3d_switcher(device, prev_img_cv2, depth_tensor, rot_mat, tra
         return transform_image_3d_legacy(device, prev_img_cv2, depth_tensor, rot_mat, translate, anim_args, keys,
                                          frame_idx)
     else:
-        return transform_image_3d_new(device, prev_img_cv2, depth_tensor, rot_mat, translate, anim_args, keys,
+        return transform_image_3d_deprecating(device, prev_img_cv2, depth_tensor, rot_mat, translate, anim_args, keys,
                                       frame_idx)
 
 
@@ -314,7 +312,7 @@ def transform_image_3d_legacy(device, prev_img_cv2, depth_tensor, rot_mat, trans
     return result, None
 
 
-def transform_image_3d_new(device, prev_img_cv2, depth_tensor, rot_mat, translate, anim_args, keys, frame_idx):
+def transform_image_3d_deprecating(device, prev_img_cv2, depth_tensor, rot_mat, translate, anim_args, keys, frame_idx):
     '''
     originally an adapted and optimized version of transform_image_3d from Disco Diffusion https://github.com/alembics/disco-diffusion
     modified by reallybigname to control various incoming tensors
@@ -347,13 +345,6 @@ def transform_image_3d_new(device, prev_img_cv2, depth_tensor, rot_mat, translat
         # raise Exception(f"Unknown depth_algorithm passed to transform_image_3d function: {anim_args.depth_algorithm}")
 
     w, h = prev_img_cv2.shape[1], prev_img_cv2.shape[0]
-    # print("INSIDE", depth_tensor.shape)
-    # depth_tensor_shape = depth_tensor.shape
-    # if depth_tensor_shape[0] != h or depth_tensor_shape[1] != w:
-    #     # Reshape depth_tensor to match image dimensions
-    #     import torch.nn.functional as F
-    #     depth_tensor = F.interpolate(depth_tensor, size=(h, w), mode='bilinear', align_corners=False)
-    # depth stretching aspect ratio (has nothing to do with image dimensions - which is why the old formula was flawed)
     aspect_ratio = float(w) / float(h) if anim_args.aspect_ratio_use_old_formula else keys.aspect_ratio_series[
         frame_idx]
 
@@ -375,9 +366,6 @@ def transform_image_3d_new(device, prev_img_cv2, depth_tensor, rot_mat, translat
     depth_tensor_invalid = depth_tensor is None# or torch.isnan(depth_tensor).any() or torch.isinf(
         #depth_tensor).any() or depth_tensor.min() == depth_tensor.max()
 
-    # if depth_tensor is not None:
-    #     print(f"Depth_T.min: {depth_tensor.min()}, Depth_T.max: {depth_tensor.max()}")
-    # if invalid, create flat z for this frame
     if depth_tensor_invalid:
         # if none, then 3D depth is turned off, so no warning is needed.
         if depth_tensor is not None:
@@ -438,12 +426,131 @@ def transform_image_3d_new(device, prev_img_cv2, depth_tensor, rot_mat, translat
     return result
 
 
+
+def transform_image_3d_new(device, prev_img_cv2, depth_tensor, rot_mat, translate, anim_args, keys, frame_idx):
+    '''
+    Originally an adapted and optimized version of transform_image_3d from Disco Diffusion
+    https://github.com/alembics/disco-diffusion
+    Modified by reallybigname to control various incoming tensors
+    '''
+
+    # Set depth parameters based on depth algorithm
+    depth_params = {
+        "midas": (1, -1, -2),
+        "adabins": (1, 1, 1),
+        "leres": (1, 1, 1),
+        "zoe": (1, 1, 1),
+        "depth-anything": (1, 1, 1)
+    }
+
+    depth, depth_factor, depth_offset = depth_params.get(
+        anim_args.depth_algorithm.lower(), (1, 1, 1)
+    )
+
+    # Get image dimensions and aspect ratio
+    h, w = prev_img_cv2.shape[:2]
+    aspect_ratio = (float(w) / float(h) if anim_args.aspect_ratio_use_old_formula
+                    else keys.aspect_ratio_series[frame_idx])
+
+    # Get projection keys
+    near = keys.near_series[frame_idx]
+    far = keys.far_series[frame_idx]
+    fov_deg = keys.fov_series[frame_idx]
+
+    # Define perspective cameras
+    persp_cam_old = p3d.FoVPerspectiveCameras(near, far, aspect_ratio, fov=fov_deg, degrees=True, device=device)
+    persp_cam_new = p3d.FoVPerspectiveCameras(near, far, aspect_ratio, fov=fov_deg, degrees=True,
+                                              R=rot_mat, T=torch.tensor([translate], device=device, dtype=torch.float32)).cuda()
+
+    # Create xy meshgrid
+    y, x = torch.meshgrid(torch.linspace(-1., 1., h, dtype=torch.float32, device=device),
+                          torch.linspace(-1., 1., w, dtype=torch.float32, device=device))
+
+    # Validate depth tensor
+    depth_tensor_invalid = depth_tensor is None
+
+    if depth_tensor_invalid:
+        if depth_tensor is not None:
+            print("Depth tensor invalid. Generating a Flat depth for this frame.")
+        z = torch.ones_like(x, dtype=torch.float32)
+    else:
+        depth_normalized = prepare_depth_tensor(depth_tensor)
+        depth_final = depth_normalized * depth + depth_offset
+        if depth_factor != 1:
+            depth_final *= depth_factor
+        z = depth_final.to(device, dtype=torch.float32)
+
+    # Calculate offset_xy
+    xyz_old_world = torch.stack((x.flatten(), y.flatten(), z.flatten()), dim=1).half().cuda()
+    xyz_old_cam_xy = persp_cam_old.get_full_projection_transform().transform_points(xyz_old_world)[:, 0:2]
+    xyz_new_cam_xy = persp_cam_new.get_full_projection_transform().transform_points(xyz_old_world)[:, 0:2]
+    offset_xy = xyz_new_cam_xy - xyz_old_cam_xy
+
+    # Prepare for affine_grid
+    identity_2d_batch = torch.tensor([[1., 0., 0.], [0., 1., 0.]], device=device, dtype=torch.float32).unsqueeze(0)
+    coords_2d = F.affine_grid(identity_2d_batch, [1, 1, h, w], align_corners=False)
+    offset_coords_2d = coords_2d - offset_xy.view(h, w, 2).unsqueeze(0)
+
+    # Perform hyperdimensional remap
+    image_tensor = rearrange(torch.from_numpy(prev_img_cv2.astype(np.float32)), 'h w c -> c h w').to(device, dtype=torch.float32)
+    new_image = F.grid_sample(
+        image_tensor.unsqueeze(0),
+        offset_coords_2d,
+        mode=anim_args.sampling_mode,
+        padding_mode=anim_args.padding_mode,
+        align_corners=False
+    )
+
+    # Convert back to cv2 style numpy array
+    result = rearrange(
+        new_image.squeeze().clamp(0, 255),
+        'c h w -> h w c'
+    ).cpu().numpy().astype(prev_img_cv2.dtype)
+
+    return result
+
 def prepare_depth_tensor(depth_tensor=None):
     # Prepares a depth tensor with normalization & equalization between 0 and 1
     depth_range = depth_tensor.max() - depth_tensor.min()
     depth_tensor = (depth_tensor - depth_tensor.min()) / depth_range
     depth_tensor = depth_equalization(depth_tensor=depth_tensor)
     return depth_tensor
+
+
+def custom_interp(x, xp, fp):
+    """
+    Perform 1-dimensional linear interpolation for a tensor.
+
+    Args:
+    x (torch.Tensor): The x-coordinates at which to evaluate the interpolated values.
+    xp (torch.Tensor): The x-coordinates of the data points, must be increasing.
+    fp (torch.Tensor): The y-coordinates of the data points, same length as xp.
+
+    Returns:
+    torch.Tensor: The interpolated values, same shape as x.
+    """
+    # Ensure xp is sorted
+    indices = torch.argsort(xp)
+    xp = xp[indices]
+    fp = fp[indices]
+
+    # Clip x to be within the range of xp
+    x = torch.clamp(x, xp[0], xp[-1])
+
+    # Find the indices of the intervals x falls into
+    indices = torch.searchsorted(xp, x, right=True)
+    indices = torch.clamp(indices, 1, len(xp) - 1)
+
+    x_lo = xp[indices - 1]
+    x_hi = xp[indices]
+    y_lo = fp[indices - 1]
+    y_hi = fp[indices]
+
+    # Linear interpolation formula
+    slope = (y_hi - y_lo) / (x_hi - x_lo)
+    y = y_lo + slope * (x - x_lo)
+
+    return y
 
 
 def depth_equalization(depth_tensor):
@@ -456,200 +563,27 @@ def depth_equalization(depth_tensor):
     Returns:
     torch.Tensor: Equalized depth tensor (2D).
     """
+    # Ensure the depth tensor is a float tensor for division operations
+    depth_tensor = depth_tensor.float()
 
-    # Convert the depth tensor to a NumPy array for processing
-    depth_array = depth_tensor.cpu().numpy()
+    # Flatten the tensor and calculate the histogram
+    flat_tensor = depth_tensor.view(-1)
+    hist = torch.histc(flat_tensor, bins=1024, min=0, max=1)
 
-    # Calculate the histogram of the depth values using a specified number of bins
-    # Increase the number of bins for higher precision depth tensors
-    hist, bin_edges = np.histogram(depth_array, bins=1024, range=(0, 1))
-
-    # Calculate the cumulative distribution function (CDF) of the histogram
-    cdf = hist.cumsum()
+    # Calculate the cumulative distribution function (CDF)
+    cdf = hist.cumsum(0)
 
     # Normalize the CDF so that the maximum value is 1
-    cdf = cdf / float(cdf[-1])
+    cdf = cdf / cdf[-1]
 
-    # Perform histogram equalization by mapping the original depth values to the CDF values
-    equalized_depth_array = np.interp(depth_array, bin_edges[:-1], cdf)
+    # Create a tensor for the bin edges
+    bin_edges = torch.linspace(0, 1, steps=1025).to(depth_tensor.device)
 
-    # Convert the equalized depth array back to a PyTorch tensor and return it
-    equalized_depth_tensor = torch.from_numpy(equalized_depth_array).to(depth_tensor.device)
+    # Interpolate the equalized depth values using the CDF
+    equalized_depth_tensor = custom_interp(flat_tensor, bin_edges[:-1], cdf)
+
+    # Reshape the equalized depth tensor back to the original shape
+    equalized_depth_tensor = equalized_depth_tensor.view(depth_tensor.shape)
 
     return equalized_depth_tensor
 
-
-# def transform_image_3d_new(device, prev_img_cv2, depth_tensor, rot_mat, translate, anim_args, keys, frame_idx):
-#     """
-#     originally an adapted and optimized version of transform_image_3d from Disco Diffusion
-#     https://github.com/alembics/disco-diffusion modified by reallybigname to control various incoming tensors
-#     """
-#     print("FRAME WARP ALGO", anim_args.depth_algorithm.lower())
-#     if anim_args.depth_algorithm.lower().startswith('midas'):  # 'Midas-3-Hybrid' or 'Midas-3.1-BeitLarge'
-#         depth = 1
-#         depth_factor = -1
-#         depth_offset = -2
-#     elif anim_args.depth_algorithm.lower() == "adabins":
-#         depth = 1
-#         depth_factor = 1
-#         depth_offset = 1
-#     elif anim_args.depth_algorithm.lower() == "leres":
-#         depth = 1
-#         depth_factor = 1
-#         depth_offset = 1
-#     elif anim_args.depth_algorithm.lower() == "zoe":
-#         depth = 1
-#         depth_factor = 1
-#         depth_offset = 1
-#     else:
-#         raise Exception(f"Unknown depth_algorithm passed to transform_image_3d function: {anim_args.depth_algorithm}")
-#
-#     w, h = prev_img_cv2.shape[1], prev_img_cv2.shape[0]
-#     depth_tensor_shape = depth_tensor.shape
-#
-#
-#     if depth_tensor_shape[2] != h or depth_tensor_shape[3] != w:
-#         # Reshape depth_tensor to match image dimensions
-#         import torch.nn.functional as F
-#         depth_tensor = F.interpolate(depth_tensor, size=(h, w), mode='bilinear', align_corners=False)
-#
-#     # depth stretching aspect ratio (has nothing to do with image dimensions - which is why the old formula was flawed)
-#     aspect_ratio = float(w) / float(h) if anim_args.aspect_ratio_use_old_formula else keys.aspect_ratio_series[
-#         frame_idx]
-#
-#     # get projection keys
-#     near = keys.near_series[frame_idx]
-#     far = keys.far_series[frame_idx]
-#     fov_deg = keys.fov_series[frame_idx]
-#
-#     # get perspective cams old (still) and new (transformed)
-#     persp_cam_old = p3d.FoVPerspectiveCameras(near, far, aspect_ratio, fov=fov_deg, degrees=True, device=device)
-#     persp_cam_new = p3d.FoVPerspectiveCameras(near, far, aspect_ratio, fov=fov_deg, degrees=True, R=rot_mat,
-#                                               T=torch.tensor([translate]), device=device)
-#
-#     # make xy meshgrid - range of [-1,1] is important to torch grid_sample's padding handling
-#     y, x = torch.meshgrid(torch.linspace(-1., 1., h, dtype=torch.float16, device=device),
-#                           torch.linspace(-1., 1., w, dtype=torch.float16, device=device))
-#
-#     # test tensor for validity (some are corrupted for some reason)
-#     depth_tensor_invalid = depth_tensor is None or torch.isnan(depth_tensor).any() or torch.isinf(
-#         depth_tensor).any() or depth_tensor.min() == depth_tensor.max()
-#     # if depth_tensor is not None:
-#     #     debug_print(f"Depth_T.min: {depth_tensor.min()}, Depth_T.max: {depth_tensor.max()}")
-#     # if invalid, create flat z for this frame
-#     if depth_tensor_invalid:
-#         # if none, then 3D depth is turned off, so no warning is needed.
-#         if depth_tensor is not None:
-#             print("Depth tensor invalid. Generating a Flat depth for this frame.")
-#         # create flat depth
-#         z = torch.ones_like(x)
-#     # create z from depth tensor
-#     else:
-#         # prepare tensor between 0 and 1 with optional equalization and autocontrast
-#         depth_normalized = prepare_depth_tensor(depth_tensor)
-#
-#         # Rescale the depth values to depth with offset (depth 2 and offset -1 would be -1 to +11)
-#         depth_final = depth_normalized * depth + depth_offset
-#
-#         # depth factor (1 is normal. -1 is inverted)
-#         if depth_factor != 1:
-#             depth_final *= depth_factor
-#
-#         # console reporting of depth normalization, min, max, diff
-#         # will *only* print to console if Dev mode is enabled in general settings of Deforum
-#         # txt_depth_min, txt_depth_max = '{:.2f}'.format(float(depth_tensor.min())), '{:.2f}'.format(
-#         #     float(depth_tensor.max()))
-#         # diff = '{:.2f}'.format(float(depth_tensor.max()) - float(depth_tensor.min()))
-#         # console_txt = f"\033[36mDepth normalized to {depth_final.min()}/{depth_final.max()} from"
-#         # debug_print(f"{console_txt} {txt_depth_min}/{txt_depth_max} diff {diff}\033[0m")
-#
-#         # add z from depth
-#         z = torch.as_tensor(depth_final, dtype=torch.float16, device=device)
-#
-#     # calculate offset_xy
-#
-#     xyz_old_world = torch.stack((x.flatten(), y.flatten(), z.flatten()), dim=1)
-#     xyz_old_cam_xy = persp_cam_old.get_full_projection_transform().transform_points(xyz_old_world)[:, 0:2]
-#     xyz_new_cam_xy = persp_cam_new.get_full_projection_transform().transform_points(xyz_old_world)[:, 0:2]
-#     offset_xy = xyz_new_cam_xy - xyz_old_cam_xy
-#
-#     # affine_grid theta param expects a batch of 2D mats. Each is 2x3 to do rotation+translation.
-#     identity_2d_batch = torch.tensor([[1., 0., 0.], [0., 1., 0.]], device=device).unsqueeze(0)
-#
-#     # coords_2d will have shape (N,H,W,2).. which is also what grid_sample needs.
-#     coords_2d = torch.nn.functional.affine_grid(identity_2d_batch, [1, 1, h, w], align_corners=False)
-#     offset_coords_2d = coords_2d - torch.reshape(offset_xy, (h, w, 2)).unsqueeze(0)
-#
-#     # do the hyperdimensional remap
-#     image_tensor = rearrange(torch.from_numpy(prev_img_cv2.astype(np.float16)), 'h w c -> c h w').to(device)
-#     # if anim_args.padding_mode == "zeros":
-#     #     image_tensor[image_tensor == 0] += 1e-5
-#     new_image = torch.nn.functional.grid_sample(
-#         image_tensor.unsqueeze(0),  # image_tensor.add(1/512 - 0.0001).unsqueeze(0),
-#         offset_coords_2d,
-#         mode=anim_args.sampling_mode,
-#         padding_mode=anim_args.padding_mode,
-#         align_corners=False
-#     )
-#     #
-#     # new_image = torch.nn.functional.grid_sample(
-#     #     image_tensor.add(1/512 - 0.0001).unsqueeze(0),
-#     #     offset_coords_2d,
-#     #     mode='bicubic',
-#     #     padding_mode='zeros',
-#     #     align_corners=False
-#     # )
-#
-#     # if anim_args.padding_mode == "zeros":
-#     mask = (new_image.abs() < 1e-5).float()
-#     # print(mask.shape)
-#     #
-#     # else:
-#     #     mask = None
-#     # convert back to cv2 style numpy array
-#     result = rearrange(
-#         new_image.squeeze().clamp(0, 255),
-#         'c h w -> h w c'
-#     ).cpu().numpy().astype(prev_img_cv2.dtype)
-#     return result, mask
-#
-#
-# def prepare_depth_tensor(depth_tensor=None):
-#     # Prepares a depth tensor with normalization & equalization between 0 and 1
-#     depth_range = depth_tensor.max() - depth_tensor.min()
-#     depth_tensor = (depth_tensor - depth_tensor.min()) / depth_range
-#     depth_tensor = depth_equalization(depth_tensor=depth_tensor)
-#     return depth_tensor
-#
-#
-# def depth_equalization(depth_tensor):
-#     """
-#     Perform histogram equalization on a single-channel depth tensor.
-#
-#     Args:
-#     depth_tensor (torch.Tensor): A 2D depth tensor (H, W).
-#
-#     Returns:
-#     torch.Tensor: Equalized depth tensor (2D).
-#     """
-#
-#     # Convert the depth tensor to a NumPy array for processing
-#     depth_array = depth_tensor.cpu().numpy()
-#
-#     # Calculate the histogram of the depth values using a specified number of bins
-#     # Increase the number of bins for higher precision depth tensors
-#     hist, bin_edges = np.histogram(depth_array, bins=1024, range=(0, 1))
-#
-#     # Calculate the cumulative distribution function (CDF) of the histogram
-#     cdf = hist.cumsum()
-#
-#     # Normalize the CDF so that the maximum value is 1
-#     cdf = cdf / float(cdf[-1])
-#
-#     # Perform histogram equalization by mapping the original depth values to the CDF values
-#     equalized_depth_array = np.interp(depth_array, bin_edges[:-1], cdf)
-#
-#     # Convert the equalized depth array back to a PyTorch tensor and return it
-#     equalized_depth_tensor = torch.from_numpy(equalized_depth_array).to(depth_tensor.device)
-#
-#     return equalized_depth_tensor

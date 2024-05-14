@@ -845,7 +845,11 @@ def post_gen_cls(cls: Any) -> None:
 
 
 def generate_interpolated_frames(cls):
-    
+    if not hasattr(cls.gen, 'turbo_history'):
+        cls.gen.turbo_history = {}
+    if cls.gen.frame_idx == 0:
+        cls.gen.turbo_history.clear()
+
     turbo_prev_image = copy.deepcopy(cls.gen.turbo_prev_image)
     turbo_next_image = copy.deepcopy(cls.gen.turbo_next_image)
     turbo_prev_frame_idx = copy.deepcopy(cls.gen.turbo_prev_frame_idx)
@@ -856,6 +860,14 @@ def generate_interpolated_frames(cls):
         tween_frame_start_idx = max(cls.gen.start_frame, cls.gen.frame_idx - cls.gen.turbo_steps)
         cadence_flow = None
         for tween_frame_idx in range(tween_frame_start_idx, cls.gen.frame_idx):
+            # cls.gen.turbo_history[str(cls.gen.frame_idx + tween_frame_idx)] = {}
+
+            # cls.gen.turbo_history[str(cls.gen.frame_idx + tween_frame_idx)] = {
+            #     'prev_image': copy.deepcopy(turbo_prev_image),
+            #     'next_image': copy.deepcopy(turbo_next_image),
+            #     'prev_flow': {}
+            # }
+
             # update progress during cadence
             # state.job = f"frame {tween_frame_idx + 1}/{cls.gen.max_frames}"
             # state.job_no = tween_frame_idx + 1
@@ -871,8 +883,14 @@ def generate_interpolated_frames(cls):
                     if cadence_flow is None and turbo_prev_image is not None and turbo_next_image is not None:
                         cadence_flow = get_flow_from_images(turbo_prev_image, turbo_next_image,
                                                             cls.gen.optical_flow_cadence, cls.raft_model) / 2
-                        turbo_next_image = image_transform_optical_flow(turbo_next_image, -cadence_flow, 1)
 
+                        # Blend current flow with previous flow for stability
+                        # if str(turbo_prev_frame_idx) in cls.gen.turbo_history:
+                        #     prev_flow = cls.gen.turbo_history[str(turbo_prev_frame_idx)]['prev_flow']
+                        #     cadence_flow = (1 - tween) * cadence_flow + tween * prev_flow
+
+                        turbo_next_image = image_transform_optical_flow(turbo_next_image, -cadence_flow, 1)
+                        # cls.gen.prev_flow = cadence_flow
             # if opts.data.get("deforum_save_gen_info_as_srt"):
             #     params_to_print = opts.data.get("deforum_save_gen_info_as_srt_params", ['Seed'])
             #     params_string = format_animation_params(cls.gen.keys, cls.gen.prompt_series, tween_frame_idx, params_to_print)
@@ -916,33 +934,35 @@ def generate_interpolated_frames(cls):
                             turbo_next_image = image_transform_ransac(turbo_next_image, matrix, cls.gen.hybrid_motion)
                 if cls.gen.hybrid_motion in ['Optical Flow']:
                     if cls.gen.hybrid_motion_use_prev_img:
-                        flow = get_flow_for_hybrid_motion_prev(tween_frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
+                        hybrid_flow = get_flow_for_hybrid_motion_prev(tween_frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
                                                                cls.gen.hybrid_frame_path, cls.gen.prev_flow, prev_img,
                                                                cls.gen.hybrid_flow_method, cls.raft_model,
                                                                cls.gen.hybrid_flow_consistency,
                                                                cls.gen.hybrid_consistency_blur,
                                                                cls.gen.hybrid_comp_save_extra_frames)
                         if advance_prev:
-                            turbo_prev_image = image_transform_optical_flow(turbo_prev_image, flow,
+                            turbo_prev_image = image_transform_optical_flow(turbo_prev_image, hybrid_flow,
                                                                             cls.gen.hybrid_comp_schedules['flow_factor'])
                         if advance_next:
-                            turbo_next_image = image_transform_optical_flow(turbo_next_image, flow,
+                            turbo_next_image = image_transform_optical_flow(turbo_next_image, hybrid_flow,
                                                                             cls.gen.hybrid_comp_schedules['flow_factor'])
-                        cls.gen.prev_flow = flow
+                        cls.gen.prev_hybrid_flow = hybrid_flow
                     else:
-                        flow = get_flow_for_hybrid_motion(tween_frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
+                        hybrid_flow = get_flow_for_hybrid_motion(tween_frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
                                                           cls.gen.hybrid_frame_path, cls.gen.prev_flow, cls.gen.hybrid_flow_method,
                                                           cls.raft_model,
                                                           cls.gen.hybrid_flow_consistency,
                                                           cls.gen.hybrid_consistency_blur,
                                                           cls.gen.hybrid_comp_save_extra_frames)
+
+
                         if advance_prev:
-                            turbo_prev_image = image_transform_optical_flow(turbo_prev_image, flow,
+                            turbo_prev_image = image_transform_optical_flow(turbo_prev_image, hybrid_flow,
                                                                             cls.gen.hybrid_comp_schedules['flow_factor'])
                         if advance_next:
-                            turbo_next_image = image_transform_optical_flow(turbo_next_image, flow,
+                            turbo_next_image = image_transform_optical_flow(turbo_next_image, hybrid_flow,
                                                                             cls.gen.hybrid_comp_schedules['flow_factor'])
-                        cls.gen.prev_flow = flow
+                        cls.gen.prev_hybrid_flow = hybrid_flow
 
             # do optical flow cadence after animation warping
             if cadence_flow is not None:
@@ -950,6 +970,12 @@ def generate_interpolated_frames(cls):
                 cadence_flow, _, _ = anim_frame_warp(cadence_flow, cls.gen, cls.gen, cls.gen.keys, tween_frame_idx, cls.depth_model,
                                                   depth=depth, device=cls.gen.device, half_precision=cls.gen.half_precision)
                 cadence_flow_inc = rel_flow_to_abs_flow(cadence_flow, cls.gen.width, cls.gen.height) * tween
+                cls.gen.turbo_history[str(cls.gen.frame_idx + tween_frame_idx)] = copy.deepcopy(cadence_flow_inc)
+                # Blend current flow with previous flow for stability
+                if str(turbo_prev_frame_idx) in cls.gen.turbo_history:
+                    prev_flow = cls.gen.turbo_history[str(turbo_prev_frame_idx)]
+                    cadence_flow = (1 - tween) * cadence_flow + tween * prev_flow
+
                 if advance_prev:
                     turbo_prev_image = image_transform_optical_flow(turbo_prev_image, cadence_flow_inc,
                                                                     cls.gen.cadence_flow_factor)
@@ -985,7 +1011,6 @@ def generate_interpolated_frames(cls):
             cls.datacallback({"image":cb_img, "operation_id":cls.gen.operation_id, "frame_idx":tween_frame_idx, "image_path": image_full_path})
 
             cls.images.append(copy.deepcopy(cb_img))
-
 
             if cls.gen.save_depth_maps:
                 cls.depth_model.save(os.path.join(cls.gen.outdir, f"{cls.gen.timestring}_depth_{tween_frame_idx:09}.png"), depth)
