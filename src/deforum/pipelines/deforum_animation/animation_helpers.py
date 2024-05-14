@@ -734,7 +734,6 @@ def post_hybrid_composite_cls(cls: Any) -> None:
 
     return
 
-
 def post_color_match_with_cls(cls: Any) -> None:
     """
     Executes the post-generation color matching process for the given class instance.
@@ -745,18 +744,66 @@ def post_color_match_with_cls(cls: Any) -> None:
     Returns:
         None: Modifies the class instance attributes in place.
     """
-    # color matching on first frame is after generation, color match was collected earlier, so we do an extra generation to avoid the corruption introduced by the color match of first output
+    if cls.gen.color_match_sample is None and cls.gen.opencv_image is not None:
+        cls.gen.color_match_sample = cv2.cvtColor(cls.gen.opencv_image, cv2.COLOR_BGR2LAB)
+        return
+
+    def blend_images(base_image, matched_image, factor):
+        base_image = base_image.astype(np.float32)
+        matched_image = matched_image.astype(np.float32)
+        return cv2.addWeighted(base_image, 1 - factor, matched_image, factor, 0).astype(np.uint8)
+
+    def maintain_colors(image, reference, coherence):
+        if coherence == 'LAB':
+            image_lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+            reference_lab = reference  # Already in LAB
+            matched = blend_images(image_lab, reference_lab, cls.gen.colorCorrectionFactor)
+            matched = cv2.cvtColor(matched, cv2.COLOR_LAB2BGR)
+        elif coherence == 'RGB':
+            matched = blend_images(image, reference, cls.gen.colorCorrectionFactor)
+        elif coherence == 'HSV':
+            image_hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+            reference_hsv = cv2.cvtColor(reference, cv2.COLOR_BGR2HSV)
+            matched = blend_images(image_hsv, reference_hsv, cls.gen.colorCorrectionFactor)
+            matched = cv2.cvtColor(matched, cv2.COLOR_HSV2BGR)
+        else:  # 'Image'
+            matched = blend_images(image, reference, cls.gen.colorCorrectionFactor)
+        return matched
+
     if cls.gen.color_match_sample is not None and 'post' in cls.gen.color_match_at:
         if cls.gen.frame_idx == 0 and (cls.gen.color_coherence == 'Image' or (
                 cls.gen.color_coherence == 'Video Input' and cls.gen.hybrid_available)):
-            image = maintain_colors(cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR), cls.gen.color_match_sample,
-                                    cls.gen.color_coherence)
+            image = maintain_colors(cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR),
+                                    cls.gen.color_match_sample, cls.gen.color_coherence)
             cls.gen.image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-        elif cls.gen.color_match_sample is not None and cls.gen.color_coherence != 'None' and not cls.gen.legacy_colormatch:
-            image = maintain_colors(cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR), cls.gen.color_match_sample,
-                                    cls.gen.color_coherence)
+        elif cls.gen.color_coherence != 'None' and not cls.gen.legacy_colormatch:
+            image = maintain_colors(cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR),
+                                    cls.gen.color_match_sample, cls.gen.color_coherence)
             cls.gen.image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
     return
+
+# def post_color_match_with_cls(cls: Any) -> None:
+#     """
+#     Executes the post-generation color matching process for the given class instance.
+#
+#     Args:
+#         cls: The class instance containing generation parameters, color matching settings, and other attributes.
+#
+#     Returns:
+#         None: Modifies the class instance attributes in place.
+#     """
+#     # color matching on first frame is after generation, color match was collected earlier, so we do an extra generation to avoid the corruption introduced by the color match of first output
+#     if cls.gen.color_match_sample is not None and 'post' in cls.gen.color_match_at:
+#         if cls.gen.frame_idx == 0 and (cls.gen.color_coherence == 'Image' or (
+#                 cls.gen.color_coherence == 'Video Input' and cls.gen.hybrid_available)):
+#             image = maintain_colors(cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR), cls.gen.color_match_sample,
+#                                     cls.gen.color_coherence)
+#             cls.gen.image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+#         elif cls.gen.color_match_sample is not None and cls.gen.color_coherence != 'None' and not cls.gen.legacy_colormatch:
+#             image = maintain_colors(cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR), cls.gen.color_match_sample,
+#                                     cls.gen.color_coherence)
+#             cls.gen.image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+#     return
 
 
 def overlay_mask_cls(cls: Any) -> None:
@@ -841,7 +888,7 @@ def post_gen_cls(cls: Any) -> None:
 
             cls.gen.frame_idx += 1
             # cls.logger(f"                                   [ frame_idx incremented ]", True)
-        if cls.gen.turbo_steps < 2:
+        if cls.gen.turbo_steps < 2 or cls.gen.optical_flow_cadence == 'None':
             done = cls.datacallback({"image": cls.gen.image, "operation_id":cls.gen.operation_id, "frame_idx":cls.gen.frame_idx, "image_path": image_full_path})
 
         cls.gen.seed = next_seed(cls.gen, cls.gen)

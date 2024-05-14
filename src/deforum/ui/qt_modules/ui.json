@@ -430,6 +430,11 @@
       "default": "None",
       "label": "Color Coherence"
     },
+    "color_correction_factor": {
+      "label": "Color correction factor",
+      "widget_type": "text box",
+      "default": "0: (0.005)"
+    },
     "noise_type": {
       "widget_type": "dropdown",
       "options": ["uniform", "perlin", "None"],

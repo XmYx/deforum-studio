@@ -241,7 +241,7 @@ class DeforumGenerationObject(DeforumDataObject):
         self.amount = 0
         self.noise = 0.002
         self.skip_video_creation = False
-        self.color_match_at = 'pre'
+        self.color_match_at = 'post'
         self.dry_run = False
         self.animation_prompts_positive = ""
         self.animation_prompts_negative = ""

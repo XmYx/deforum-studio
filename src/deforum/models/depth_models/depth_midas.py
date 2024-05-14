@@ -1,4 +1,6 @@
 import os
+import platform
+
 import cv2
 import torch
 import gc
@@ -48,25 +50,59 @@ class MidasDepth:
             non_negative=True,
         )
         self.midas_model.eval().to(self.device, memory_format=torch.channels_last if self.device == torch.device("cuda") else None)
-                
+
     def predict(self, prev_img_cv2, half_precision):
-        img_midas = prev_img_cv2.astype(np.float32) / 255.0
-        img_midas_input = self.midas_transform({"image": img_midas})["image"]
-        sample = torch.from_numpy(img_midas_input).float().to(self.device).unsqueeze(0)
+        #img_midas = prev_img_cv2.astype(np.float32) / 255.0
+        img_midas_input = self.midas_transform({"image": prev_img_cv2})["image"]
+        input_sample = torch.from_numpy(img_midas_input).to(self.device).unsqueeze(0)
+
         if self.device != "cpu":
-            sample = sample.to(memory_format=torch.channels_last)
+            input_sample = input_sample.to(memory_format=torch.channels_last)
         if half_precision:
-            sample = sample.half()
+            input_sample = input_sample.half().detach()
+
+        # Mark the beginning of a new step to prevent tensor overwriting
+        if 'linux' in platform.platform().lower():
+            torch.compiler.cudagraph_mark_step_begin()
+
         with torch.no_grad():
-            midas_depth = self.midas_model.forward(sample)
-        midas_depth = torch.nn.functional.interpolate(
-            midas_depth.unsqueeze(1),
-            size=img_midas.shape[:2],
-            mode="bicubic",
-            align_corners=False,
-        ).squeeze().cpu().numpy()
-        depth_tensor = torch.from_numpy(np.expand_dims(midas_depth, axis=0)).squeeze().to(self.device)
-        return depth_tensor
+            midas_depth = self.midas_model.forward(input_sample / 255.0)
+            depth_tensor = torch.nn.functional.interpolate(
+                midas_depth.unsqueeze(1),
+                size=prev_img_cv2.shape[:2],
+                mode="bicubic",
+                align_corners=False,
+            ).squeeze(1).to(self.device)
+
+            # Clone the tensor to avoid overwriting issues
+            return depth_tensor.detach().clone()
+
+    # def predict(self, prev_img_cv2, half_precision):
+    #     img_midas = prev_img_cv2.astype(np.float32) / 255.0
+    #     img_midas_input = self.midas_transform({"image": img_midas})["image"]
+    #     input_sample = torch.from_numpy(img_midas_input).to(self.device).unsqueeze(0)
+    #     if self.device != "cpu":
+    #         input_sample = input_sample.to(memory_format=torch.channels_last)
+    #     if half_precision:
+    #         input_sample = input_sample.half().detach()
+    #     with torch.no_grad():
+    #         midas_depth = self.midas_model.forward(input_sample)
+    #         depth_tensor = torch.nn.functional.interpolate(
+    #             midas_depth.unsqueeze(1),
+    #             size=img_midas.shape[:2],
+    #             mode="bicubic",
+    #             align_corners=False,
+    #         ).squeeze(1).to(self.device)
+    #
+    #         return depth_tensor.detach().clone()
+        # midas_depth = torch.nn.functional.interpolate(
+        #     midas_depth.unsqueeze(1),
+        #     size=img_midas.shape[:2],
+        #     mode="bicubic",
+        #     align_corners=False,
+        # ).squeeze().cpu().numpy()
+        # depth_tensor = torch.from_numpy(np.expand_dims(midas_depth, axis=0)).squeeze().to(self.device)
+        # return depth_tensor
         
     def to(self, device):
         self.device = device
