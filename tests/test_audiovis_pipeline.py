@@ -4,6 +4,7 @@ import threading
 import os
 import time
 import math
+import shutil
 from subprocess import Popen
 import mutagen
 from deforum.utils.constants import config
@@ -16,30 +17,41 @@ def run_projectm(input_audio: str, host_output_path : str, preset: str = 'ORB - 
     assert os.path.exists(input_audio) and os.path.isfile(input_audio)
     assert os.path.exists(host_output_path) and os.path.isdir(host_output_path)
 
-    # get directory of input audio
-    host_input_path = os.path.dirname(input_audio)
+    # Update with your path to 'texture' subdirectory of https://github.com/projectM-visualizer/presets-milkdrop-texture-pack
+    texture_path = "/home/rewbs/milkdrop/textures"
+    # Update with your path to a directory holding all milkdrop presets of interest
+    preset_path = "/home/rewbs/milkdrop/presets_all"
+    # Update with your path to the projectM binary
+    projectm_path = "projectMCli"
+    
 
-    # get filename (without path) of input_audio
-    audio_filename = os.path.basename(input_audio)  
+    if not os.path.exists(texture_path):
+        logger.warning("No projectM texture directory found. Some presets may not render as expected. Tried: " + preset_path)
+    if not os.path.exists(preset_path):
+        logger.error("No projectM preset directory found. Tried: " + preset_path)
+        return    
+    if not shutil.which(projectm_path):
+        logger.error("No projectm executable found. Tried: " + projectm_path)
+        return
 
     command = [
-        "docker", "run",
-        "-v", f"{host_input_path}:/input_dir",
-        "-v", f"{host_output_path}:/output_dir",
-        f"{config.projectm_docker_image}",
-        "--outputPath", "/output_dir/",
+        projectm_path,
+        "--outputPath", f"{host_output_path}",
         "--outputType", "image",
-        "--texturePath", "textures/textures",
+        "--texturePath", f"{texture_path}",
         "--width", f"{width}",
         "--height", f"{height}",
-        "--beatSensitivity", "4.0",
+        "--beatSensitivity", "2.0",
         "--fps", f"{fps}",
-        "--presetFile", f"presets_all/{preset}",
-        "--audioPath", f"/input_dir/{audio_filename}"
+        "--presetFile",  os.path.join(preset_path, preset),
+        "--audioPath", f"{input_audio}"
     ]
 
     # Start the process (without blocking)
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    logger.info("Running projectM with command: " + " ".join(command))
+    projectm_env = os.environ.copy()
+    projectm_env["EGL_PLATFORM"] = "surfaceless" 
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=projectm_env)
 
     return process
 
@@ -54,14 +66,14 @@ def monitor_projectm(process : Popen[bytes]):
             logger.error("[PROJECTM - stderr] - " +  error.decode().strip())
 
         if process.poll() is not None:
-            if process.returncode != 0:
-                output = process.stdout.read()
-                error = process.stderr.read()
+            output = process.stdout.read()
+            error = process.stderr.read()
             if output:
                 logger.info("[PROJECTM - stdout] - " +  output.decode().strip())
             if error:
                 logger.error("[PROJECTM - stderr] - " +  error.decode().strip())
-                raise Exception("ProjectM exited with code {}".format(process.returncode))
+            if (process.returncode != 0):
+                logger.error(f"ProjectM exited with code {process.returncode}")
             else:
                 logger.info("ProjectM completed successfully")
             break    
@@ -73,19 +85,22 @@ def get_audio_duration(audio_file):
     audio = mutagen.File(audio_file)
     return audio.info.length
 
-
 if __name__ == "__main__":
-    preset = 'ORB - Chop chop.milk'
-    input_audio = "/home/rewbs/Rebound1_short.mp3"
-    fps = 20
+    
+    #############
+    # User settings
+    preset = 'Flexi, martin + geiss - dedicated to the sherwin maxawow.milk'
+    input_audio = "/home/rewbs/120bpm.mp3"
+    fps = 24
     width = 1024
     height = 576
-    expected_frame_count = math.floor(fps * get_audio_duration(input_audio))
-    output_name = f"deforum_{time.strftime('%Y%m%d%H%M%S')}"
-    hybrid_frame_path = os.path.join(config.output_dir, output_name, "inputframes")
+    #############
 
-    os.makedirs(hybrid_frame_path, exist_ok=True)
-    
+    expected_frame_count = math.floor(fps * get_audio_duration(input_audio))
+    job_name = f"manual_audiovis_{time.strftime('%Y%m%d%H%M%S')}"
+    job_output_dir =  os.path.join(config.output_dir, job_name)
+    hybrid_frame_path = os.path.join(job_output_dir, "inputframes")
+    os.makedirs(hybrid_frame_path, exist_ok=True)   
 
     # Start projectM and monitor it on a background thread.
     projectm_process = run_projectm(
@@ -94,6 +109,9 @@ if __name__ == "__main__":
         preset = preset,
         fps = fps
     )
+    if projectm_process is None:
+        logger.error("ProjectM process failed to start. Exiting.")
+        exit(1)
     thread = threading.Thread(target=monitor_projectm, args=(projectm_process,))
     thread.start()
 
@@ -101,6 +119,7 @@ if __name__ == "__main__":
     pipeline = DeforumAnimationPipeline.from_civitai("125703")
 
     args = {
+        "outdir": job_output_dir,
         "width": width,
         "height": height,
         "show_info_on_ui": True,
@@ -111,7 +130,7 @@ if __name__ == "__main__":
         "seed": 10,
         "sampler": "DPM++ SDE Karras",
         "steps": 18,
-        "batch_name": output_name,
+        "batch_name": job_name,
         "seed_behavior": "fixed",
         "seed_iter_N": 1,
         "use_init": False,
@@ -240,7 +259,7 @@ if __name__ == "__main__":
         "hybrid_comp_mask_equalize": "None",
         "hybrid_comp_mask_auto_contrast": False,
         "hybrid_comp_save_extra_frames": False,
-        "parseq_manifest": "https://firebasestorage.googleapis.com/v0/b/sd-parseq.appspot.com/o/rendered%2FGUWZvNjsIQOWlB5HVb2uT3vEg4u1%2Fdoc-740b93ac-d133-40f4-8da9-389567b84c21.json?alt=media&token=f5330153-327f-4a1f-abef-1425104de586",
+        "parseq_manifest": "",
         "parseq_use_deltas": True,
         "parseq_non_schedule_overrides": False,
         "use_looper": False,
@@ -371,4 +390,5 @@ if __name__ == "__main__":
         "deforum_git_commit_id": "Unknown"
     }
 
-    pipeline(**args)
+    gen = pipeline(**args)
+    logger.info(f"Output video: {gen.video_path}")

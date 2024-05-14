@@ -427,7 +427,6 @@ class DeforumAnimationPipeline(DeforumBase):
                         new_outdir = os.path.join(parent_dir,
                                                   f"{os.path.basename(self.gen.resume_path)}_v{next_version}")
 
-                    # Your subsequent code for using new_outdir
                     os.makedirs(new_outdir, exist_ok=True)
                     image_files = sorted(glob(os.path.join(self.gen.resume_path, '*.png')), key=numeric_key)
                     files_to_copy = image_files[:resume_from]
