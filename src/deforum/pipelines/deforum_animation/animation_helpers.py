@@ -14,6 +14,7 @@ import pandas as pd
 import torch
 from PIL import Image, ImageOps, ImageEnhance, ImageChops
 
+from skimage.exposure import match_histograms
 
 from deforum.utils.blocking_file_list import BlockingFileList
 
@@ -379,66 +380,81 @@ def color_match_cls(cls: Any) -> None:
     Returns:
         None: Modifies the class instance attributes in place.
     """
-    if cls.gen.color_match_sample is None and cls.gen.opencv_image is not None:
-        cls.gen.color_match_sample = cls.gen.opencv_image.copy()
-
-    elif cls.gen.prev_img is not None:
+    if cls.gen.color_match_sample is None and cls.gen.prev_img is not None:
+        cls.gen.color_match_sample = cv2.cvtColor(cls.gen.prev_img.copy(), cv2.COLOR_BGR2RGB)
+    if cls.gen.prev_img is not None:
         cls.gen.prev_img = maintain_colors(cls.gen.prev_img, cls.gen.color_match_sample, cls.gen.color_coherence)
-
     return
 
 
-def post_gen_color_correction(cls: Any) -> None:
+def subtle_color_correction_with_cls(cls: Any) -> None:
+    """
+    Applies subtle color correction to cls.gen.image by blending the corrected image with the original image.
+
+    Args:
+        cls: The class instance containing generation parameters, color correction settings, and other attributes.
+
+    Returns:
+        None: Modifies cls.gen.image in place.
+    """
+    if cls.gen.color_match_sample is None or cls.gen.image is None:
+        return
+
+    sample = cls.gen.color_match_sample
+    original_image = cls.gen.image
+    original_lab = cv2.cvtColor(np.asarray(original_image), cv2.COLOR_RGB2LAB)
+    correction = cv2.cvtColor(sample, cv2.COLOR_RGB2LAB)
+
+    corrected_lab = match_histograms(original_lab, correction, channel_axis=2)
+    corrected_image = cv2.cvtColor(corrected_lab, cv2.COLOR_LAB2RGB).astype("uint8")
+
+    original_np = np.asarray(original_image).astype(np.uint8)
+    corrected_np = np.asarray(corrected_image).astype(np.uint8)
+
+    # Convert both images to LAB color space
+    original_lab = cv2.cvtColor(original_np, cv2.COLOR_RGB2LAB).astype(np.float32)
+    corrected_lab = cv2.cvtColor(corrected_np, cv2.COLOR_RGB2LAB).astype(np.float32)
+
+    # Blend the L (luminance) channels
+    l_original, a_original, b_original = cv2.split(original_lab)
+    l_corrected, a_corrected, b_corrected = cv2.split(corrected_lab)
+
+    l_blended = cv2.addWeighted(l_original, 1 - cls.gen.colorCorrectionFactor,
+                                l_corrected, cls.gen.colorCorrectionFactor, 0)
+
+    # Merge blended L channel with original A and B channels
+    blended_lab = cv2.merge((l_blended, a_original, b_original))
+
+    # Convert back to RGB color space
+    blended_rgb = cv2.cvtColor(blended_lab.astype(np.uint8), cv2.COLOR_LAB2RGB)
+
+    # Convert blended numpy array back to PIL image
+    blended_image = Image.fromarray(blended_rgb)
+
+    cls.gen.image = blended_image.convert('RGB')
+
+
+def post_color_match_with_cls(cls: Any) -> None:
+    """
+    Executes the post-generation color matching process for the given class instance.
+
+    Args:
+        cls: The class instance containing generation parameters, color matching settings, and other attributes.
+
+    Returns:
+        None: Modifies the class instance attributes in place.
     """
 
-    """
-    from blendmodes.blend import blendLayers
-    from blendmodes.blendtype import BlendType
-    if cls.gen.color_match_sample is None and cls.gen.prev_img is not None:
-        cls.gen.color_match_sample = cv2.cvtColor(copy.deepcopy(cls.gen.prev_img))
-
-    if cls.gen.color_match_sample is not None:
-        from skimage import exposure
-        image = Image.fromarray(cv2.cvtColor(exposure.match_histograms(
-            cv2.cvtColor(
-                cv2.cvtColor(np.asarray(cls.gen.image), cv2.COLOR_RGB2LAB),
-                cv2.COLOR_RGB2LAB
-            ),
-            cls.gen.color_match_sample,
-            channel_axis=2
-        ), cv2.COLOR_LAB2RGB).astype("uint8"))
-
-        cls.gen.image = blendLayers(image, cls.gen.image, BlendType.LUMINOSITY)
 
 
 
-# def set_contrast_image(cls: Any) -> None:
-#     """
-#     Adjusts the contrast of the previous image in the given class instance.
-#
-#     Args:
-#         cls: The class instance containing generation parameters, contrast settings, and other attributes.
-#
-#     Returns:
-#         None: Modifies the class instance attributes in place.
-#     """
-#     if cls.gen.prev_img is not None:
-#         # intercept and override to grayscale
-#         if cls.gen.color_force_grayscale:
-#             cls.gen.prev_img = cv2.cvtColor(cls.gen.prev_img, cv2.COLOR_BGR2GRAY)
-#             cls.gen.prev_img = cv2.cvtColor(cls.gen.prev_img, cv2.COLOR_GRAY2BGR)
-#
-#         # apply scaling
-#         cls.gen.contrast_image = (cls.gen.prev_img * cls.gen.contrast).round().astype(np.uint8)
-#         # anti-blur
-#         if cls.gen.amount > 0:
-#             cls.gen.contrast_image = unsharp_mask(cls.gen.contrast_image, (cls.gen.kernel, cls.gen.kernel),
-#                                                   cls.gen.sigma, cls.gen.amount, cls.gen.threshold,
-#                                                   cls.gen.mask_image if cls.gen.use_mask else None)
-#             if cls.gen.noise_type == 'None':
-#                 cls.gen.prev_img = cls.gen.contrast_image
-#
-#     return
+    if cls.gen.color_match_sample is not None and 'post' in cls.gen.color_match_at:
+        # if cls.gen.frame_idx == 0 and (cls.gen.color_coherence == 'Image' or (
+        #         cls.gen.color_coherence == 'Video Input' and cls.gen.hybrid_available)):
+        #     match_colors_with_cls(cls)
+        if cls.gen.color_coherence != 'None':
+            subtle_color_correction_with_cls(cls)
+    return
 def set_contrast_image(cls: Any) -> None:
     """
     Adjusts the contrast of the previous image in the given class instance.
@@ -734,77 +750,6 @@ def post_hybrid_composite_cls(cls: Any) -> None:
 
     return
 
-def post_color_match_with_cls(cls: Any) -> None:
-    """
-    Executes the post-generation color matching process for the given class instance.
-
-    Args:
-        cls: The class instance containing generation parameters, color matching settings, and other attributes.
-
-    Returns:
-        None: Modifies the class instance attributes in place.
-    """
-    if cls.gen.color_match_sample is None and cls.gen.opencv_image is not None:
-        cls.gen.color_match_sample = cv2.cvtColor(cls.gen.opencv_image, cv2.COLOR_BGR2LAB)
-        return
-
-    def blend_images(base_image, matched_image, factor):
-        base_image = base_image.astype(np.float32)
-        matched_image = matched_image.astype(np.float32)
-        return cv2.addWeighted(base_image, 1 - factor, matched_image, factor, 0).astype(np.uint8)
-
-    def maintain_colors(image, reference, coherence):
-        if coherence == 'LAB':
-            image_lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
-            reference_lab = reference  # Already in LAB
-            matched = blend_images(image_lab, reference_lab, cls.gen.colorCorrectionFactor)
-            matched = cv2.cvtColor(matched, cv2.COLOR_LAB2BGR)
-        elif coherence == 'RGB':
-            matched = blend_images(image, reference, cls.gen.colorCorrectionFactor)
-        elif coherence == 'HSV':
-            image_hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-            reference_hsv = cv2.cvtColor(reference, cv2.COLOR_BGR2HSV)
-            matched = blend_images(image_hsv, reference_hsv, cls.gen.colorCorrectionFactor)
-            matched = cv2.cvtColor(matched, cv2.COLOR_HSV2BGR)
-        else:  # 'Image'
-            matched = blend_images(image, reference, cls.gen.colorCorrectionFactor)
-        return matched
-
-    if cls.gen.color_match_sample is not None and 'post' in cls.gen.color_match_at:
-        if cls.gen.frame_idx == 0 and (cls.gen.color_coherence == 'Image' or (
-                cls.gen.color_coherence == 'Video Input' and cls.gen.hybrid_available)):
-            image = maintain_colors(cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR),
-                                    cls.gen.color_match_sample, cls.gen.color_coherence)
-            cls.gen.image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-        elif cls.gen.color_coherence != 'None' and not cls.gen.legacy_colormatch:
-            image = maintain_colors(cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR),
-                                    cls.gen.color_match_sample, cls.gen.color_coherence)
-            cls.gen.image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    return
-
-# def post_color_match_with_cls(cls: Any) -> None:
-#     """
-#     Executes the post-generation color matching process for the given class instance.
-#
-#     Args:
-#         cls: The class instance containing generation parameters, color matching settings, and other attributes.
-#
-#     Returns:
-#         None: Modifies the class instance attributes in place.
-#     """
-#     # color matching on first frame is after generation, color match was collected earlier, so we do an extra generation to avoid the corruption introduced by the color match of first output
-#     if cls.gen.color_match_sample is not None and 'post' in cls.gen.color_match_at:
-#         if cls.gen.frame_idx == 0 and (cls.gen.color_coherence == 'Image' or (
-#                 cls.gen.color_coherence == 'Video Input' and cls.gen.hybrid_available)):
-#             image = maintain_colors(cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR), cls.gen.color_match_sample,
-#                                     cls.gen.color_coherence)
-#             cls.gen.image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-#         elif cls.gen.color_match_sample is not None and cls.gen.color_coherence != 'None' and not cls.gen.legacy_colormatch:
-#             image = maintain_colors(cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR), cls.gen.color_match_sample,
-#                                     cls.gen.color_coherence)
-#             cls.gen.image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-#     return
-
 
 def overlay_mask_cls(cls: Any) -> None:
     """
@@ -826,10 +771,10 @@ def overlay_mask_cls(cls: Any) -> None:
         cls.gen.image = do_overlay_mask(cls.gen, cls.gen, cls.gen.image, cls.gen.frame_idx)
 
     # on strength 0, set color match to generation
-    if ((not cls.gen.legacy_colormatch and not cls.gen.use_init) or (
-            cls.gen.legacy_colormatch and cls.gen.strength == 0)) and not cls.gen.color_coherence in ['Image',
-                                                                                                      'Video Input']:
-        cls.gen.color_match_sample = cv2.cvtColor(np.asarray(cls.gen.image), cv2.COLOR_RGB2BGR)
+    # if ((not cls.gen.legacy_colormatch and not cls.gen.use_init) or (
+    #         cls.gen.legacy_colormatch and cls.gen.strength == 0)) and not cls.gen.color_coherence in ['Image',
+    #                                                                                                   'Video Input']:
+    #     cls.gen.color_match_sample = np.asarray(cls.gen.image)
     return
 
 
@@ -873,7 +818,7 @@ def post_gen_cls(cls: Any) -> None:
             if not cls.gen.store_frames_in_ram:
                 # p = Process(target=save_image, args=(cls.gen.image, 'PIL', filename, cls.gen, cls.gen, cls.gen))
                 # p.start()
-                save_image(cls.gen.image, 'PIL', filename, cls.gen, cls.gen, cls.gen)
+                save_image(cls.gen.image, 'PIL', filename, cls.gen, cls.gen, cls.gen, cls)
                 cls.gen.image_paths.append(image_full_path)
 
                 # cls.logger(f"                                   [ image saved ]", True)

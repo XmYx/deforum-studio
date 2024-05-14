@@ -41,7 +41,6 @@ from .animation_helpers import (
     post_color_match_with_cls,
     overlay_mask_cls,
     post_gen_cls,
-    make_cadence_frames,
     color_match_video_input,
     film_interpolate_cls,
     save_video_cls,
@@ -51,7 +50,6 @@ from .animation_helpers import (
     rife_interpolate_cls,
     cls_subtitle_handler,
     apply_temporal_flow_cls,
-    post_gen_color_correction
 )
 
 from .parseq_adapter import ParseqAdapter
@@ -342,8 +340,8 @@ class DeforumAnimationPipeline(DeforumBase):
         if self.gen.hybrid_composite == 'Normal':
             self.shoot_fns.append(hybrid_composite_cls)
 
-        # if self.gen.color_coherence != 'None':
-        #     self.shoot_fns.append(color_match_cls)
+        if self.gen.color_coherence != 'None':
+            self.shoot_fns.append(color_match_cls)
 
         self.shoot_fns.append(set_contrast_image)
 
@@ -377,12 +375,14 @@ class DeforumAnimationPipeline(DeforumBase):
         if hasattr(self.gen, "deforum_save_gen_info_as_srt"):
             if self.gen.deforum_save_gen_info_as_srt:
                 self.shoot_fns.append(cls_subtitle_handler)
+
         if self.gen.frame_interpolation_engine != "None":
             if self.gen.max_frames > 3:
                 if self.gen.frame_interpolation_engine == "FILM":
                     self.post_fns.append(film_interpolate_cls)
                 elif 'rife' in self.gen.frame_interpolation_engine.lower():
                     self.post_fns.append(rife_interpolate_cls)
+
         if self.gen.max_frames > 1 and not self.gen.skip_video_creation:
             self.post_fns.append(save_video_cls)
 
@@ -400,7 +400,7 @@ class DeforumAnimationPipeline(DeforumBase):
 
             self.gen.prev_img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
             self.gen.opencv_image = self.gen.prev_img
-        start_frame = 0
+
         if self.gen.resume_from_timestring:
             def numeric_key(filename):
                 # Extract the numeric part from the filename, assuming it follows the last underscore '_'
