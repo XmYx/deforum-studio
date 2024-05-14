@@ -1,5 +1,6 @@
 import math
 import os
+import platform
 import re
 import secrets
 
@@ -299,6 +300,9 @@ class ComfyDeforumGenerator:
             # self.cheap_vae.first_stage_model.cuda()
 
             # replace_encode_decode(self.cheap_vae)
+            if 'linux' in platform.platform().lower():
+                self.vae.first_stage_model.encode = torch.compile(self.vae.first_stage_model.encode, mode='reduce-overhead')
+                self.vae.first_stage_model.decode = torch.compile(self.vae.first_stage_model.decode, mode='reduce-overhead')
             self.clip.patcher.offload_device = torch.device("cuda")
             self.vae.patcher.offload_device = torch.device("cuda")
             self.vae.first_stage_model.cuda()
