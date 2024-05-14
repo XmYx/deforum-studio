@@ -211,6 +211,7 @@ extras["dev"] = deps_list('torch',
                           'kornia',
                           'wheel',
                           'loguru',
+                          'mutagen',
                           )
 
 extras["cli"] = deps_list('torch',

@@ -36,7 +36,6 @@ def save_as_h264(frames, filename, audio_path=None, fps=12):
         writer.append_data(np.array(frame))
     writer.close()
 
-    final_filename = filename
     if audio_path:
         try:
             # audio_path could in fact be the init video so extract audio here. If audio_path 
@@ -74,6 +73,4 @@ def save_as_h264(frames, filename, audio_path=None, fps=12):
             if os.path.exists(extracted_audio_tmpfile):
                 os.remove(extracted_audio_tmpfile)
         
-        final_filename = output_filename
-
-    return final_filename
+    return filename
