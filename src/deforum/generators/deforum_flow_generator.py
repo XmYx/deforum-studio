@@ -3,6 +3,7 @@ import random
 
 import cv2
 import numpy as np
+import torch
 
 from .deforum_flow_consistency import make_consistency
 from deforum.utils.image_utils import (get_resized_image_from_filename,
@@ -122,6 +123,57 @@ def filter_flow(flow,
     return flow * mask
 
 
+def get_custom_optical_flow(i1, i2):
+    """
+    Custom optical flow implementation that aims to be faster than existing methods.
+
+    Args:
+        i1: First input image (numpy array).
+        i2: Second input image (numpy array).
+
+    Returns:
+        flow: Computed optical flow (numpy array).
+    """
+    # Convert images to grayscale
+    i1_gray = cv2.cvtColor(i1, cv2.COLOR_BGR2GRAY)
+    i2_gray = cv2.cvtColor(i2, cv2.COLOR_BGR2GRAY)
+
+    # Convert images to PyTorch tensors
+    i1_tensor = torch.from_numpy(i1_gray).float().to('cuda').unsqueeze(0).unsqueeze(0)
+    i2_tensor = torch.from_numpy(i2_gray).float().to('cuda').unsqueeze(0).unsqueeze(0)
+
+    # Normalize images
+    i1_tensor = i1_tensor / 255.0
+    i2_tensor = i2_tensor / 255.0
+
+    # Define Sobel kernels for gradient computation
+    sobel_x = torch.tensor([[[[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]]], dtype=torch.float32).to('cuda')
+    sobel_y = torch.tensor([[[[-1, -2, -1], [0, 0, 0], [1, 2, 1]]]], dtype=torch.float32).to('cuda')
+
+    # Compute gradients
+    grad_x1 = torch.nn.functional.conv2d(torch.nn.functional.pad(i1_tensor, (1, 1, 1, 1)), sobel_x)
+    grad_y1 = torch.nn.functional.conv2d(torch.nn.functional.pad(i1_tensor, (1, 1, 1, 1)), sobel_y)
+
+    grad_x2 = torch.nn.functional.conv2d(torch.nn.functional.pad(i2_tensor, (1, 1, 1, 1)), sobel_x)
+    grad_y2 = torch.nn.functional.conv2d(torch.nn.functional.pad(i2_tensor, (1, 1, 1, 1)), sobel_y)
+
+    # Compute temporal gradients
+    It = i2_tensor - i1_tensor
+
+    # Compute optical flow using the gradients
+    flow_x = (grad_x1 + grad_x2) / 2
+    flow_y = (grad_y1 + grad_y2) / 2
+
+    # Combine gradients into a single tensor for flow computation
+    flow = torch.cat((flow_x, flow_y), dim=1).squeeze(0).permute(1, 2, 0)
+
+    # Normalize the flow to match the scale of other methods
+    flow = (flow / flow.max()) * 255.0
+
+    # Convert flow back to numpy array
+    flow_np = flow.cpu().numpy()
+
+    return flow_np
 def get_flow_from_images(i1, i2, method, raft_model, prev_flow=None):
     if method == "RAFT":
         if raft_model is None:
@@ -143,6 +195,8 @@ def get_flow_from_images(i1, i2, method, raft_model, prev_flow=None):
         return get_flow_from_images_PCAFlow(i1, i2, prev_flow)
     elif method == "Farneback":  # Farneback Normal:
         return get_flow_from_images_Farneback(i1, i2, "normal", prev_flow)
+    elif method == "Custom":
+        return get_custom_optical_flow(i1, i2)
     # if we reached this point, something went wrong. raise an error:
     raise RuntimeError(f"Invald flow method name: '{method}'")
 

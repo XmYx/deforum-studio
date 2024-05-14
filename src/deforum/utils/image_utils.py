@@ -12,6 +12,7 @@ import requests
 import torch
 import torchvision.transforms.functional as TF
 from PIL import (Image, ImageChops, ImageOps)
+
 from scipy.ndimage import gaussian_filter
 from skimage.exposure import match_histograms
 
@@ -34,17 +35,17 @@ def maintain_colors(prev_img, color_match_sample, mode):
     match_histograms_kwargs = {'channel_axis': -1} if is_skimage_v20_or_higher else {'multichannel': True}
 
     if mode == 'RGB':
-        return match_histograms(prev_img, color_match_sample, **match_histograms_kwargs)
+        return cv2.cvtColor(match_histograms(cv2.cvtColor(prev_img, cv2.COLOR_BGR2RGB), color_match_sample, **match_histograms_kwargs), cv2.COLOR_RGB2BGR)
     elif mode == 'HSV':
-        prev_img_hsv = cv2.cvtColor(prev_img, cv2.COLOR_RGB2HSV)
+        prev_img_hsv = cv2.cvtColor(prev_img, cv2.COLOR_BGR2HSV)
         color_match_hsv = cv2.cvtColor(color_match_sample, cv2.COLOR_RGB2HSV)
         matched_hsv = match_histograms(prev_img_hsv, color_match_hsv, **match_histograms_kwargs)
-        return cv2.cvtColor(matched_hsv, cv2.COLOR_HSV2RGB)
+        return cv2.cvtColor(matched_hsv, cv2.COLOR_HSV2BGR)
     else:  # LAB
-        prev_img_lab = cv2.cvtColor(prev_img, cv2.COLOR_RGB2LAB)
+        prev_img_lab = cv2.cvtColor(prev_img, cv2.COLOR_BGR2LAB)
         color_match_lab = cv2.cvtColor(color_match_sample, cv2.COLOR_RGB2LAB)
         matched_lab = match_histograms(prev_img_lab, color_match_lab, **match_histograms_kwargs)
-        return cv2.cvtColor(matched_lab, cv2.COLOR_LAB2RGB)
+        return cv2.cvtColor(matched_lab, cv2.COLOR_LAB2BGR)
 
 
 def load_image(image_path: str):
@@ -251,27 +252,50 @@ def get_mask_from_file(mask_file, args):
     return prepare_mask(mask_file, (args.width, args.height), args.mask_contrast_adjust, args.mask_brightness_adjust)
 
 
+# def unsharp_mask(img, kernel_size=(5, 5), sigma=1.0, amount=1.0, threshold=0, mask=None):
+#     if amount == 0:
+#         return img
+#     # Return a sharpened version of the image, using an unsharp mask.
+#     # If mask is not None, only areas under mask are handled
+#     blurred = cv2.GaussianBlur(img, kernel_size, sigma)
+#     sharpened = float(amount + 1) * img - float(amount) * blurred
+#     sharpened = np.maximum(sharpened, np.zeros(sharpened.shape))
+#     sharpened = np.minimum(sharpened, 255 * np.ones(sharpened.shape))
+#     sharpened = sharpened.round().astype(np.uint8)
+#     if threshold > 0:
+#         low_contrast_mask = np.absolute(img - blurred) < threshold
+#         np.copyto(sharpened, img, where=low_contrast_mask)
+#     if mask is not None:
+#         mask = np.array(mask)
+#         masked_sharpened = cv2.bitwise_and(sharpened, sharpened, mask=mask)
+#         masked_img = cv2.bitwise_and(img, img, mask=255 - mask)
+#         sharpened = cv2.add(masked_img, masked_sharpened)
+#     return sharpened
+
 def unsharp_mask(img, kernel_size=(5, 5), sigma=1.0, amount=1.0, threshold=0, mask=None):
     if amount == 0:
         return img
-    # Return a sharpened version of the image, using an unsharp mask.
-    # If mask is not None, only areas under mask are handled
-    blurred = cv2.GaussianBlur(img, kernel_size, sigma)
-    sharpened = float(amount + 1) * img - float(amount) * blurred
-    sharpened = np.maximum(sharpened, np.zeros(sharpened.shape))
-    sharpened = np.minimum(sharpened, 255 * np.ones(sharpened.shape))
-    sharpened = sharpened.round().astype(np.uint8)
+
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    img_tensor = torch.from_numpy(img).float().to(device)
+    blurred_tensor = cv2.GaussianBlur(img, kernel_size, sigma)
+    blurred_tensor = torch.from_numpy(blurred_tensor).float().to(device)
+
+    sharpened_tensor = (amount + 1.0) * img_tensor - amount * blurred_tensor
+    sharpened_tensor = torch.clamp(sharpened_tensor, 0, 255).round().to(torch.uint8)
+
     if threshold > 0:
-        low_contrast_mask = np.absolute(img - blurred) < threshold
-        np.copyto(sharpened, img, where=low_contrast_mask)
+        low_contrast_mask = torch.abs(img_tensor - blurred_tensor) < threshold
+        sharpened_tensor = torch.where(low_contrast_mask, img_tensor, sharpened_tensor)
+
     if mask is not None:
-        mask = np.array(mask)
-        masked_sharpened = cv2.bitwise_and(sharpened, sharpened, mask=mask)
-        masked_img = cv2.bitwise_and(img, img, mask=255 - mask)
-        sharpened = cv2.add(masked_img, masked_sharpened)
-    return sharpened
+        mask_tensor = torch.from_numpy(np.array(mask)).to(device)
+        masked_sharpened = sharpened_tensor * mask_tensor
+        masked_img = img_tensor * (1 - mask_tensor)
+        sharpened_tensor = masked_sharpened + masked_img
 
-
+    return sharpened_tensor.cpu().numpy()
 def do_overlay_mask(args, anim_args, img, frame_idx, is_bgr_array=False):
     current_mask = None
     current_frame = None
@@ -506,11 +530,30 @@ import os
 from multiprocessing import Process
 
 
-def save_image_thread(image, path):
+def save_image_thread(image, path, cls):
     # Save the image directly
+
+
+    # if cls.gen.color_match_sample is not None:
+    #
+    #     logger.info("Applying subtle color correction.")
+    #     sample = cls.gen.color_match_sample
+    #     original_image = image
+    #     original_lab = cv2.cvtColor(np.asarray(original_image), cv2.COLOR_RGB2LAB)
+    #     correction = cv2.cvtColor(sample, cv2.COLOR_RGB2LAB)
+    #
+    #     corrected_lab = match_histograms(original_lab, correction, channel_axis=2)
+    #     corrected_image = cv2.cvtColor(corrected_lab, cv2.COLOR_LAB2RGB).astype("uint8")
+    #
+    #     corrected_pil_image = Image.fromarray(corrected_image)
+    #     blended_image = blendLayers(corrected_pil_image, original_image, BlendType.LUMINOSITY,
+    #                                 opacity=cls.gen.colorCorrectionFactor)
+    #
+    #     image = blended_image.convert('RGB')
+
     image.save(path, "PNG")
 
-def save_image(image, image_type, filename, args, video_args, root):
+def save_image(image, image_type, filename, args, video_args, root, cls=None):
     if video_args.store_frames_in_ram:
         # Storing in RAM as an alternative
         root.frames_cache.append({
@@ -523,7 +566,7 @@ def save_image(image, image_type, filename, args, video_args, root):
         full_path = os.path.join(args.outdir, filename)
 
         # Create a new thread for saving the image
-        thread = Thread(target=save_image_thread, args=(image, full_path))
+        thread = Thread(target=save_image_thread, args=(image, full_path, cls))
 
         # Start the thread
         thread.start()

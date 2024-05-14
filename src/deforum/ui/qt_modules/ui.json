@@ -180,7 +180,7 @@
     },
     "depth_algorithm": {
       "widget_type": "dropdown",
-      "options": ["Midas+AdaBins (old)", "Zoe+AdaBins (old)", "Midas-3-Hybrid", "AdaBins", "Zoe", "Leres"],
+      "options": ["Midas+AdaBins (old)", "Zoe+AdaBins (old)", "Midas-3-Hybrid", "AdaBins", "Zoe", "Leres", "Depth-Anything"],
       "default": "Midas-3-Hybrid",
       "label": "Depth Algorithm"
     },
@@ -382,7 +382,7 @@
     },
     "hybrid_flow_method": {
       "widget_type": "dropdown",
-      "options": ["None", "RAFT", "DIS Medium", "DIS Fine", "Farneback"],
+      "options": ["None", "RAFT", "DIS Medium", "DIS Fine", "Farneback", "DenseRLOF", "SF", "DualTVL1", "DeepFlow", "PCAFlow", "Custom"],
       "default": "RAFT",
       "label": "Hybrid motion"
     },
@@ -430,9 +430,14 @@
       "default": "None",
       "label": "Color Coherence"
     },
+    "color_correction_factor": {
+      "label": "Color correction factor",
+      "widget_type": "text box",
+      "default": "0: (0.005)"
+    },
     "noise_type": {
       "widget_type": "dropdown",
-      "options": ["uniform", "perlin"],
+      "options": ["uniform", "perlin", "None"],
       "default": "perlin",
       "label": "Noise Type"
     },

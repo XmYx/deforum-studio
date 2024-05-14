@@ -21,6 +21,35 @@ from ..utils.model_download import (
 cfg_guider = None
 
 
+def simple_encode(self, pixel_samples):
+    # Crop pixels to ensure dimensions are divisible by the downscale ratio
+    x = (pixel_samples.shape[1] // self.downscale_ratio) * self.downscale_ratio
+    y = (pixel_samples.shape[2] // self.downscale_ratio) * self.downscale_ratio
+    if pixel_samples.shape[1] != x or pixel_samples.shape[2] != y:
+        x_offset = (pixel_samples.shape[1] % self.downscale_ratio) // 2
+        y_offset = (pixel_samples.shape[2] % self.downscale_ratio) // 2
+        pixel_samples = pixel_samples[:, x_offset:x + x_offset, y_offset:y + y_offset, :]
+
+    # Change channel order from (H, W, C) to (C, H, W)
+    pixel_samples = pixel_samples.permute(0, 3, 1, 2).to(self.vae_dtype).to(self.device)
+    pixel_samples = self.process_input(pixel_samples)
+    latent_samples = self.first_stage_model.encode(pixel_samples)
+    return latent_samples
+
+
+def simple_decode(self, latent_samples):
+    latent_samples = latent_samples.to(self.vae_dtype).to(self.device)
+    decoded_samples = self.first_stage_model.decode(latent_samples)
+    decoded_samples = self.process_output(decoded_samples)
+
+    # Change channel order back from (C, H, W) to (H, W, C)
+    decoded_samples = decoded_samples.permute(0, 2, 3, 1).to(self.output_device)
+    return decoded_samples
+
+
+def replace_encode_decode(vae):
+    vae.encode = simple_encode.__get__(vae)
+    vae.decode = simple_decode.__get__(vae)
 class HIJackCFGGuider:
     def __init__(self, model_patcher):
         # print("BIG HOOOORAAAAY\n\n\n\n\n")
@@ -117,7 +146,7 @@ class HIJackCFGGuider:
         device = torch.device("cuda")
         sigmas = sigmas.to(device)
         output = self.inner_sample(
-            noise, latent_image, device, sampler, sigmas, denoise_mask, None, False, seed
+            noise, latent_image, device, sampler, sigmas, denoise_mask, None, True, seed
         )
         return output
 
@@ -187,6 +216,7 @@ class ComfyDeforumGenerator:
         self.optimized = True
         logger.info("Applied Stable-Fast Unet patch.")
 
+    @torch.inference_mode()
     def encode_latent(
         self,
         vae,
@@ -201,12 +231,8 @@ class ComfyDeforumGenerator:
 
         ## TODO this looks wrong! Why override the supplied subseed strength?
         # subseed_strength = 0.6
-
-        with torch.inference_mode():
-            latent = latent.to(torch.float16)
-            latent = vae.encode_tiled(latent[:, :, :, :3])
-            latent = latent.to("cuda")
-        return {"samples": latent}
+        latent = latent.movedim(-1, 1)
+        return {"samples": self.vae.first_stage_model.encode(latent.half().cuda() * 2.0 - 1.0)}
 
     def generate_latent(
         self,
@@ -267,6 +293,12 @@ class ComfyDeforumGenerator:
                     output_clipvision=False,
                 )
             )
+            # replace_encode_decode(self.vae)
+            # vae_loader = NODE_CLASS_MAPPINGS['VAELoader']()
+            # self.cheap_vae = vae_loader.load_vae('taesdxl')[0]
+            # self.cheap_vae.first_stage_model.cuda()
+
+            # replace_encode_decode(self.cheap_vae)
             self.clip.patcher.offload_device = torch.device("cuda")
             self.vae.patcher.offload_device = torch.device("cuda")
             self.vae.first_stage_model.cuda()
@@ -299,7 +331,7 @@ class ComfyDeforumGenerator:
                 #     OnelineQuantizationBoosterExecutor
                 custom_booster = BoosterScheduler(BasicBoosterExecutor())
                 self.model = custom_booster(self.model, ckpt_name=self.model_path)
-                self.vae = BoosterScheduler(BasicBoosterExecutor())(self.vae, ckpt_name=self.model_path)
+                # self.vae = BoosterScheduler(BasicBoosterExecutor())(self.vae, ckpt_name=self.model_path)
                 self.model.weight_inplace_update = True
                 self.onediff_avail = True
             except:
@@ -402,7 +434,7 @@ class ComfyDeforumGenerator:
 
         if not self.model_loaded:
             self.load_model()
-            # self.load_lora_from_civitai('477721', 1.0, 1.0)
+            # self.load_lora_from_civitai('424720', 1.0, 1.0)
         if self.optimize and not (self.optimized or self.onediff_avail):
             try:
                 self.optimize_model()
@@ -487,7 +519,6 @@ class ComfyDeforumGenerator:
         cond = self.cond
         if use_areas and areas is not None:
             from nodes import ConditioningSetArea
-
             area_setter = ConditioningSetArea()
             for area in areas:
                 logger.info(f"AREA TO USE: {area}")
@@ -520,7 +551,6 @@ class ComfyDeforumGenerator:
                 seed_resize_from_w,
             )
             self.n_prompt = negative_prompt
-
         if next_prompt is not None and enable_prompt_blend:
             if next_prompt != prompt and next_prompt != "":
                 if 0.0 < prompt_blend < 1.0:
@@ -537,10 +567,8 @@ class ComfyDeforumGenerator:
                     cond = blend_tensors(
                         cond[0], next_cond[0], blend_value=prompt_blend
                     )
-
         if cnet_image is not None:
             cond = apply_controlnet(cond, self.controlnet, cnet_image, 1.0)
-
         # logger.info(f"seed/subseed/subseed_str={seed}/{subseed}/{subseed_strength}; strength={strength}; scale={scale}; sampler_name={sampler_name}; scheduler={scheduler};")
         if not hasattr(self, "sampler_node"):
             from nodes import NODE_CLASS_MAPPINGS
@@ -567,37 +595,38 @@ class ComfyDeforumGenerator:
             variation_seed=subseed,
             variation_strength=subseed_strength,
         )[0]
-        sample = [{"samples": sample["samples"]}]
-        torch.cuda.synchronize('cuda')
-        if sample[0]["samples"].shape[0] == 1:
-            decoded = self.decode_sample(self.vae, sample[0]["samples"])
-            np_array = np.clip(255.0 * decoded.cpu().numpy(), 0, 255).astype(np.uint8)[
-                0
-            ]
-            image = Image.fromarray(np_array)
-            image = image.convert("RGB")
-            if return_latent:
-                return sample[0]["samples"], image
-            else:
-                return image
+        # sample = [{"samples": sample["samples"]}]
+        # if sample[0]["samples"].shape[0] == 1:
+        decoded = self.decode_sample(self.vae, sample["samples"])
+        # Convert the decoded tensor to uint8 directly on the GPU
+        np_array = torch.clamp(255.0 * decoded, 0, 255).byte().cpu().numpy()[0]
+        # Convert the numpy array to a PIL image
+        image = Image.fromarray(np_array)
+        image = image.convert("RGB")
+        if return_latent:
+            return sample[0]["samples"], image
         else:
-            logger.info("decoding multi images")
-            images = []
-            x_samples = self.decode_sample(sample[0]["samples"])
-            for sample in x_samples:
-                np_array = np.clip(255.0 * sample.cpu().numpy(), 0, 255).astype(
-                    np.uint8
-                )
-                image = Image.fromarray(np_array)
-                image = image.convert("RGB")
-                images.append(image)
-            return images
-
+            return image
+        # else:
+        #     logger.info("decoding multi images")
+        #     images = []
+        #     x_samples = self.decode_sample(sample[0]["samples"])
+        #     for sample in x_samples:
+        #         np_array = np.clip(255.0 * sample.cpu().numpy(), 0, 255).astype(
+        #             np.uint8
+        #         )
+        #         image = Image.fromarray(np_array)
+        #         image = image.convert("RGB")
+        #         images.append(image)
+        #     return images
+    @torch.inference_mode()
     def decode_sample(self, vae, sample):
-        # with torch.inference_mode():
         #     #sample = sample.to(torch.float16)
         #     decoded = vae.decode(sample).detach()
-        return vae.decode(sample).detach()
+        sample = vae.first_stage_model.decode(sample)
+        sample = torch.clamp((sample + 1.0) / 2.0, min=0.0, max=1.0)
+        sample = sample.movedim(1, -1)
+        return sample
 
     def cleanup(self):
         self.optimized = False
