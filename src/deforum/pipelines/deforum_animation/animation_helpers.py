@@ -1286,23 +1286,32 @@ def save_video_cls(cls):
     else:
         name = f'{cls.gen.batch_name}'
     output_filename_base = os.path.join(dir_path, name)
+    
     if cls.gen.frame_interpolation_engine != "None":
         cls.gen.fps = float(cls.gen.fps) * int(cls.gen.frame_interpolation_x_amount)
         if cls.gen.frame_interpolation_slow_mo_enabled:
             cls.gen.fps /= int(cls.gen.frame_interpolation_slow_mo_amount)
-    audio_path = None
-    if hasattr(cls.gen, 'video_init_path'):
-        audio_path = cls.gen.video_init_path
-    if hasattr(cls.gen, 'audio_path'):
-        if cls.gen.audio_path != "":
-            audio_path = cls.gen.audio_path
+   
+    
+    audio_path = None  
+    if getattr(cls.gen, 'add_soundtrack') == 'Init Video':
+        audio_path = getattr(cls.gen, 'video_init_path')
+    elif getattr(cls.gen, 'audio_path'):
+        # prioritise new audio_path attribute (not supported in a1111 extension)
+        audio_path = getattr(cls.gen, 'audio_path')
+    elif getattr(cls.gen, 'add_soundtrack') == 'File':
+        # compatibility with a1111 extension, which expects "soundtrack_path"
+        # and only honours it if add_soundtrack == 'File'.
+        audio_path = getattr(cls.gen, 'soundtrack_path')
 
-    fps = getattr(cls.gen, "fps", 24)  # Using getattr to simplify fetching attributes with defaults
+    fps = getattr(cls.gen, "fps", 24)
+
+
     try:
-        save_as_h264(cls.images, output_filename_base + ".mp4", audio_path=audio_path, fps=fps)
+        cls.gen.video_path = save_as_h264(cls.images, output_filename_base + ".mp4", audio_path=audio_path, fps=fps)
     except Exception as e:
         logger.error(f"save as h264 failed: {str(e)}")
-    cls.gen.video_path = output_filename_base + ".mp4"
+     
 
 
 def calculate_frames_to_add(total_frames: int, interp_x: float) -> int:

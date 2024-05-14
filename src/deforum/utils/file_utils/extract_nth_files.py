@@ -36,4 +36,3 @@ def extract_nth_files(folder, extract_nth_frame):
     os.rmdir(temp_folder)
 
     return paths
-

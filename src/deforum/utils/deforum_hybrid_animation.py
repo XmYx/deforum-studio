@@ -78,7 +78,8 @@ def hybrid_generation(cls):
             logger.info(f"Will wait for input frames to appear in {video_in_frame_path}")
             cls.inputfiles = BlockingFileList(video_in_frame_path, cls.max_frames)
             if cls.extract_nth_frame > 1:
-                cls.inputfiles = extract_nth_files(video_in_frame_path, cls.extract_nth_frame)
+              cls.inputfiles = extract_nth_files(video_in_frame_path, cls.extract_nth_frame)
+
         # determine max frames from length of input frames
         if cls.hybrid_use_full_video:
             cls.max_frames = len(cls.inputfiles)
