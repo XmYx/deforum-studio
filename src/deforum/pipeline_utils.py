@@ -193,14 +193,12 @@ class DeforumGenerationObject(DeforumDataObject):
 
         self.timestring = kwargs.get('timestring', time.strftime('%Y%m%d%H%M%S'))
         self.batch_name = kwargs.get('batch_name', f"deforum_")
-        # current_arg_list = [deforum.args, deforum.anim_args, deforum.video_args, deforum.parseq_args]
         full_base_folder_path = config.output_dir
-        self.raw_batch_name = self.batch_name
-        # self.batch_name = substitute_placeholders(deforum.args.batch_name, current_arg_list,
-        #                                                  full_base_folder_path)
+        # outdir is computed here, but may be overridden by client code if 'outdir' is specified in the settings.
+        # This ability to override is essential to ensure predictable output paths for the client.
+        # The override happens in DeforumGenerationObject.from_settings_file().
         self.outdir = os.path.join(full_base_folder_path, f"{self.batch_name}_{self.timestring}")
-
-        # os.makedirs(self.outdir, exist_ok=True)
+        
 
         # Handle seed initialization
         if self.seed == -1 or self.seed == "-1":
