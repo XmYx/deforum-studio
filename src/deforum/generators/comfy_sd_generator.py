@@ -576,7 +576,7 @@ class ComfyDeforumGenerator:
         if not hasattr(self, "sampler_node"):
             from nodes import NODE_CLASS_MAPPINGS
             self.sampler_node = NODE_CLASS_MAPPINGS['KSampler //Inspire']()
-        steps = round(strength * steps)
+        steps = round(denoise * steps)
         if hasattr(self.sampler_node, "sample"):
             sample_fn = self.sampler_node.sample
         elif hasattr(self.sampler_node, "doit"):
