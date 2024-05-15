@@ -384,15 +384,9 @@ def color_match_cls(cls: Any) -> None:
     """
     if cls.gen.color_match_sample is None and cls.gen.opencv_image is not None:
         cls.gen.color_match_sample = cv2.cvtColor(copy.deepcopy(cls.gen.opencv_image), cv2.COLOR_BGR2RGB)
-
-        cv2.imwrite('debug_color_match_sample.jpg', cv2.cvtColor(cls.gen.color_match_sample, cv2.COLOR_RGB2BGR))
-
     if cls.gen.prev_img is not None:
-        cv2.imwrite(f'debug_prev_img_before_{cls.gen.frame_idx}.jpg', cls.gen.prev_img)
-
         cls.gen.prev_img = maintain_colors(cls.gen.prev_img, cls.gen.color_match_sample, cls.gen.color_coherence)
 
-        cv2.imwrite(f'debug_prev_img_after_{cls.gen.frame_idx}.jpg', cls.gen.prev_img)
 
     return
 

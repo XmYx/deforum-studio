@@ -209,6 +209,8 @@ class ComfyDeforumGenerator:
         self.pipeline_type = "comfy"
         self.rng = None
         self.optimized = False
+        self.torch_compile_vae = False
+        self.load_taesdxl = False
     def optimize_model(self):
         from nodes import NODE_CLASS_MAPPINGS
 
@@ -294,13 +296,12 @@ class ComfyDeforumGenerator:
                     output_clipvision=False,
                 )
             )
-            # replace_encode_decode(self.vae)
-            # vae_loader = NODE_CLASS_MAPPINGS['VAELoader']()
-            # self.cheap_vae = vae_loader.load_vae('taesdxl')[0]
-            # self.cheap_vae.first_stage_model.cuda()
+            if self.load_taesdxl:
+                vae_loader = NODE_CLASS_MAPPINGS['VAELoader']()
+                self.cheap_vae = vae_loader.load_vae('taesdxl')[0]
+                self.cheap_vae.first_stage_model.cuda()
 
-            # replace_encode_decode(self.cheap_vae)
-            if 'linux' in platform.platform().lower():
+            if 'linux' in platform.platform().lower() and self.torch_compile_vae:
                 self.vae.first_stage_model.encode = torch.compile(self.vae.first_stage_model.encode, mode='reduce-overhead')
                 self.vae.first_stage_model.decode = torch.compile(self.vae.first_stage_model.decode, mode='reduce-overhead')
             self.clip.patcher.offload_device = torch.device("cuda")
@@ -453,10 +454,8 @@ class ComfyDeforumGenerator:
         if seed == -1:
             seed = secrets.randbelow(18446744073709551615)
 
-        if strength <= 0.01 or strength >= 1.0:
-            strength = 1.0
-        else:
-            strength = 1 - strength if strength != 1.0 else strength
+        denoise = 1 - strength if 0 < strength < 1 else 1.0
+        subseed_strength = 0 if denoise == 1.0 else subseed_strength
         if subseed == -1:
             subseed = secrets.randbelow(18446744073709551615)
         if cnet_image is not None:
@@ -465,9 +464,9 @@ class ComfyDeforumGenerator:
             ).unsqueeze(0)
         if init_image is None or reset_noise:
             logger.info(
-                f"reset_noise: {reset_noise}; resetting strength to 1.0 from: {strength}"
+                f"reset_noise: {reset_noise}; resetting denoise strength to 1.0 from: {denoise}"
             )
-            strength = 1.0
+            denoise = 1.0
             if latent is None:
                 if width is None:
                     width = 1024
@@ -582,7 +581,7 @@ class ComfyDeforumGenerator:
             sample_fn = self.sampler_node.sample
         elif hasattr(self.sampler_node, "doit"):
             sample_fn = self.sampler_node.doit
-        logger.info(f"SEED:{seed}, STPS:{steps}, CFG:{scale}, SMPL:{sampler_name}, SCHD:{scheduler}, STR:{strength}, SUB:{subseed}, SUBSTR:{subseed_strength}")
+        logger.info(f"SEED:{seed}, STPS:{steps}, CFG:{scale}, SMPL:{sampler_name}, SCHD:{scheduler}, DENOISE:{denoise}, STR:{strength}, SUB:{subseed}, SUBSTR:{subseed_strength}")
         sample = sample_fn(
             self.model,
             seed,
@@ -593,7 +592,7 @@ class ComfyDeforumGenerator:
             cond,
             self.n_cond,
             latent,
-            strength,
+            denoise,
             noise_mode="GPU(=A1111)",
             batch_seed_mode="comfy",
             variation_seed=subseed,
