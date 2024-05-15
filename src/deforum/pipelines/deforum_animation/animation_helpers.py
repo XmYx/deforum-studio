@@ -211,6 +211,8 @@ def hybrid_composite_cls(cls: Any) -> None:
     """
     if cls.gen.prev_img is not None:
 
+        prev_img = copy.deepcopy(cls.gen.prev_img)
+
         video_frame_path = os.path.join(cls.gen.outdir, 'inputframes')
 
         if config.allow_blocking_input_frame_lists:
@@ -228,8 +230,8 @@ def hybrid_composite_cls(cls: Any) -> None:
                                   get_frame_name(cls.gen.video_init_path) + f"_comp{cls.gen.frame_idx:09}.jpg")
         prev_frame = os.path.join(cls.gen.outdir, 'hybridframes',
                                   get_frame_name(cls.gen.video_init_path) + f"_prev{cls.gen.frame_idx:09}.jpg")
-        cls.gen.prev_img = cv2.cvtColor(cls.gen.prev_img, cv2.COLOR_BGR2RGB)
-        prev_img_hybrid = Image.fromarray(cls.gen.prev_img)
+        prev_img = cv2.cvtColor(prev_img, cv2.COLOR_BGR2RGB)
+        prev_img_hybrid = Image.fromarray(prev_img)
         if cls.gen.hybrid_use_init_image:
             video_image = load_image(cls.gen.init_image)
         else:
@@ -288,7 +290,7 @@ def hybrid_composite_cls(cls: Any) -> None:
             hybrid_blend.save(prev_frame)
 
         cls.gen.prev_img = cv2.cvtColor(np.array(hybrid_blend), cv2.COLOR_RGB2BGR)
-
+        # cls.gen.init_sample = hybrid_blend
     # restore to np array and return
     return
 
@@ -380,10 +382,18 @@ def color_match_cls(cls: Any) -> None:
     Returns:
         None: Modifies the class instance attributes in place.
     """
-    if cls.gen.color_match_sample is None and cls.gen.prev_img is not None:
-        cls.gen.color_match_sample = cv2.cvtColor(cls.gen.prev_img.copy(), cv2.COLOR_BGR2RGB)
+    if cls.gen.color_match_sample is None and cls.gen.opencv_image is not None:
+        cls.gen.color_match_sample = cv2.cvtColor(copy.deepcopy(cls.gen.opencv_image), cv2.COLOR_BGR2RGB)
+
+        cv2.imwrite('debug_color_match_sample.jpg', cv2.cvtColor(cls.gen.color_match_sample, cv2.COLOR_RGB2BGR))
+
     if cls.gen.prev_img is not None:
+        cv2.imwrite(f'debug_prev_img_before_{cls.gen.frame_idx}.jpg', cls.gen.prev_img)
+
         cls.gen.prev_img = maintain_colors(cls.gen.prev_img, cls.gen.color_match_sample, cls.gen.color_coherence)
+
+        cv2.imwrite(f'debug_prev_img_after_{cls.gen.frame_idx}.jpg', cls.gen.prev_img)
+
     return
 
 
@@ -517,10 +527,10 @@ def add_noise_cls(cls: Any) -> None:
                                  cls.gen.noise_mask, cls.gen.invert_mask)
 
         # use transformed previous frame as init for current
-        cls.gen.use_init = True
+        # cls.gen.use_init = True
         cls.gen.init_sample = Image.fromarray(cv2.cvtColor(noised_image, cv2.COLOR_BGR2RGB))
-        cls.gen.prev_img = noised_image
-        cls.gen.strength = max(0.0, min(1.0, cls.gen.strength))
+        # cls.gen.prev_img = noised_image
+        # cls.gen.strength = max(0.0, min(1.0, cls.gen.strength))
     return
 
 

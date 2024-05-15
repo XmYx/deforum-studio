@@ -628,17 +628,18 @@ class DeforumAnimationPipeline(DeforumBase):
                 self.gen.scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
 
         # logger.info(f"GENERATE'S SAMPLER NAME: {self.gen.sampler_name}, {self.gen.scheduler}")
-        if self.gen.prev_img is not None:
-            # TODO: cleanup init_sample remains later
-            init_image = cv2.cvtColor(self.gen.prev_img, cv2.COLOR_BGR2RGB)
+        # if self.gen.prev_img is not None:
+        #     # TODO: cleanup init_sample remains later
+        #     init_image = cv2.cvtColor(self.gen.prev_img, cv2.COLOR_BGR2RGB)
             # init_image = img
         if self.gen.frame_idx > 0:
             self.gen.use_init = False
-        if self.gen.use_init and self.gen.init_image:
-            if not isinstance(self.gen.init_image, PIL.Image.Image):
-                self.gen.init_image = Image.open(self.gen.init_image)
-            init_image = np.array(self.gen.init_image).astype(np.uint8)
-
+        # if self.gen.use_init and self.gen.init_image:
+        #     if not isinstance(self.gen.init_image, PIL.Image.Image):
+        #         self.gen.init_image = Image.open(self.gen.init_image)
+        #     init_image = np.array(self.gen.init_image).astype(np.uint8)
+        if self.gen.prev_img is not None:
+            self.gen.init_sample = Image.fromarray(cv2.cvtColor(self.gen.prev_img, cv2.COLOR_BGR2RGB))
         gen_args = {
             "prompt": prompt,
             "negative_prompt": negative_prompt,
@@ -646,7 +647,7 @@ class DeforumAnimationPipeline(DeforumBase):
             "seed": self.gen.seed,
             "scale": self.gen.scale,
             "strength": self.gen.strength,
-            "init_image": init_image,
+            "init_image": self.gen.init_sample,
             "width": self.gen.width,
             "height": self.gen.height,
             "cnet_image": cnet_image,
