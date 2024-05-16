@@ -99,7 +99,8 @@ _deps = [
     'kornia==0.7.2',
     'wheel==0.43.0',
     'loguru==0.7.2',
-    "scikit-image==0.21.0"
+    "scikit-image==0.21.0",
+    "scipy==1.11.3"
 ]
 
 # this is a lookup table with items like:
@@ -211,7 +212,8 @@ install_requires = deps_list('torch',
                           'wheel',
                           'loguru',
                           'mutagen',
-                          'scikit-image'
+                          'scikit-image',
+                          'scipy'
                           )
 
 
