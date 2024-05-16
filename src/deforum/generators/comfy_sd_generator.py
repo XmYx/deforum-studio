@@ -463,9 +463,9 @@ class ComfyDeforumGenerator:
                 np.array(cnet_image).astype(np.float16) / 255.0
             ).unsqueeze(0)
         if init_image is None or reset_noise:
-            logger.info(
-                f"reset_noise: {reset_noise}; resetting denoise strength to 1.0 from: {denoise}"
-            )
+            # logger.info(
+            #     f"reset_noise: {reset_noise}; resetting denoise strength to 1.0 from: {denoise}"
+            # )
             denoise = 1.0
             if latent is None:
                 if width is None:
