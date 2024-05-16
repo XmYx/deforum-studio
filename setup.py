@@ -212,6 +212,7 @@ extras["dev"] = deps_list('torch',
                           'wheel',
                           'loguru',
                           'mutagen',
+                          'scikit-image'
                           )
 
 extras["cli"] = deps_list('torch',

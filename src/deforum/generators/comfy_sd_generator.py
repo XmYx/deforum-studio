@@ -581,7 +581,7 @@ class ComfyDeforumGenerator:
             sample_fn = self.sampler_node.sample
         elif hasattr(self.sampler_node, "doit"):
             sample_fn = self.sampler_node.doit
-        logger.info(f"SEED:{seed}, STPS:{steps}, CFG:{scale}, SMPL:{sampler_name}, SCHD:{scheduler}, DENOISE:{denoise}, STR:{strength}, SUB:{subseed}, SUBSTR:{subseed_strength}")
+        #logger.info(f"SEED:{seed}, STPS:{steps}, CFG:{scale}, SMPL:{sampler_name}, SCHD:{scheduler}, DENOISE:{denoise}, STR:{strength}, SUB:{subseed}, SUBSTR:{subseed_strength}")
         sample = sample_fn(
             self.model,
             seed,
