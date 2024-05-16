@@ -41,7 +41,6 @@ from .animation_helpers import (
     post_color_match_with_cls,
     overlay_mask_cls,
     post_gen_cls,
-    make_cadence_frames,
     color_match_video_input,
     film_interpolate_cls,
     save_video_cls,
@@ -51,7 +50,6 @@ from .animation_helpers import (
     rife_interpolate_cls,
     cls_subtitle_handler,
     apply_temporal_flow_cls,
-    post_gen_color_correction
 )
 
 from .parseq_adapter import ParseqAdapter
@@ -126,6 +124,8 @@ class DeforumAnimationPipeline(DeforumBase):
 
         self.interrupt = False
         self.raft_model = None
+        self.loaded_depth_model = ""
+        self.depth_model = None
 
     @deforumdoc
     def __call__(self, settings_file: str = None, callback=None, *args, **kwargs) -> DeforumGenerationObject:
@@ -262,7 +262,7 @@ class DeforumAnimationPipeline(DeforumBase):
         self.gen.predict_depths = self.gen.use_depth_warping or self.gen.save_depth_maps
         self.gen.predict_depths = self.gen.predict_depths or (
                 self.gen.hybrid_composite and self.gen.hybrid_comp_mask_type in ['Depth', 'Video Depth'])
-        if self.gen.predict_depths:
+        if self.gen.predict_depths or self.depth_model is None or self.loaded_depth_model != self.gen.depth_algorithm.lower():
             # if self.opts is not None:
             #     self.keep_in_vram = self.opts.data.get("deforum_keep_3d_models_in_vram")
             # else:
@@ -280,10 +280,16 @@ class DeforumAnimationPipeline(DeforumBase):
                 
                 logger.info("Setting AdaBins usage")
             logger.info(f"[ Loaded Depth model ]")
+            self.loaded_depth_model = self.gen.depth_algorithm.lower()
             # depth-based hybrid composite mask requires saved depth maps
             if self.gen.hybrid_composite != 'None' and self.gen.hybrid_comp_mask_type == 'Depth':
                 self.gen.save_depth_maps = True
         else:
+            if self.depth_model is not None:
+                self.depth_model.to('cpu')
+                del self.depth_model
+                torch.cuda.empty_cache()
+                torch.cuda.ipc_collect()
             self.depth_model = None
             self.gen.save_depth_maps = False
 
@@ -334,15 +340,15 @@ class DeforumAnimationPipeline(DeforumBase):
         if self.gen.hybrid_composite == 'Normal':
             self.shoot_fns.append(hybrid_composite_cls)
 
-        # if self.gen.color_coherence != 'None':
-        #     self.shoot_fns.append(color_match_cls)
+        if self.gen.color_coherence != 'None':
+            self.shoot_fns.append(color_match_cls)
 
         self.shoot_fns.append(set_contrast_image)
 
         if self.gen.use_mask or self.gen.use_noise_mask:
             self.shoot_fns.append(handle_noise_mask)
-
-        self.shoot_fns.append(add_noise_cls)
+        if self.gen.noise_type in ['perlin', 'uniform']:
+            self.shoot_fns.append(add_noise_cls)
 
         if self.gen.optical_flow_redo_generation != 'None':
             self.shoot_fns.append(optical_flow_redo)
@@ -369,12 +375,14 @@ class DeforumAnimationPipeline(DeforumBase):
         if hasattr(self.gen, "deforum_save_gen_info_as_srt"):
             if self.gen.deforum_save_gen_info_as_srt:
                 self.shoot_fns.append(cls_subtitle_handler)
+
         if self.gen.frame_interpolation_engine != "None":
             if self.gen.max_frames > 3:
                 if self.gen.frame_interpolation_engine == "FILM":
                     self.post_fns.append(film_interpolate_cls)
                 elif 'rife' in self.gen.frame_interpolation_engine.lower():
                     self.post_fns.append(rife_interpolate_cls)
+
         if self.gen.max_frames > 1 and not self.gen.skip_video_creation:
             self.post_fns.append(save_video_cls)
 
@@ -392,7 +400,7 @@ class DeforumAnimationPipeline(DeforumBase):
 
             self.gen.prev_img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
             self.gen.opencv_image = self.gen.prev_img
-        start_frame = 0
+
         if self.gen.resume_from_timestring:
             def numeric_key(filename):
                 # Extract the numeric part from the filename, assuming it follows the last underscore '_'
@@ -620,17 +628,18 @@ class DeforumAnimationPipeline(DeforumBase):
                 self.gen.scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
 
         # logger.info(f"GENERATE'S SAMPLER NAME: {self.gen.sampler_name}, {self.gen.scheduler}")
-        if self.gen.prev_img is not None:
-            # TODO: cleanup init_sample remains later
-            init_image = cv2.cvtColor(self.gen.prev_img, cv2.COLOR_BGR2RGB)
+        # if self.gen.prev_img is not None:
+        #     # TODO: cleanup init_sample remains later
+        #     init_image = cv2.cvtColor(self.gen.prev_img, cv2.COLOR_BGR2RGB)
             # init_image = img
         if self.gen.frame_idx > 0:
             self.gen.use_init = False
-        if self.gen.use_init and self.gen.init_image:
-            if not isinstance(self.gen.init_image, PIL.Image.Image):
-                self.gen.init_image = Image.open(self.gen.init_image)
-            init_image = np.array(self.gen.init_image).astype(np.uint8)
-
+        # if self.gen.use_init and self.gen.init_image:
+        #     if not isinstance(self.gen.init_image, PIL.Image.Image):
+        #         self.gen.init_image = Image.open(self.gen.init_image)
+        #     init_image = np.array(self.gen.init_image).astype(np.uint8)
+        if self.gen.prev_img is not None:
+            self.gen.init_sample = Image.fromarray(cv2.cvtColor(self.gen.prev_img, cv2.COLOR_BGR2RGB))
         gen_args = {
             "prompt": prompt,
             "negative_prompt": negative_prompt,
@@ -638,7 +647,7 @@ class DeforumAnimationPipeline(DeforumBase):
             "seed": self.gen.seed,
             "scale": self.gen.scale,
             "strength": self.gen.strength,
-            "init_image": init_image,
+            "init_image": self.gen.init_sample,
             "width": self.gen.width,
             "height": self.gen.height,
             "cnet_image": cnet_image,

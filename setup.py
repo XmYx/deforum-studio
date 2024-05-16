@@ -74,7 +74,7 @@ _deps = [
     'numpy==1.24.2',
     'opencv-python-headless',
     'timm==0.6.13',
-    'transformers',
+    'transformers==4.40.2',
     'omegaconf==2.3.0',
     'aiohttp==3.8.6',
     'scipy==1.11.3',
@@ -212,6 +212,7 @@ extras["dev"] = deps_list('torch',
                           'wheel',
                           'loguru',
                           'mutagen',
+                          'scikit-image'
                           )
 
 extras["cli"] = deps_list('torch',

@@ -14,6 +14,7 @@ import pandas as pd
 import torch
 from PIL import Image, ImageOps, ImageEnhance, ImageChops
 
+from skimage.exposure import match_histograms
 
 from deforum.utils.blocking_file_list import BlockingFileList
 
@@ -155,25 +156,27 @@ def anim_frame_warp_3d_cls(cls: Any, image: Union[None, Any]) -> Tuple[Any, Any]
     Returns:
         Tuple containing the processed image after 3D transformation and its mask.
     """
-    TRANSLATION_SCALE = 1.0 / 200.0  # matches Disco
-    translate_xyz = [
-        -cls.gen.keys.translation_x_series[cls.gen.frame_idx] * TRANSLATION_SCALE,
-        cls.gen.keys.translation_y_series[cls.gen.frame_idx] * TRANSLATION_SCALE,
-        -cls.gen.keys.translation_z_series[cls.gen.frame_idx] * TRANSLATION_SCALE
-    ]
-    rotate_xyz = [
-        math.radians(cls.gen.keys.rotation_3d_x_series[cls.gen.frame_idx]),
-        math.radians(cls.gen.keys.rotation_3d_y_series[cls.gen.frame_idx]),
-        math.radians(cls.gen.keys.rotation_3d_z_series[cls.gen.frame_idx])
-    ]
-    if cls.gen.enable_perspective_flip:
-        image = flip_3d_perspective(cls.gen, image, cls.gen.keys, cls.gen.frame_idx)
-    rot_mat = p3d.euler_angles_to_matrix(torch.tensor(rotate_xyz, device="cuda"), "XYZ").unsqueeze(0)
-
-
-    result = transform_image_3d_new(torch.device('cuda'), image, cls.gen.depth, rot_mat, translate_xyz,
-                                          cls.gen, cls.gen.keys, cls.gen.frame_idx)
-    return result, None
+    try:
+        TRANSLATION_SCALE = 1.0 / 200.0  # matches Disco
+        translate_xyz = [
+            -cls.gen.keys.translation_x_series[cls.gen.frame_idx] * TRANSLATION_SCALE,
+            cls.gen.keys.translation_y_series[cls.gen.frame_idx] * TRANSLATION_SCALE,
+            -cls.gen.keys.translation_z_series[cls.gen.frame_idx] * TRANSLATION_SCALE
+        ]
+        rotate_xyz = [
+            math.radians(cls.gen.keys.rotation_3d_x_series[cls.gen.frame_idx]),
+            math.radians(cls.gen.keys.rotation_3d_y_series[cls.gen.frame_idx]),
+            math.radians(cls.gen.keys.rotation_3d_z_series[cls.gen.frame_idx])
+        ]
+        if cls.gen.enable_perspective_flip:
+            image = flip_3d_perspective(cls.gen, image, cls.gen.keys, cls.gen.frame_idx)
+        rot_mat = p3d.euler_angles_to_matrix(torch.tensor(rotate_xyz, device="cuda"), "XYZ").unsqueeze(0)
+        result = transform_image_3d_new(torch.device('cuda'), image, cls.gen.depth, rot_mat, translate_xyz,
+                                              cls.gen, cls.gen.keys, cls.gen.frame_idx)
+        return result, None
+    except Exception as e:
+        print(repr(e))
+        return image, None
 
 
 def anim_frame_warp_3d_direct(cls, image, x, y, z, rx, ry, rz):
@@ -208,14 +211,14 @@ def hybrid_composite_cls(cls: Any) -> None:
     """
     if cls.gen.prev_img is not None:
 
+        prev_img = copy.deepcopy(cls.gen.prev_img)
+
         video_frame_path = os.path.join(cls.gen.outdir, 'inputframes')
 
         if config.allow_blocking_input_frame_lists:
             inputfiles = BlockingFileList(video_frame_path, cls.gen.max_frames)
             video_frame = inputfiles[cls.gen.frame_idx]
         else: 
-            # video_frame = os.path.join(cls.gen.outdir, 'inputframes',
-            #                         get_frame_name(cls.gen.video_init_path) + f"{cls.gen.frame_idx:09}.jpg")
             video_frame = cls.gen.inputfiles[cls.gen.frame_idx]
         video_depth_frame = os.path.join(cls.gen.outdir, 'hybridframes',
                                          get_frame_name(
@@ -227,8 +230,8 @@ def hybrid_composite_cls(cls: Any) -> None:
                                   get_frame_name(cls.gen.video_init_path) + f"_comp{cls.gen.frame_idx:09}.jpg")
         prev_frame = os.path.join(cls.gen.outdir, 'hybridframes',
                                   get_frame_name(cls.gen.video_init_path) + f"_prev{cls.gen.frame_idx:09}.jpg")
-        cls.gen.prev_img = cv2.cvtColor(cls.gen.prev_img, cv2.COLOR_BGR2RGB)
-        prev_img_hybrid = Image.fromarray(cls.gen.prev_img)
+        prev_img = cv2.cvtColor(prev_img, cv2.COLOR_BGR2RGB)
+        prev_img_hybrid = Image.fromarray(prev_img)
         if cls.gen.hybrid_use_init_image:
             video_image = load_image(cls.gen.init_image)
         else:
@@ -287,7 +290,7 @@ def hybrid_composite_cls(cls: Any) -> None:
             hybrid_blend.save(prev_frame)
 
         cls.gen.prev_img = cv2.cvtColor(np.array(hybrid_blend), cv2.COLOR_RGB2BGR)
-
+        # cls.gen.init_sample = hybrid_blend
     # restore to np array and return
     return
 
@@ -380,38 +383,82 @@ def color_match_cls(cls: Any) -> None:
         None: Modifies the class instance attributes in place.
     """
     if cls.gen.color_match_sample is None and cls.gen.opencv_image is not None:
-        cls.gen.color_match_sample = cls.gen.opencv_image.copy()
-
-    elif cls.gen.prev_img is not None:
+        cls.gen.color_match_sample = cv2.cvtColor(copy.deepcopy(cls.gen.opencv_image), cv2.COLOR_BGR2RGB)
+    if cls.gen.prev_img is not None:
         cls.gen.prev_img = maintain_colors(cls.gen.prev_img, cls.gen.color_match_sample, cls.gen.color_coherence)
+
 
     return
 
 
-def post_gen_color_correction(cls: Any) -> None:
+def subtle_color_correction_with_cls(cls: Any) -> None:
+    """
+    Applies subtle color correction to cls.gen.image by blending the corrected image with the original image.
+
+    Args:
+        cls: The class instance containing generation parameters, color correction settings, and other attributes.
+
+    Returns:
+        None: Modifies cls.gen.image in place.
+    """
+    if cls.gen.color_match_sample is None or cls.gen.image is None:
+        return
+
+    sample = cls.gen.color_match_sample
+    original_image = cls.gen.image
+    original_lab = cv2.cvtColor(np.asarray(original_image), cv2.COLOR_RGB2LAB)
+    correction = cv2.cvtColor(sample, cv2.COLOR_RGB2LAB)
+
+    corrected_lab = match_histograms(original_lab, correction, channel_axis=2)
+    corrected_image = cv2.cvtColor(corrected_lab, cv2.COLOR_LAB2RGB).astype("uint8")
+
+    original_np = np.asarray(original_image).astype(np.uint8)
+    corrected_np = np.asarray(corrected_image).astype(np.uint8)
+
+    # Convert both images to LAB color space
+    original_lab = cv2.cvtColor(original_np, cv2.COLOR_RGB2LAB).astype(np.float32)
+    corrected_lab = cv2.cvtColor(corrected_np, cv2.COLOR_RGB2LAB).astype(np.float32)
+
+    # Blend the L (luminance) channels
+    l_original, a_original, b_original = cv2.split(original_lab)
+    l_corrected, a_corrected, b_corrected = cv2.split(corrected_lab)
+
+    l_blended = cv2.addWeighted(l_original, 1 - cls.gen.colorCorrectionFactor,
+                                l_corrected, cls.gen.colorCorrectionFactor, 0)
+
+    # Merge blended L channel with original A and B channels
+    blended_lab = cv2.merge((l_blended, a_original, b_original))
+
+    # Convert back to RGB color space
+    blended_rgb = cv2.cvtColor(blended_lab.astype(np.uint8), cv2.COLOR_LAB2RGB)
+
+    # Convert blended numpy array back to PIL image
+    blended_image = Image.fromarray(blended_rgb)
+
+    cls.gen.image = blended_image.convert('RGB')
+
+
+def post_color_match_with_cls(cls: Any) -> None:
+    """
+    Executes the post-generation color matching process for the given class instance.
+
+    Args:
+        cls: The class instance containing generation parameters, color matching settings, and other attributes.
+
+    Returns:
+        None: Modifies the class instance attributes in place.
     """
 
-    """
-    from blendmodes.blend import blendLayers
-    from blendmodes.blendtype import BlendType
-    if cls.gen.color_match_sample is None and cls.gen.prev_img is not None:
-        cls.gen.color_match_sample = cv2.cvtColor(copy.deepcopy(cls.gen.prev_img))
-
-    if cls.gen.color_match_sample is not None:
-        from skimage import exposure
-        image = Image.fromarray(cv2.cvtColor(exposure.match_histograms(
-            cv2.cvtColor(
-                cv2.cvtColor(np.asarray(cls.gen.image), cv2.COLOR_RGB2LAB),
-                cv2.COLOR_RGB2LAB
-            ),
-            cls.gen.color_match_sample,
-            channel_axis=2
-        ), cv2.COLOR_LAB2RGB).astype("uint8"))
-
-        cls.gen.image = blendLayers(image, cls.gen.image, BlendType.LUMINOSITY)
 
 
 
+    if cls.gen.color_match_sample is not None and 'post' in cls.gen.color_match_at:
+        # if cls.gen.frame_idx == 0 and (cls.gen.color_coherence == 'Image' or (
+        #         cls.gen.color_coherence == 'Video Input' and cls.gen.hybrid_available)):
+        #     match_colors_with_cls(cls)
+        if cls.gen.color_coherence != 'None':
+            subtle_color_correction_with_cls(cls)
+    return
 def set_contrast_image(cls: Any) -> None:
     """
     Adjusts the contrast of the previous image in the given class instance.
@@ -430,13 +477,16 @@ def set_contrast_image(cls: Any) -> None:
 
         # apply scaling
         cls.gen.contrast_image = (cls.gen.prev_img * cls.gen.contrast).round().astype(np.uint8)
+
         # anti-blur
         if cls.gen.amount > 0:
             cls.gen.contrast_image = unsharp_mask(cls.gen.contrast_image, (cls.gen.kernel, cls.gen.kernel),
                                                   cls.gen.sigma, cls.gen.amount, cls.gen.threshold,
                                                   cls.gen.mask_image if cls.gen.use_mask else None)
-    return
+            if cls.gen.noise_type == 'None':
+                cls.gen.prev_img = cls.gen.contrast_image
 
+    return
 
 def handle_noise_mask(cls: Any) -> None:
     """
@@ -471,10 +521,10 @@ def add_noise_cls(cls: Any) -> None:
                                  cls.gen.noise_mask, cls.gen.invert_mask)
 
         # use transformed previous frame as init for current
-        cls.gen.use_init = True
+        # cls.gen.use_init = True
         cls.gen.init_sample = Image.fromarray(cv2.cvtColor(noised_image, cv2.COLOR_BGR2RGB))
-        cls.gen.prev_img = noised_image
-        cls.gen.strength = max(0.0, min(1.0, cls.gen.strength))
+        # cls.gen.prev_img = noised_image
+        # cls.gen.strength = max(0.0, min(1.0, cls.gen.strength))
     return
 
 
@@ -705,30 +755,6 @@ def post_hybrid_composite_cls(cls: Any) -> None:
     return
 
 
-def post_color_match_with_cls(cls: Any) -> None:
-    """
-    Executes the post-generation color matching process for the given class instance.
-
-    Args:
-        cls: The class instance containing generation parameters, color matching settings, and other attributes.
-
-    Returns:
-        None: Modifies the class instance attributes in place.
-    """
-    # color matching on first frame is after generation, color match was collected earlier, so we do an extra generation to avoid the corruption introduced by the color match of first output
-    if cls.gen.color_match_sample is not None and 'post' in cls.gen.color_match_at:
-        if cls.gen.frame_idx == 0 and (cls.gen.color_coherence == 'Image' or (
-                cls.gen.color_coherence == 'Video Input' and cls.gen.hybrid_available)):
-            image = maintain_colors(cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR), cls.gen.color_match_sample,
-                                    cls.gen.color_coherence)
-            cls.gen.image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-        elif cls.gen.color_match_sample is not None and cls.gen.color_coherence != 'None' and not cls.gen.legacy_colormatch:
-            image = maintain_colors(cv2.cvtColor(np.array(cls.gen.image), cv2.COLOR_RGB2BGR), cls.gen.color_match_sample,
-                                    cls.gen.color_coherence)
-            cls.gen.image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-    return
-
-
 def overlay_mask_cls(cls: Any) -> None:
     """
     Overlays a mask onto the generated image in the given class instance.
@@ -749,10 +775,10 @@ def overlay_mask_cls(cls: Any) -> None:
         cls.gen.image = do_overlay_mask(cls.gen, cls.gen, cls.gen.image, cls.gen.frame_idx)
 
     # on strength 0, set color match to generation
-    if ((not cls.gen.legacy_colormatch and not cls.gen.use_init) or (
-            cls.gen.legacy_colormatch and cls.gen.strength == 0)) and not cls.gen.color_coherence in ['Image',
-                                                                                                      'Video Input']:
-        cls.gen.color_match_sample = cv2.cvtColor(np.asarray(cls.gen.image), cv2.COLOR_RGB2BGR)
+    # if ((not cls.gen.legacy_colormatch and not cls.gen.use_init) or (
+    #         cls.gen.legacy_colormatch and cls.gen.strength == 0)) and not cls.gen.color_coherence in ['Image',
+    #                                                                                                   'Video Input']:
+    #     cls.gen.color_match_sample = np.asarray(cls.gen.image)
     return
 
 
@@ -796,7 +822,7 @@ def post_gen_cls(cls: Any) -> None:
             if not cls.gen.store_frames_in_ram:
                 # p = Process(target=save_image, args=(cls.gen.image, 'PIL', filename, cls.gen, cls.gen, cls.gen))
                 # p.start()
-                save_image(cls.gen.image, 'PIL', filename, cls.gen, cls.gen, cls.gen)
+                save_image(cls.gen.image, 'PIL', filename, cls.gen, cls.gen, cls.gen, cls)
                 cls.gen.image_paths.append(image_full_path)
 
                 # cls.logger(f"                                   [ image saved ]", True)
@@ -811,7 +837,7 @@ def post_gen_cls(cls: Any) -> None:
 
             cls.gen.frame_idx += 1
             # cls.logger(f"                                   [ frame_idx incremented ]", True)
-        if cls.gen.turbo_steps < 2:
+        if cls.gen.turbo_steps < 2 or cls.gen.optical_flow_cadence == 'None':
             done = cls.datacallback({"image": cls.gen.image, "operation_id":cls.gen.operation_id, "frame_idx":cls.gen.frame_idx, "image_path": image_full_path})
 
         cls.gen.seed = next_seed(cls.gen, cls.gen)
@@ -823,7 +849,11 @@ def post_gen_cls(cls: Any) -> None:
 
 
 def generate_interpolated_frames(cls):
-    
+    if not hasattr(cls.gen, 'turbo_history'):
+        cls.gen.turbo_history = {}
+    if cls.gen.frame_idx == 0:
+        cls.gen.turbo_history.clear()
+
     turbo_prev_image = copy.deepcopy(cls.gen.turbo_prev_image)
     turbo_next_image = copy.deepcopy(cls.gen.turbo_next_image)
     turbo_prev_frame_idx = copy.deepcopy(cls.gen.turbo_prev_frame_idx)
@@ -834,6 +864,14 @@ def generate_interpolated_frames(cls):
         tween_frame_start_idx = max(cls.gen.start_frame, cls.gen.frame_idx - cls.gen.turbo_steps)
         cadence_flow = None
         for tween_frame_idx in range(tween_frame_start_idx, cls.gen.frame_idx):
+            # cls.gen.turbo_history[str(cls.gen.frame_idx + tween_frame_idx)] = {}
+
+            # cls.gen.turbo_history[str(cls.gen.frame_idx + tween_frame_idx)] = {
+            #     'prev_image': copy.deepcopy(turbo_prev_image),
+            #     'next_image': copy.deepcopy(turbo_next_image),
+            #     'prev_flow': {}
+            # }
+
             # update progress during cadence
             # state.job = f"frame {tween_frame_idx + 1}/{cls.gen.max_frames}"
             # state.job_no = tween_frame_idx + 1
@@ -849,8 +887,14 @@ def generate_interpolated_frames(cls):
                     if cadence_flow is None and turbo_prev_image is not None and turbo_next_image is not None:
                         cadence_flow = get_flow_from_images(turbo_prev_image, turbo_next_image,
                                                             cls.gen.optical_flow_cadence, cls.raft_model) / 2
-                        turbo_next_image = image_transform_optical_flow(turbo_next_image, -cadence_flow, 1)
 
+                        # Blend current flow with previous flow for stability
+                        # if str(turbo_prev_frame_idx) in cls.gen.turbo_history:
+                        #     prev_flow = cls.gen.turbo_history[str(turbo_prev_frame_idx)]['prev_flow']
+                        #     cadence_flow = (1 - tween) * cadence_flow + tween * prev_flow
+
+                        turbo_next_image = image_transform_optical_flow(turbo_next_image, -cadence_flow, 1)
+                        # cls.gen.prev_flow = cadence_flow
             # if opts.data.get("deforum_save_gen_info_as_srt"):
             #     params_to_print = opts.data.get("deforum_save_gen_info_as_srt_params", ['Seed'])
             #     params_string = format_animation_params(cls.gen.keys, cls.gen.prompt_series, tween_frame_idx, params_to_print)
@@ -860,7 +904,7 @@ def generate_interpolated_frames(cls):
 
             logger.info(
                 f"Creating in-between {'' if cadence_flow is None else cls.gen.optical_flow_cadence + ' optical flow '}cadence frame: {tween_frame_idx}; tween:{tween:0.2f};")
-
+            depth = None
             if cls.depth_model is not None:
                 assert (turbo_next_image is not None)
                 with torch.inference_mode():
@@ -894,33 +938,35 @@ def generate_interpolated_frames(cls):
                             turbo_next_image = image_transform_ransac(turbo_next_image, matrix, cls.gen.hybrid_motion)
                 if cls.gen.hybrid_motion in ['Optical Flow']:
                     if cls.gen.hybrid_motion_use_prev_img:
-                        flow = get_flow_for_hybrid_motion_prev(tween_frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
+                        hybrid_flow = get_flow_for_hybrid_motion_prev(tween_frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
                                                                cls.gen.hybrid_frame_path, cls.gen.prev_flow, prev_img,
                                                                cls.gen.hybrid_flow_method, cls.raft_model,
                                                                cls.gen.hybrid_flow_consistency,
                                                                cls.gen.hybrid_consistency_blur,
                                                                cls.gen.hybrid_comp_save_extra_frames)
                         if advance_prev:
-                            turbo_prev_image = image_transform_optical_flow(turbo_prev_image, flow,
+                            turbo_prev_image = image_transform_optical_flow(turbo_prev_image, hybrid_flow,
                                                                             cls.gen.hybrid_comp_schedules['flow_factor'])
                         if advance_next:
-                            turbo_next_image = image_transform_optical_flow(turbo_next_image, flow,
+                            turbo_next_image = image_transform_optical_flow(turbo_next_image, hybrid_flow,
                                                                             cls.gen.hybrid_comp_schedules['flow_factor'])
-                        cls.gen.prev_flow = flow
+                        cls.gen.prev_hybrid_flow = hybrid_flow
                     else:
-                        flow = get_flow_for_hybrid_motion(tween_frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
+                        hybrid_flow = get_flow_for_hybrid_motion(tween_frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
                                                           cls.gen.hybrid_frame_path, cls.gen.prev_flow, cls.gen.hybrid_flow_method,
                                                           cls.raft_model,
                                                           cls.gen.hybrid_flow_consistency,
                                                           cls.gen.hybrid_consistency_blur,
                                                           cls.gen.hybrid_comp_save_extra_frames)
+
+
                         if advance_prev:
-                            turbo_prev_image = image_transform_optical_flow(turbo_prev_image, flow,
+                            turbo_prev_image = image_transform_optical_flow(turbo_prev_image, hybrid_flow,
                                                                             cls.gen.hybrid_comp_schedules['flow_factor'])
                         if advance_next:
-                            turbo_next_image = image_transform_optical_flow(turbo_next_image, flow,
+                            turbo_next_image = image_transform_optical_flow(turbo_next_image, hybrid_flow,
                                                                             cls.gen.hybrid_comp_schedules['flow_factor'])
-                        cls.gen.prev_flow = flow
+                        cls.gen.prev_hybrid_flow = hybrid_flow
 
             # do optical flow cadence after animation warping
             if cadence_flow is not None:
@@ -928,6 +974,12 @@ def generate_interpolated_frames(cls):
                 cadence_flow, _, _ = anim_frame_warp(cadence_flow, cls.gen, cls.gen, cls.gen.keys, tween_frame_idx, cls.depth_model,
                                                   depth=depth, device=cls.gen.device, half_precision=cls.gen.half_precision)
                 cadence_flow_inc = rel_flow_to_abs_flow(cadence_flow, cls.gen.width, cls.gen.height) * tween
+                cls.gen.turbo_history[str(cls.gen.frame_idx + tween_frame_idx)] = copy.deepcopy(cadence_flow_inc)
+                # Blend current flow with previous flow for stability
+                if str(turbo_prev_frame_idx) in cls.gen.turbo_history:
+                    prev_flow = cls.gen.turbo_history[str(turbo_prev_frame_idx)]
+                    cadence_flow = (1 - tween) * cadence_flow + tween * prev_flow
+
                 if advance_prev:
                     turbo_prev_image = image_transform_optical_flow(turbo_prev_image, cadence_flow_inc,
                                                                     cls.gen.cadence_flow_factor)
@@ -963,7 +1015,6 @@ def generate_interpolated_frames(cls):
             cls.datacallback({"image":cb_img, "operation_id":cls.gen.operation_id, "frame_idx":tween_frame_idx, "image_path": image_full_path})
 
             cls.images.append(copy.deepcopy(cb_img))
-
 
             if cls.gen.save_depth_maps:
                 cls.depth_model.save(os.path.join(cls.gen.outdir, f"{cls.gen.timestring}_depth_{tween_frame_idx:09}.png"), depth)
@@ -1233,44 +1284,26 @@ def rife_interpolate_cls(cls):
         rife_interpolator = RIFE_VFI()
 
     def pil2tensor(image):
-        return torch.from_numpy(np.array(image).astype(np.float32) / 255.0).unsqueeze(0)  # CHW format for PyTorch
-
+        return torch.from_numpy(np.array(image).astype(np.float32) / 255.0).half()  # CHW format for PyTorch
     new_images = []
-    interp_batch_size = getattr(cls, 'interp_batch_size', 16)  # default batch size
-    num_images = len(cls.images)
-    input_tensor = torch.Tensor()  # Initialize an empty tensor for concatenation
-
-    for i in range(num_images - 1):
-        current_tensor = pil2tensor(cls.images[i])
-        input_tensor = torch.cat((input_tensor, current_tensor),
-                                 dim=0) if input_tensor.nelement() != 0 else current_tensor
-
-        if (i % (interp_batch_size - 1) == 0 and i != 0) or i == num_images - 2:
-            # Process the current batch
-            interpolated_frames = rife_interpolator.vfi(
-                ckpt_name="rife49.pth",
-                frames=input_tensor,
-                clear_cache_after_n_frames=10,
-                multiplier=cls.gen.frame_interpolation_x_amount,
-                fast_mode=True,
-                ensemble=False,
-                scale_factor=1.0)
-
-            if i == interp_batch_size - 1:
-                new_images.append(
-                    interpolated_frames[0])  # Append the first interpolated image only for the first batch
-            for frame in interpolated_frames[1:]:
-                new_images.append(frame)
-
-            # Reset input_tensor after processing a batch
-            input_tensor = torch.Tensor()
-
-    if cls.images:  # append last image if not included
+    input_tensor = torch.stack([pil2tensor(i) for i in cls.images], dim=0)
+    # Process all frames in one go
+    interpolated_frames = rife_interpolator.vfi(
+        ckpt_name="rife49.pth",
+        frames=input_tensor,
+        clear_cache_after_n_frames=64,
+        multiplier=cls.gen.frame_interpolation_x_amount,
+        fast_mode=True,
+        ensemble=False,
+        scale_factor=1.0)
+    # Collect the interpolated frames, skipping duplicates
+    for frame in interpolated_frames:
+        new_images.append(frame)
+    # Append the last frame
+    if cls.images:
         new_images.append(cls.images[-1])
-
-    cls.images = new_images  # Convert back to PIL Image format
+    cls.images = new_images  # Replace the images in cls with the new images
     logger.info(f"Interpolated frame count: {len(new_images)}")
-
     if hasattr(cls, 'gen') and hasattr(cls.gen, 'image_paths'):
         cls.gen.image_paths = []
 
@@ -1287,7 +1320,7 @@ def save_video_cls(cls):
         cls.gen.fps = float(cls.gen.fps) * int(cls.gen.frame_interpolation_x_amount)
         if cls.gen.frame_interpolation_slow_mo_enabled:
             cls.gen.fps /= int(cls.gen.frame_interpolation_slow_mo_amount)
-    
+   
     
     audio_path = None  
     if getattr(cls.gen, 'add_soundtrack') == 'Init Video':
@@ -1301,6 +1334,7 @@ def save_video_cls(cls):
         audio_path = getattr(cls.gen, 'soundtrack_path')
 
     fps = getattr(cls.gen, "fps", 24)
+
 
     try:
         cls.gen.video_path = save_as_h264(cls.images, output_filename_base + ".mp4", audio_path=audio_path, fps=fps)

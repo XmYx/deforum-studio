@@ -163,7 +163,6 @@ def start_deforum_cli() -> None:
             modelid = str(options.get("modelid", "125703"))
 
             deforum = DeforumAnimationPipeline.from_civitai(model_id=modelid)
-            deforum.generator.optimize = True
 
             preset_dir = "presets"
             txt_files = [os.path.join(root, file)
@@ -184,7 +183,6 @@ def start_deforum_cli() -> None:
                     options.update({
                         "prompts": {"0": "A solo delorean speeding on an ethereal highway through time jumps, like in the iconic movie back to the future."},
                         "seed": 420,
-                        "batch_name": batch_name
                     })
 
                     deforum(**extra_args, **options)

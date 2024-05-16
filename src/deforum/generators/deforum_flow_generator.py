@@ -3,6 +3,7 @@ import random
 
 import cv2
 import numpy as np
+import torch
 
 from .deforum_flow_consistency import make_consistency
 from deforum.utils.image_utils import (get_resized_image_from_filename,
@@ -122,6 +123,57 @@ def filter_flow(flow,
     return flow * mask
 
 
+def get_custom_optical_flow(i1, i2):
+    """
+    Custom optical flow implementation that aims to be faster than existing methods.
+
+    Args:
+        i1: First input image (numpy array).
+        i2: Second input image (numpy array).
+
+    Returns:
+        flow: Computed optical flow (numpy array).
+    """
+    # Convert images to grayscale
+    i1_gray = cv2.cvtColor(i1, cv2.COLOR_BGR2GRAY)
+    i2_gray = cv2.cvtColor(i2, cv2.COLOR_BGR2GRAY)
+
+    # Convert images to PyTorch tensors
+    i1_tensor = torch.from_numpy(i1_gray).half().to('cuda').unsqueeze(0).unsqueeze(0)
+    i2_tensor = torch.from_numpy(i2_gray).half().to('cuda').unsqueeze(0).unsqueeze(0)
+
+    # Normalize images
+    i1_tensor = i1_tensor / 255.0
+    i2_tensor = i2_tensor / 255.0
+
+    # Define Sobel kernels for gradient computation
+    sobel_x = torch.tensor([[[[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]]], dtype=torch.float32).to('cuda')
+    sobel_y = torch.tensor([[[[-1, -2, -1], [0, 0, 0], [1, 2, 1]]]], dtype=torch.float32).to('cuda')
+
+    # Compute gradients
+    grad_x1 = torch.nn.functional.conv2d(torch.nn.functional.pad(i1_tensor, (1, 1, 1, 1)), sobel_x)
+    grad_y1 = torch.nn.functional.conv2d(torch.nn.functional.pad(i1_tensor, (1, 1, 1, 1)), sobel_y)
+
+    grad_x2 = torch.nn.functional.conv2d(torch.nn.functional.pad(i2_tensor, (1, 1, 1, 1)), sobel_x)
+    grad_y2 = torch.nn.functional.conv2d(torch.nn.functional.pad(i2_tensor, (1, 1, 1, 1)), sobel_y)
+
+    # Compute temporal gradients
+    It = i2_tensor - i1_tensor
+
+    # Compute optical flow using the gradients
+    flow_x = (grad_x1 + grad_x2) / 2
+    flow_y = (grad_y1 + grad_y2) / 2
+
+    # Combine gradients into a single tensor for flow computation
+    flow = torch.cat((flow_x, flow_y), dim=1).squeeze(0).permute(1, 2, 0)
+
+    # Normalize the flow to match the scale of other methods
+    flow = (flow / flow.max()) * 255.0
+
+    # Convert flow back to numpy array
+    flow_np = flow.cpu().numpy()
+
+    return flow_np
 def get_flow_from_images(i1, i2, method, raft_model, prev_flow=None):
     if method == "RAFT":
         if raft_model is None:
@@ -143,6 +195,12 @@ def get_flow_from_images(i1, i2, method, raft_model, prev_flow=None):
         return get_flow_from_images_PCAFlow(i1, i2, prev_flow)
     elif method == "Farneback":  # Farneback Normal:
         return get_flow_from_images_Farneback(i1, i2, "normal", prev_flow)
+    elif method == "DIS Medium Torch":  # Farneback Normal:
+        return get_flow_from_images_DIS_torch(i1, i2, "medium", prev_flow)
+    elif method == "Farneback Torch":  # Farneback Normal:
+        return get_flow_from_images_Farneback_torch(i1, i2, "normal", prev_flow)
+    elif method == "Custom":
+        return get_custom_optical_flow(i1, i2)
     # if we reached this point, something went wrong. raise an error:
     raise RuntimeError(f"Invald flow method name: '{method}'")
 
@@ -180,7 +238,83 @@ def get_flow_from_images_DIS(i1, i2, preset, prev_flow):
         dis.setPatchStride(4)
     return dis.calc(i1, i2, prev_flow)
 
+def get_flow_from_images_DIS_torch(i1, i2, preset, prev_flow):
+    import torch.nn.functional as F
+    # Convert images to grayscale
+    i1_gray = cv2.cvtColor(i1, cv2.COLOR_BGR2GRAY)
+    i2_gray = cv2.cvtColor(i2, cv2.COLOR_BGR2GRAY)
 
+    # Convert images to PyTorch tensors and move to GPU
+    i1_tensor = torch.from_numpy(i1_gray).float().unsqueeze(0).unsqueeze(0).to('cuda')
+    i2_tensor = torch.from_numpy(i2_gray).float().unsqueeze(0).unsqueeze(0).to('cuda')
+
+    # Define kernel sizes based on preset
+    if preset == 'medium':
+        grad_desc_iterations = 25
+        finest_scale = 1
+        patch_size = 8
+    elif preset == 'fine':
+        grad_desc_iterations = 192
+        finest_scale = 0
+        patch_size = 8
+    else:  # default to medium
+        grad_desc_iterations = 25
+        finest_scale = 1
+        patch_size = 8
+
+    # Define Sobel kernels for gradient computation
+    sobel_x = torch.tensor([[[[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]]], dtype=torch.float32).to('cuda')
+    sobel_y = torch.tensor([[[[-1, -2, -1], [0, 0, 0], [1, 2, 1]]]], dtype=torch.float32).to('cuda')
+
+    # Compute gradients
+    grad_x1 = F.conv2d(F.pad(i1_tensor, (1, 1, 1, 1)), sobel_x)
+    grad_y1 = F.conv2d(F.pad(i1_tensor, (1, 1, 1, 1)), sobel_y)
+
+    grad_x2 = F.conv2d(F.pad(i2_tensor, (1, 1, 1, 1)), sobel_x)
+    grad_y2 = F.conv2d(F.pad(i2_tensor, (1, 1, 1, 1)), sobel_y)
+
+    # Initialize flow tensors
+    if prev_flow is None:
+        u = torch.zeros_like(i1_tensor).to('cuda')
+        v = torch.zeros_like(i1_tensor).to('cuda')
+    else:
+        u = torch.from_numpy(prev_flow[..., 0]).float().unsqueeze(0).unsqueeze(0).to('cuda')
+        v = torch.from_numpy(prev_flow[..., 1]).float().unsqueeze(0).unsqueeze(0).to('cuda')
+
+
+    # Iterative refinement
+    for _ in range(grad_desc_iterations):
+        # Create the grid for warping
+        N, C, H, W = i1_tensor.size()
+        grid_y, grid_x = torch.meshgrid(torch.arange(H), torch.arange(W))
+        grid = torch.stack((grid_x, grid_y), dim=2).float().to('cuda')  # Shape: [H, W, 2]
+        grid = grid.unsqueeze(0).permute(0, 3, 1, 2)  # Shape: [1, 2, H, W]
+        grid[:, 0, :, :] = 2.0 * grid[:, 0, :, :].clone() / max(W - 1, 1) - 1.0
+        grid[:, 1, :, :] = 2.0 * grid[:, 1, :, :].clone() / max(H - 1, 1) - 1.0
+
+        # Adjust the grid by the current flow estimates
+        flow_grid = torch.cat((u, v), dim=1) + grid  # Shape: [1, 2, H, W]
+        flow_grid = flow_grid.permute(0, 2, 3, 1)  # Shape: [1, H, W, 2]
+
+        # Warp the second image to the first image based on current flow estimates
+        i2_warped = F.grid_sample(i2_tensor, flow_grid, align_corners=True)
+
+        # Compute differences
+        Ix = (grad_x1 + grad_x2) / 2
+        Iy = (grad_y1 + grad_y2) / 2
+        It = i2_warped - i1_tensor
+
+        # Update flow estimates
+        u = u - Ix * (Ix * u + Iy * v + It) / (Ix * Ix + Iy * Iy + 1e-8)
+        v = v - Iy * (Ix * u + Iy * v + It) / (Ix * Ix + Iy * Iy + 1e-8)
+
+    # Combine flow estimates into a single tensor
+    flow = torch.cat((u, v), dim=1).squeeze(0).permute(1, 2, 0)
+
+    # Convert flow back to numpy array
+    flow_np = flow.cpu().numpy()
+
+    return flow_np
 def get_flow_from_images_Dense_RLOF(i1, i2, last_flow=None):
     return cv2.optflow.calcOpticalFlowDenseRLOF(i1, i2, flow=last_flow)
 
@@ -209,7 +343,110 @@ def get_flow_from_images_PCAFlow(i1, i2, prev_flow):
     f = cv2.optflow.createOptFlow_PCAFlow()
     return f.calc(i1, i2, prev_flow)
 
+import torch.nn.functional as F
+import numpy as np
+import cv2
 
+# Compute gradients
+sobel_x = torch.tensor([[[[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]]], dtype=torch.float32).to('cuda')
+sobel_y = torch.tensor([[[[-1, -2, -1], [0, 0, 0], [1, 2, 1]]]], dtype=torch.float32).to('cuda')
+
+@torch.inference_mode()
+def get_flow_from_images_Farneback_torch(i1, i2, preset="normal", last_flow=None, pyr_scale=0.5, levels=3, winsize=15,
+                                   iterations=3, poly_n=5, poly_sigma=1.2, flags=0):
+    # Convert images to grayscale
+    i1_gray = cv2.cvtColor(i1, cv2.COLOR_BGR2GRAY)
+    i2_gray = cv2.cvtColor(i2, cv2.COLOR_BGR2GRAY)
+
+    # Convert images to PyTorch tensors and move to GPU
+    i1_tensor = torch.from_numpy(i1_gray).float().unsqueeze(0).unsqueeze(0).to('cuda')
+    i2_tensor = torch.from_numpy(i2_gray).float().unsqueeze(0).unsqueeze(0).to('cuda')
+
+    # Define parameters based on preset
+    if preset == "fine":
+        pyr_scale = 0.5
+        levels = 13
+        winsize = 77
+        iterations = 13
+        poly_n = 15
+        poly_sigma = 0.8
+    else:  # normal
+        pyr_scale = 0.5
+        levels = 5
+        winsize = 21
+        iterations = 5
+        poly_n = 7
+        poly_sigma = 1.2
+
+    # # Initialize flow tensors
+    # u = torch.zeros_like(i1_tensor).to('cuda')
+    # v = torch.zeros_like(i1_tensor).to('cuda')
+    if last_flow is None:
+        u = torch.zeros_like(i1_tensor).to('cuda')
+        v = torch.zeros_like(i1_tensor).to('cuda')
+    else:
+        u = torch.from_numpy(last_flow[..., 0]).float().unsqueeze(0).unsqueeze(0).to('cuda')
+        v = torch.from_numpy(last_flow[..., 1]).float().unsqueeze(0).unsqueeze(0).to('cuda')
+
+
+    for level in range(levels):
+        scale = pyr_scale ** (levels - level - 1)
+        new_size = (int(i1_tensor.size(3) * scale), int(i1_tensor.size(2) * scale))
+
+        # Resize images
+        i1_resized = F.interpolate(i1_tensor, size=new_size, mode='bilinear', align_corners=False)
+        i2_resized = F.interpolate(i2_tensor, size=new_size, mode='bilinear', align_corners=False)
+
+
+        grad_x1 = F.conv2d(F.pad(i1_resized, (1, 1, 1, 1)), sobel_x)
+        grad_y1 = F.conv2d(F.pad(i1_resized, (1, 1, 1, 1)), sobel_y)
+        grad_x2 = F.conv2d(F.pad(i2_resized, (1, 1, 1, 1)), sobel_x)
+        grad_y2 = F.conv2d(F.pad(i2_resized, (1, 1, 1, 1)), sobel_y)
+
+        # Resize flow to the current pyramid level
+        u_resized = F.interpolate(u, size=new_size, mode='bilinear', align_corners=False)
+        v_resized = F.interpolate(v, size=new_size, mode='bilinear', align_corners=False)
+
+        for _ in range(iterations):
+            # Create the grid for warping
+            N, C, H, W = i1_resized.size()
+            grid_y, grid_x = torch.meshgrid(torch.arange(H, device='cuda'), torch.arange(W, device='cuda'))
+            grid = torch.stack((grid_x, grid_y), dim=2).float().to('cuda')  # Shape: [H, W, 2]
+            grid = grid.unsqueeze(0).permute(0, 3, 1, 2)  # Shape: [1, 2, H, W]
+            grid[:, 0, :, :] = 2.0 * grid[:, 0, :, :].clone() / max(W - 1, 1) - 1.0
+            grid[:, 1, :, :] = 2.0 * grid[:, 1, :, :].clone() / max(H - 1, 1) - 1.0
+
+            # Adjust the grid by the current flow estimates
+            flow_grid = torch.cat((u_resized, v_resized), dim=1) + grid  # Shape: [1, 2, H, W]
+            flow_grid = flow_grid.permute(0, 2, 3, 1)  # Shape: [1, H, W, 2]
+
+            # Warp the second image to the first image based on current flow estimates
+            i2_warped = F.grid_sample(i2_resized, flow_grid, align_corners=True)
+
+            # Compute differences
+            Ix = (grad_x1 + grad_x2) / 2
+            Iy = (grad_y1 + grad_y2) / 2
+            It = i2_warped - i1_resized
+
+            # Update flow estimates
+            u_resized = u_resized - Ix * (Ix * u_resized + Iy * v_resized + It) / (Ix * Ix + Iy * Iy + 1e-8)
+            v_resized = v_resized - Iy * (Ix * u_resized + Iy * v_resized + It) / (Ix * Ix + Iy * Iy + 1e-8)
+
+        # Upsample the flow to the next pyramid level
+        if level != levels - 1:
+            u = F.interpolate(u_resized, size=(i1_tensor.size(2), i1_tensor.size(3)), mode='bilinear', align_corners=False) * (1.0 / pyr_scale)
+            v = F.interpolate(v_resized, size=(i1_tensor.size(2), i1_tensor.size(3)), mode='bilinear', align_corners=False) * (1.0 / pyr_scale)
+        else:
+            u = u_resized
+            v = v_resized
+
+    # Combine flow estimates into a single tensor
+    flow = torch.cat((u, v), dim=1).squeeze(0).permute(1, 2, 0)
+
+    # Convert flow back to numpy array
+    flow_np = flow.cpu().numpy()
+
+    return flow_np
 def get_flow_from_images_Farneback(i1, i2, preset="normal", last_flow=None, pyr_scale=0.5, levels=3, winsize=15,
                                    iterations=3, poly_n=5, poly_sigma=1.2, flags=0):
     flags = cv2.OPTFLOW_FARNEBACK_GAUSSIAN  # Specify the operation flags
@@ -377,23 +614,31 @@ def abs_flow_to_rel_flow(flow, width, height):
     max_flow_y = np.max(np.abs(fy))
     max_flow = max(max_flow_x, max_flow_y)
 
+    # Avoid division by zero by ensuring max_flow, width, and height are non-zero
+    max_flow = max(max_flow, 1e-8)
+    width = max(width, 1e-8)
+    height = max(height, 1e-8)
+
     rel_fx = fx / (max_flow * width)
     rel_fy = fy / (max_flow * height)
     return np.dstack((rel_fx, rel_fy))
 
-
-def rel_flow_to_abs_flow(rel_flow,
-                         width: int,
-                         height: int):
+def rel_flow_to_abs_flow(rel_flow, width, height):
     rel_fx, rel_fy = rel_flow[:, :, 0], rel_flow[:, :, 1]
 
     max_flow_x = np.max(np.abs(rel_fx * width))
     max_flow_y = np.max(np.abs(rel_fy * height))
     max_flow = max(max_flow_x, max_flow_y)
 
+    # Avoid division by zero by ensuring max_flow, width, and height are non-zero
+    max_flow = max(max_flow, 1e-8)
+    width = max(width, 1e-8)
+    height = max(height, 1e-8)
+
     fx = rel_fx * (max_flow * width)
     fy = rel_fy * (max_flow * height)
     return np.dstack((fx, fy))
+
 
 
 def remap(img,

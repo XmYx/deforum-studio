@@ -89,7 +89,7 @@ class InferenceHelper:
     @torch.no_grad()
     def predict_pil(self, pil_image, visualized=False):
         # pil_image = pil_image.resize((640, 480))
-        img = np.asarray(pil_image) / 255.
+        img = np.asarray(pil_image) / 255.0
 
         img = self.toTensor(img).unsqueeze(0).float().to(self.device)
         bin_centers, pred = self.predict(img)
@@ -103,30 +103,53 @@ class InferenceHelper:
 
     @torch.no_grad()
     def predict(self, image):
+        # Directly working with tensor on the GPU
         bins, pred = self.model(image)
-        pred = np.clip(pred.cpu().numpy(), self.min_depth, self.max_depth)
+        pred = torch.clamp(pred, self.min_depth, self.max_depth)
 
-        # Flip
-        image = torch.Tensor(np.array(image.cpu().numpy())[..., ::-1].copy()).to(self.device)
-        pred_lr = self.model(image)[-1]
-        pred_lr = np.clip(pred_lr.cpu().numpy()[..., ::-1], self.min_depth, self.max_depth)
+        # Flip the image tensor
+        image_flipped = torch.flip(image, [3])  # Assuming image is in the format BCHW and W is the last dimension
+        bins_lr, pred_lr = self.model(image_flipped)
+        pred_lr = torch.clamp(torch.flip(pred_lr, [3]), self.min_depth, self.max_depth)
 
-        # Take average of original and mirror
+        # Take the average of original and mirrored predictions
         final = 0.5 * (pred + pred_lr)
-        final = nn.functional.interpolate(torch.Tensor(final), image.shape[-2:],
-                                          mode='bilinear', align_corners=True).cpu().numpy()
+        final = nn.functional.interpolate(final, size=image.shape[-2:], mode='bilinear', align_corners=True)
+        final = torch.clamp(final, self.min_depth, self.max_depth)
+        final[torch.isinf(final)] = self.max_depth
+        final[torch.isnan(final)] = self.min_depth
 
-        final[final < self.min_depth] = self.min_depth
-        final[final > self.max_depth] = self.max_depth
-        final[np.isinf(final)] = self.max_depth
-        final[np.isnan(final)] = self.min_depth
-
+        # Processing the bins
         centers = 0.5 * (bins[:, 1:] + bins[:, :-1])
-        centers = centers.cpu().squeeze().numpy()
-        centers = centers[centers > self.min_depth]
-        centers = centers[centers < self.max_depth]
+        valid_centers = centers[(centers > self.min_depth) & (centers < self.max_depth)]
 
-        return centers, final
+        return valid_centers, final
+    # @torch.no_grad()
+    # def predict(self, image):
+    #     bins, pred = self.model(image)
+    #     pred = np.clip(pred.cpu().numpy(), self.min_depth, self.max_depth)
+    #
+    #     # Flip
+    #     image = torch.Tensor(np.array(image.cpu().numpy())[..., ::-1].copy()).to(self.device)
+    #     pred_lr = self.model(image)[-1]
+    #     pred_lr = np.clip(pred_lr.cpu().numpy()[..., ::-1], self.min_depth, self.max_depth)
+    #
+    #     # Take average of original and mirror
+    #     final = 0.5 * (pred + pred_lr)
+    #     final = nn.functional.interpolate(torch.Tensor(final), image.shape[-2:],
+    #                                       mode='bilinear', align_corners=True).cpu().numpy()
+    #
+    #     final[final < self.min_depth] = self.min_depth
+    #     final[final > self.max_depth] = self.max_depth
+    #     final[np.isinf(final)] = self.max_depth
+    #     final[np.isnan(final)] = self.min_depth
+    #
+    #     centers = 0.5 * (bins[:, 1:] + bins[:, :-1])
+    #     centers = centers.cpu().squeeze().numpy()
+    #     centers = centers[centers > self.min_depth]
+    #     centers = centers[centers < self.max_depth]
+    #
+    #     return centers, final
 
     @torch.no_grad()
     def predict_dir(self, test_dir, out_dir):
