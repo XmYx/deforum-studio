@@ -27,7 +27,7 @@ Currently, the repository is in development, and the recommended installation me
      ```
 3. Install the library with developer dependencies:
    ```bash
-   pip install -e .["dev"]
+   pip install -e .
    ```
 
 ## Testing

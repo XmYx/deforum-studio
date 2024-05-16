@@ -99,6 +99,7 @@ _deps = [
     'kornia==0.7.2',
     'wheel==0.43.0',
     'loguru==0.7.2',
+    "scikit-image==0.21.0"
 ]
 
 # this is a lookup table with items like:
@@ -170,9 +171,7 @@ class DepsTableUpdateCommand(Command):
 
 extras = {}
 
-install_requires = []
-
-extras["dev"] = deps_list('torch',
+install_requires = deps_list('torch',
                           'torchvision',
                           'einops',
                           'numexpr',
@@ -215,35 +214,6 @@ extras["dev"] = deps_list('torch',
                           'scikit-image'
                           )
 
-extras["cli"] = deps_list('torch',
-                          'torchvision',
-                          'einops',
-                          'numexpr',
-                          'matplotlib',
-                          'pandas',
-                          'av',
-                          'pims',
-                          # 'imageio-ffmpeg',
-                          # 'rich',
-                          # 'gdown',
-                          # 'py3d',
-                          # 'librosa',
-                          # 'numpy',
-                          'opencv-python-headless',
-                          'timm',
-                          'transformers',
-                          'omegaconf',
-                          # 'aiohttp',
-                          # 'scipy',
-                          # 'psutil',
-                          # 'clip-interrogator',
-                          # 'streamlit',
-                          'torchsde',
-                          # 'fastapi',
-                          'python-decouple',
-                          'mutagen',
-                          'diffusers',
-                          )
 
 setup(
     name="deforum",
@@ -255,7 +225,7 @@ setup(
     license="Apache",
     author="The Deforum team",
     author_email="deforum-art@deforum.com",
-    url="https://github.com/XmYx/deforum",
+    url="https://github.com/deforum-studio/deforum",
     package_dir={"": "src"},
     packages=find_packages("src"),
     # package_data={"deforum": ["py.typed"]},
