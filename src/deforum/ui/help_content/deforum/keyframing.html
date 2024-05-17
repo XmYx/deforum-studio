@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keyframing in Deforum</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        h1, h2, h3, h4 {
+            color: #333;
+        }
+        pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border: 1px solid #ddd;
+            overflow-x: auto;
+        }
+        code {
+            font-family: Consolas, monospace;
+        }
+        ul {
+            margin: 0;
+            padding: 0;
+            list-style-type: none;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+        .example {
+            background-color: #eef;
+            padding: 10px;
+            border: 1px solid #99c;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Keyframing in Deforum</h1>
+    <p>This guide explains how to use keyframes to animate parameters in Deforum. Keyframing allows you to define specific values for parameters at certain frames, and the software interpolates between these values to create smooth animations.</p>
+
+    <h2>Keyframing Syntax</h2>
+    <p>Here is the basic syntax for keyframing parameters:</p>
+    <pre>frame:(value)</pre>
+    <p>The <code>frame</code> specifies the keyframe number, and <code>value</code> is the parameter value at that keyframe. The <code>value</code> must be enclosed in parentheses.</p>
+
+    <h3>Example</h3>
+    <div class="example">
+        <p>From frame 0 to frame 12, interpolate from <code>x</code> to <code>y</code>:</p>
+        <pre>0:(x), 12:(y)</pre>
+    </div>
+
+    <h2>Advanced Keyframing</h2>
+    <p>Values can be mathematical expressions. For example:</p>
+    <div class="example">
+        <p>From the default zoom function to an altered function on frame 12:</p>
+        <pre>0:(1.02+0.02*sin(2*3.14*t/20)), 12:(0.5+0.02*sin(2*3.14*t/20))</pre>
+    </div>
+    <p>The parameter values will interpolate between each other. If you want a value to remain constant until a specific keyframe:</p>
+    <div class="example">
+        <p>From frame 0 to 6, maintain the same value. From frame 6 to 12, interpolate the values:</p>
+        <pre>0:(x), 6:(x), 12:(y)</pre>
+    </div>
+
+    <h3>Mathematical Operators</h3>
+    <p>You can use various mathematical functions and operators in the parameter values. These include:</p>
+    <ul>
+        <li><code>+</code>: Addition</li>
+        <li><code>-</code>: Subtraction</li>
+        <li><code>*</code>: Multiplication</li>
+        <li><code>/</code>: Division</li>
+        <li><code>**</code>: Exponentiation</li>
+        <li><code>%</code>: Modulus</li>
+        <li><code>//</code>: Floor Division</li>
+        <li>Mathematical functions like <code>sin</code>, <code>cos</code>, <code>tan</code>, <code>log</code>, etc.</li>
+    </ul>
+    <p>For example, you can use <code>sin</code> to create oscillating values:</p>
+    <div class="example">
+        <p>Oscillate a value using the sine function:</p>
+        <pre>0:(1.02+0.02*sin(2*3.14*t/20))</pre>
+    </div>
+
+    <h2>Keyframe Interpolation</h2>
+    <p>The internal workings of the keyframe interpolation are handled by the <code>FrameInterpolator</code> class. Here’s a brief overview:</p>
+
+    <h3>FrameInterpolator Class</h3>
+    <pre><code>class FrameInterpolator:
+    def __init__(self, max_frames=0, seed=-1) -> None:
+        self.max_frames = max_frames
+        self.seed = seed
+
+    def sanitize_value(self, value):
+        return value.replace("'", "").replace('"', "").replace('(', "").replace(')', "")
+
+    def get_inbetweens(self, key_frames, integer=False, interp_method='Linear', is_single_string=False):
+        key_frame_series = pd.Series([np.nan for a in range(self.max_frames)])
+        # get our ui variables set for numexpr.evaluate
+        global max_f
+        global s
+        max_f = self.max_frames - 1
+        s = self.seed
+        value_is_number = None
+        value = None
+        for i in range(0, self.max_frames):
+            if i in key_frames:
+                value = key_frames[i]
+                value_is_number = check_is_number(self.sanitize_value(value))
+                if value_is_number:
+                    key_frame_series[i] = self.sanitize_value(value)
+            if not value_is_number and value is not None:
+                global t
+                t = i
+                key_frame_series[i] = numexpr.evaluate(str(value), casting='unsafe') if not is_single_string else self.sanitize_value(value)
+            elif is_single_string:
+                key_frame_series[i] = key_frame_series[i - 1]
+        key_frame_series = key_frame_series.astype(float) if not is_single_string else key_frame_series
+
+        if interp_method == 'Cubic' and len(key_frames.items()) <= 3:
+            interp_method = 'Quadratic'
+        if interp_method == 'Quadratic' and len(key_frames.items()) <= 2:
+            interp_method = 'Linear'
+
+        key_frame_series[0] = key_frame_series[key_frame_series.first_valid_index()]
+        key_frame_series[self.max_frames - 1] = key_frame_series[key_frame_series.last_valid_index()]
+        key_frame_series = key_frame_series.interpolate(method=interp_method.lower(), limit_direction='both')
+        if integer:
+            return key_frame_series.astype(int)
+        return key_frame_series
+
+    def parse_key_frames(self, string):
+        global max_f, s
+        frames = dict()
+        if string is None:
+            string = ""
+        for match_object in string.split(","):
+            frameParam = match_object.split(":")
+            max_f = self.max_frames - 1
+            s = self.seed
+            frame = int(self.sanitize_value(frameParam[0])) if check_is_number(self.sanitize_value(frameParam[0].strip())) else int(numexpr.evaluate(frameParam[0].strip().replace("'", "", 1).replace('"', "", 1)[::-1].replace("'", "", 1).replace('"', "", 1)[::-1]))
+            frames[frame] = frameParam[1].strip()
+        if frames == {} and len(string) != 0:
+            raise RuntimeError('Key Frame string not correctly formatted')
+        return frames
+</code></pre>
+    <h3>How It Works</h3>
+    <p>The <code>FrameInterpolator</code> class provides methods to parse keyframes and interpolate values between them. Here’s a breakdown of the main methods:</p>
+    <ul>
+        <li><code>__init__(self, max_frames=0, seed=-1)</code>: Initializes the interpolator with the maximum number of frames and an optional seed value.</li>
+        <li><code>sanitize_value(self, value)</code>: Sanitizes the input value by removing quotes and parentheses.</li>
+        <li><code>get_inbetweens(self, key_frames, integer=False, interp_method='Linear', is_single_string=False)</code>: Interpolates values between keyframes.</li>
+        <li><code>parse_key_frames(self, string)</code>: Parses a string of keyframe definitions into a dictionary.</li>
+    </ul>
+
+    <h2>Example Usage</h2>
+    <p>Here’s an example of how to use the keyframing feature in a script:</p>
+    <div class="example">
+        <p>Define keyframes for a parameter:</p>
+        <pre><code>keyframes = "0:(0.5), 10:(1.0), 20:(0.5)"
+interpolator = FrameInterpolator(max_frames=21)
+parsed_keyframes = interpolator.parse_key_frames(keyframes)
+inbetweens = interpolator.get_inbetweens(parsed_keyframes)</code></pre>
+    </div>
+
+    <p>We hope this guide helps you understand and effectively use keyframing in Deforum. For more details on individual parameters, refer to the Animation Settings section.</p>
+</body>
+</html>

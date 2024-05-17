@@ -6,7 +6,11 @@ State-of-the-art Animation Diffusion in PyTorch and TRT.
 - NVIDIA GPU with CUDA drivers
 
 ## Installation
-Currently, the repository is in development, and the recommended installation method is "for developers."
+Currently, the repository is in development, but we already provide an easy installer for Windows and Linux.
+
+### For Users:
+On windows, run start.bat
+On linux run bash start.sh
 
 ### For Developers
 1. Clone the repository:

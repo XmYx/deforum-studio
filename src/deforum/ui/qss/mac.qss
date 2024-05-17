@@ -1,0 +1,311 @@
+/* Global Styles */
+* {
+    font-family: "San Francisco Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 14px;
+}
+
+/* QMainWindow styles */
+QMainWindow {
+    background-color: #f0f0f0;
+    color: #000000;
+    border: none;
+}
+
+/* QWidget styles */
+QWidget {
+    background-color: #f0f0f0;
+    color: #000000;
+}
+
+/* QDockWidget styles */
+QDockWidget {
+    titlebar-close-icon: url(:/icons/close-macos.png);
+    titlebar-normal-icon: url(:/icons/undock-macos.png);
+    background-color: #f0f0f0;
+}
+
+/* QSpinBox styles */
+QSpinBox {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    color: #000000;
+}
+QSpinBox::up-button, QSpinBox::down-button {
+    background-color: #f0f0f0;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+}
+QSpinBox::up-arrow, QSpinBox::down-arrow {
+    background: url(:/icons/up-arrow-macos.png) no-repeat center;
+    border: none;
+}
+
+/* QDoubleSpinBox styles */
+QDoubleSpinBox {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    color: #000000;
+}
+QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
+    background-color: #f0f0f0;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+}
+QDoubleSpinBox::up-arrow, QDoubleSpinBox::down-arrow {
+    background: url(:/icons/down-arrow-macos.png) no-repeat center;
+    border: none;
+}
+
+/* QCheckBox styles */
+QCheckBox {
+    spacing: 5px;
+    color: #000000;
+    font-weight: normal;
+}
+QCheckBox::indicator {
+    width: 20px;
+    height: 20px;
+}
+
+
+/* QComboBox styles */
+QComboBox {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    color: #000000;
+}
+QComboBox::drop-down {
+    background-color: #f0f0f0;
+    border: none;
+}
+QComboBox QAbstractItemView {
+    background-color: #ffffff;
+    selection-background-color: #007aff;
+    color: #000000;
+}
+
+/* QLineEdit styles */
+QLineEdit {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    color: #000000;
+}
+
+/* QTextEdit styles */
+QTextEdit {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    color: #000000;
+}
+
+/* QSlider styles */
+QSlider::groove:horizontal, QSlider::groove:vertical {
+    border: 1px solid #cccccc;
+    background: #ffffff;
+    margin: 2px 0;
+}
+QSlider::handle:horizontal, QSlider::handle:vertical {
+    background: #007aff;
+    border: 1px solid #007aff;
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+}
+
+/* QPushButton styles */
+QPushButton {
+    background-color: #007aff;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 10px;
+}
+QPushButton:hover {
+    background-color: #005bb5;
+}
+
+/* NodesConsole styles */
+QWidget#Form {
+    background-color: black;
+}
+QPlainTextEdit#output {
+    background-color: black;
+    color: white;
+    font-family: Monospace;
+}
+QLineEdit#input {
+    background-color: black;
+    color: white;
+    font-family: Monospace;
+    border: none;
+}
+QPushButton#historyBtn, QPushButton#exceptionBtn, QPushButton#clearExceptionBtn, QPushButton#catchAllExceptionsBtn, QPushButton#catchNextExceptionBtn {
+    background-color: black;
+    color: white;
+    border: none;
+}
+QCheckBox#onlyUncaughtCheck, QCheckBox#runSelectedFrameCheck {
+    color: white;
+    font-weight: bold;
+}
+QListWidget#historyList, QListWidget#exceptionStackList {
+    background-color: black;
+    color: white;
+    font-family: Monospace;
+    border: none;
+}
+QGroupBox#exceptionGroup {
+    border: 1px solid white;
+}
+QLineEdit#filterText {
+    background-color: black;
+    color: white;
+    border: none;
+}
+QSplitter::handle {
+    background-color: white;
+}
+QSplitter::handle:vertical {
+    height: 6px;
+}
+QSplitter::handle:pressed {
+    background-color: #888888;
+}
+
+/* DetachableTabWidget styles */
+DetachableTabWidget QTabWidget {
+    background-color: #f0f0f0;
+    border: 1px solid #cccccc;
+    color: #000000;
+}
+DetachableTabWidget QTabBar::tab {
+    background-color: #e0e0e0;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    padding: 5px;
+}
+DetachableTabWidget QTabBar::tab:selected {
+    background-color: #ffffff;
+    border: 1px solid #007aff;
+    color: #000000;
+}
+DetachableTabWidget QPushButton {
+    background-color: #007aff;
+    border: none;
+    color: white;
+    font-weight: bold;
+}
+DetachableTabWidget QPushButton:hover {
+    background-color: #005bb5;
+}
+
+/* AspectRatioMdiSubWindow styles */
+AspectRatioMdiSubWindow QMdiSubWindow {
+    background-color: #f0f0f0;
+    border: 1px solid #cccccc;
+    color: #000000;
+}
+
+/* ResizableImageLabel styles */
+ResizableImageLabel QLabel {
+    background-color: #f0f0f0;
+    color: #000000;
+}
+
+/* JobQueueItem styles */
+JobQueueItem QWidget {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    color: #000000;
+}
+JobQueueItem QLabel {
+    color: #000000;
+    font-weight: bold;
+}
+
+/* JobDetailPopup styles */
+JobDetailPopup QWidget {
+    background-color: #f0f0f0;
+    color: #000000;
+}
+JobDetailPopup QCheckBox {
+    color: #000000;
+}
+JobDetailPopup QSpinBox, JobDetailPopup QDoubleSpinBox, JobDetailPopup QLineEdit {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 4px;
+    color: #000000;
+}
+JobDetailPopup QPushButton {
+    background-color: #007aff;
+    border: none;
+    color: white;
+    padding: 5px;
+    font-weight: bold;
+}
+JobDetailPopup QPushButton:hover {
+    background-color: #005bb5;
+}
+
+/* AutoReattachDockWidget styles */
+AutoReattachDockWidget {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    color: #000000;
+}
+AutoReattachDockWidget QDockWidget::title {
+    background-color: #007aff;
+    color: white;
+    font-weight: bold;
+}
+
+/* Ensure all QWidgets inside CustomTextBox are styled correctly */
+CustomTextBox, CustomTextBox * {
+    background-color: transparent;
+    color: white;
+}
+
+/* QTextEdit styles inside CustomTextBox */
+CustomTextBox QTextEdit {
+    color: white;
+    background-color: transparent;
+    border: none;
+    font-weight: bold;
+    /* Make the text bold */
+}
+
+/* QLabel styles inside CustomTextBox */
+CustomTextBox QLabel {
+    color: rgba(200, 200, 200, 50);
+    font-size: 24px;
+    font-weight: bold;
+}
+
+/* QPushButton styles inside CustomTextBox */
+CustomTextBox QPushButton {
+    background-color: #5a5a5a;
+    border: 1px solid #5a5a5a;
+    color: white;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    padding: 0;
+}
+CustomTextBox QPushButton:hover {
+    background-color: #787878;
+}
+
+/* Tooltip styles */
+QToolTip {
+    color: white;
+    background-color: rgba(50, 50, 50, 200);
+    border: 1px solid white;
+    font-weight: bold;
+    padding: 4px;
+}

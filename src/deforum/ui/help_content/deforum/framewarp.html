@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deforum Frame Warping</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        p, ul {
+            margin-bottom: 20px;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        .example {
+            background-color: #eef;
+            padding: 10px;
+            border: 1px solid #99c;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Deforum Frame Warping</h1>
+    <p>This guide explains 3D depth tensor-based frame warping in Deforum. This technique allows for realistic 3D transformations of images over time, creating an animation effect. We will explain this concept in various levels of detail for better understanding.</p>
+
+    <h2>Basic Explanation</h2>
+    <p>Imagine you have a picture and you want to make it look like it's moving in a 3D space. To do this, we need to understand how far away each part of the picture is. This is called depth. Using depth, we can change the picture so it looks like it's rotating or moving closer or farther away.</p>
+    <p>We use a special tool to calculate the depth for each part of the picture. Then, we apply some math to change the picture based on this depth information, making it look like it's moving in 3D.</p>
+
+    <h2>Intermediate Explanation</h2>
+    <p>In Deforum, frame warping is a process where we transform an image to make it look like it's moving in a 3D space. We achieve this by using a depth map, which tells us how far each pixel in the image is from the camera.</p>
+    <p>The process involves several steps:</p>
+    <ul>
+        <li><strong>Depth Calculation:</strong> We use a depth model to predict the depth of each pixel in the image. This depth map is crucial for creating the 3D effect.</li>
+        <li><strong>3D Transformation:</strong> Using the depth map, we apply a series of mathematical transformations to the image. These transformations include translation (moving the image along the X, Y, and Z axes) and rotation (rotating the image around the X, Y, and Z axes).</li>
+        <li><strong>Projection:</strong> Finally, we project the transformed image back onto a 2D plane, which gives the illusion of 3D movement.</li>
+    </ul>
+
+    <h2>Advanced Explanation</h2>
+    <p>Frame warping in Deforum leverages a 3D depth tensor to perform realistic image transformations. The depth tensor provides information about the relative distance of each pixel from the viewer, allowing for accurate 3D rendering.</p>
+    <p>The process can be broken down into the following steps:</p>
+    <ul>
+        <li><strong>Depth Map Generation:</strong> A depth model (like MiDaS or AdaBins) predicts the depth of each pixel in the image, producing a depth map. This map is normalized and equalized to ensure consistent depth information.</li>
+        <li><strong>3D Transformation Matrices:</strong> We construct rotation matrices for rotations around the X, Y, and Z axes, and a translation matrix for movement along these axes. These matrices are combined to form a single transformation matrix.</li>
+        <li><strong>Perspective Projection:</strong> The 3D coordinates of each pixel are transformed using the combined transformation matrix. The transformed coordinates are then projected back onto the 2D image plane using a perspective projection matrix.</li>
+        <li><strong>Image Remapping:</strong> The transformed 2D coordinates are used to remap the original image pixels to their new locations, creating the effect of 3D movement.</li>
+    </ul>
+
+    <h2>Detailed Explanation</h2>
+    <p>Frame warping in Deforum involves complex mathematical transformations to simulate 3D movement. Here is a detailed breakdown of the process:</p>
+    <ul>
+        <li><strong>Depth Map Generation:</strong> We use depth estimation algorithms to generate a depth map, which assigns a depth value to each pixel in the image. This depth map is essential for understanding the spatial arrangement of the scene.</li>
+        <li><strong>3D Transformation:</strong> To achieve 3D transformations, we construct rotation matrices for rotations around the X, Y, and Z axes, and a translation matrix for movement along these axes. These matrices are combined to form a homogeneous transformation matrix.</li>
+        <li><strong>Perspective Projection:</strong> The 3D coordinates of each pixel (derived from the depth map) are transformed using the homogeneous transformation matrix. The transformed coordinates are then projected back onto the 2D image plane using a perspective projection matrix. This step simulates the effect of viewing a 3D object on a 2D screen.</li>
+        <li><strong>Image Remapping:</strong> The transformed 2D coordinates are used to remap the original image pixels to their new locations. This involves creating a new image where each pixel's color is taken from the corresponding transformed coordinates in the original image. Techniques such as grid sampling are used for this purpose.</li>
+    </ul>
+    <p>By applying these transformations frame by frame, we create a smooth animation that simulates 3D movement of the scene.</p>
+
+    <h2>Conclusion</h2>
+    <p>Frame warping using 3D depth tensors is a powerful technique for creating realistic 3D animations from 2D images. By understanding and manipulating depth information, we can achieve convincing 3D effects, adding depth and motion to otherwise static images.</p>
+</body>
+</html>

@@ -255,7 +255,11 @@ def start_deforum_cli() -> None:
             main_script_path = os.path.join(deforum_directory, "ui", "main.py")
             # try:
             # Execute main.py
-            subprocess.run([sys.executable, main_script_path])
+            # Execute main.py
+            with open(main_script_path, 'r') as main_script_file:
+                main_script_code = main_script_file.read()
+                exec(main_script_code, {'__name__': '__main__'})
+            # subprocess.run([sys.executable, main_script_path])
         elif args_main.mode == 'runsingle':
             install_qtpy()
 

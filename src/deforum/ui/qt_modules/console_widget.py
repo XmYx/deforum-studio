@@ -79,7 +79,7 @@ class NodesConsole(ConsoleWidget):
         '''
 
         # Apply the stylesheet to the application
-        self.setStyleSheet(stylesheet)
+        # self.setStyleSheet(stylesheet)
 
     def write_(self, strn, html=False, scrollToBottom=True):
         sys.__stdout__.write(strn)

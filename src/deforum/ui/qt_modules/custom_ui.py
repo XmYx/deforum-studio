@@ -138,7 +138,7 @@ class CustomTextBox(QWidget):
         self.minus_button = QPushButton('-', self)
         self.scale = 0.1  # Default scale
         self.setupUI()
-        self.updateStyles()
+        # self.updateStyles()
         self.connectSignals()
 
     def setupUI(self):

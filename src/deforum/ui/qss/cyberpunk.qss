@@ -1,0 +1,305 @@
+/* General Styles */
+* {
+    font-family: 'Courier New', monospace;
+}
+
+/* QMainWindow styles */
+QMainWindow {
+    background-color: #141414;
+    color: #39FF14; /* Neon Green */
+}
+
+/* QWidget styles */
+QWidget {
+    background-color: #141414;
+    color: #39FF14;
+}
+
+/* QDockWidget styles */
+QDockWidget {
+    titlebar-close-icon: url(:/icons/close.png);
+    titlebar-normal-icon: url(:/icons/undock.png);
+    background-color: #1c1c1c;
+}
+
+/* QSpinBox styles */
+QSpinBox, QDoubleSpinBox {
+    background-color: #1c1c1c;
+    border: 1px solid #39FF14;
+    color: #39FF14;
+}
+
+QSpinBox::up-button, QDoubleSpinBox::up-button,
+QSpinBox::down-button, QDoubleSpinBox::down-button {
+    background-color: #141414;
+    border: 1px solid #39FF14;
+}
+
+QSpinBox::up-arrow, QDoubleSpinBox::up-arrow,
+QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {
+    border: 1px solid #39FF14;
+    color: #39FF14;
+}
+
+/* QComboBox styles */
+QComboBox {
+    background-color: #1c1c1c;
+    border: 1px solid #39FF14;
+    color: #39FF14;
+}
+
+QComboBox::drop-down {
+    background-color: #141414;
+    border: 1px solid #39FF14;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #1c1c1c;
+    selection-background-color: #39FF14;
+    color: #39FF14;
+}
+
+/* QLineEdit styles */
+QLineEdit, QTextEdit {
+    background-color: #1c1c1c;
+    border: 1px solid #39FF14;
+    color: #39FF14;
+}
+
+/* QCheckBox styles */
+QCheckBox {
+    spacing: 5px;
+    color: #39FF14;
+    font-weight: bold;
+}
+
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+}
+
+
+
+/* QSlider styles */
+QSlider::groove:horizontal, QSlider::groove:vertical {
+    border: 1px solid #39FF14;
+    background: #1c1c1c;
+    margin: 2px 0;
+}
+
+QSlider::handle:horizontal, QSlider::handle:vertical {
+    background: #141414;
+    border: 1px solid #39FF14;
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+}
+
+/* QPushButton styles */
+QPushButton {
+    background-color: #1c1c1c;
+    border: 1px solid #39FF14;
+    color: #39FF14;
+    padding: 5px;
+    font-weight: bold;
+}
+
+QPushButton:hover {
+    background-color: #39FF14;
+    color: #141414;
+}
+
+/* NodesConsole styles */
+QWidget#Form {
+    background-color: black;
+}
+
+QPlainTextEdit#output, QListWidget#historyList, QListWidget#exceptionStackList {
+    background-color: black;
+    color: #39FF14;
+    font-family: Monospace;
+}
+
+QLineEdit#input {
+    background-color: black;
+    color: #39FF14;
+    font-family: Monospace;
+    border: none;
+}
+
+QPushButton#historyBtn, QPushButton#exceptionBtn, QPushButton#clearExceptionBtn,
+QPushButton#catchAllExceptionsBtn, QPushButton#catchNextExceptionBtn {
+    background-color: black;
+    color: #39FF14;
+    border: none;
+}
+
+QCheckBox#onlyUncaughtCheck, QCheckBox#runSelectedFrameCheck {
+    color: #39FF14;
+    font-weight: bold;
+}
+
+QGroupBox#exceptionGroup {
+    border: 1px solid #39FF14;
+}
+
+QLineEdit#filterText {
+    background-color: black;
+    color: #39FF14;
+    border: none;
+}
+
+QSplitter::handle {
+    background-color: #39FF14;
+}
+
+QSplitter::handle:vertical {
+    height: 6px;
+}
+
+QSplitter::handle:pressed {
+    background-color: #888;
+}
+
+/* DetachableTabWidget styles */
+DetachableTabWidget QTabWidget {
+    background-color: #1c1c1c;
+    border: 1px solid #39FF14;
+    color: #39FF14;
+}
+
+DetachableTabWidget QTabBar::tab {
+    background-color: #141414;
+    border: 1px solid #39FF14;
+    padding: 5px;
+}
+
+DetachableTabWidget QTabBar::tab:selected {
+    background-color: #39FF14;
+    color: #141414;
+}
+
+DetachableTabWidget QPushButton {
+    background-color: #141414;
+    border: 1px solid #39FF14;
+    color: #39FF14;
+    font-weight: bold;
+}
+
+DetachableTabWidget QPushButton:hover {
+    background-color: #39FF14;
+    color: #141414;
+}
+
+/* AspectRatioMdiSubWindow styles */
+AspectRatioMdiSubWindow QMdiSubWindow {
+    background-color: #141414;
+    border: 1px solid #1c1c1c;
+    color: #39FF14;
+}
+
+/* ResizableImageLabel styles */
+ResizableImageLabel QLabel {
+    background-color: #141414;
+    color: #39FF14;
+}
+
+/* JobQueueItem styles */
+JobQueueItem QWidget {
+    background-color: #1c1c1c;
+    border: 1px solid #39FF14;
+    color: #39FF14;
+}
+
+JobQueueItem QLabel {
+    color: #39FF14;
+    font-weight: bold;
+}
+
+/* JobDetailPopup styles */
+JobDetailPopup QWidget {
+    background-color: #141414;
+    color: #39FF14;
+}
+
+JobDetailPopup QCheckBox {
+    color: #39FF14;
+    font-weight: bold;
+}
+
+JobDetailPopup QSpinBox, JobDetailPopup QDoubleSpinBox, JobDetailPopup QLineEdit {
+    background-color: #1c1c1c;
+    border: 1px solid #39FF14;
+    color: #39FF14;
+}
+
+JobDetailPopup QPushButton {
+    background-color: #1c1c1c;
+    border: 1px solid #39FF14;
+    color: #39FF14;
+    padding: 5px;
+    font-weight: bold;
+}
+
+JobDetailPopup QPushButton:hover {
+    background-color: #39FF14;
+    color: #141414;
+}
+
+/* AutoReattachDockWidget styles */
+AutoReattachDockWidget {
+    background-color: #1c1c1c;
+    border: 1px solid #39FF14;
+    color: #39FF14;
+}
+
+AutoReattachDockWidget QDockWidget::title {
+    background-color: #141414;
+    color: #39FF14;
+    font-weight: bold;
+}
+
+/* Ensure all QWidgets inside CustomTextBox are styled correctly */
+CustomTextBox, CustomTextBox * {
+    background-color: transparent;
+    color: white;
+}
+
+/* QTextEdit styles inside CustomTextBox */
+CustomTextBox QTextEdit {
+    color: white;
+    background-color: transparent;
+    border: none;
+    font-weight: bold;
+}
+
+/* QLabel styles inside CustomTextBox */
+CustomTextBox QLabel {
+    color: rgba(200, 200, 200, 50);
+    font-size: 24px;
+    font-weight: bold;
+}
+
+/* QPushButton styles inside CustomTextBox */
+CustomTextBox QPushButton {
+    background-color: #39FF14;
+    border: 1px solid #39FF14;
+    color: white;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    padding: 0;
+}
+
+CustomTextBox QPushButton:hover {
+    background-color: #31d411;
+}
+
+/* Tooltip styles */
+QToolTip {
+    color: white;
+    background-color: rgba(50, 50, 50, 200);
+    border: 1px solid white;
+    font-weight: bold;
+    padding: 4px;
+}
