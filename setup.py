@@ -106,7 +106,7 @@ _deps = [
     'GitPython==3.1.43',
     'qtpy==2.4.1',
     'pyqt6==6.5.0',
-    'pyqt6-qt6==6.5.0'
+    'pyqt6-qt6==6.5.0',
     'pyqtgraph==0.13.7'
 
 ]
@@ -227,7 +227,7 @@ install_requires = deps_list('torch',
                              'GitPython',
                              'qtpy',
                              'pyqt6',
-                             'pyqt6-qt6'
+                             'pyqt6-qt6',
                              'pyqtgraph'
                              )
 
