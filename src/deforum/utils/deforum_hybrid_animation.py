@@ -76,7 +76,7 @@ def hybrid_generation(cls):
     if not cls.hybrid_use_init_image:
         if config.allow_blocking_input_frame_lists:
             logger.info(f"Will wait for input frames to appear in {video_in_frame_path}")
-            cls.inputfiles = BlockingFileList(video_in_frame_path, cls.max_frames)
+            cls.inputfiles = BlockingFileList(video_in_frame_path, cls.max_frames, optional_prefix=get_frame_name(cls.video_init_path))
             if cls.extract_nth_frame > 1:
               cls.inputfiles = extract_nth_files(video_in_frame_path, cls.extract_nth_frame)
 
@@ -102,17 +102,15 @@ def hybrid_generation(cls):
 
 
 def hybrid_composite(args, anim_args, frame_idx, prev_img, depth_model, hybrid_comp_schedules, root):
-    video_frame = os.path.join(args.outdir, 'inputframes',
-                               get_frame_name(anim_args.video_init_path) + f"{frame_idx:09}.jpg")
-    video_depth_frame = os.path.join(args.outdir, 'hybridframes',
-                                     get_frame_name(anim_args.video_init_path) + f"_vid_depth{frame_idx:09}.jpg")
+
+    frame_name = get_frame_name(anim_args.video_init_path or "")
+
+    video_frame = os.path.join(args.outdir, 'inputframes', f"{frame_name}{frame_idx:09}.jpg")
+    video_depth_frame = os.path.join(args.outdir, 'hybridframes', f"{frame_name}_vid_depth{frame_idx:09}.jpg")
     depth_frame = os.path.join(args.outdir, f"{root.timestring}_depth_{frame_idx - 1:09}.png")
-    mask_frame = os.path.join(args.outdir, 'hybridframes',
-                              get_frame_name(anim_args.video_init_path) + f"_mask{frame_idx:09}.jpg")
-    comp_frame = os.path.join(args.outdir, 'hybridframes',
-                              get_frame_name(anim_args.video_init_path) + f"_comp{frame_idx:09}.jpg")
-    prev_frame = os.path.join(args.outdir, 'hybridframes',
-                              get_frame_name(anim_args.video_init_path) + f"_prev{frame_idx:09}.jpg")
+    mask_frame = os.path.join(args.outdir, 'hybridframes', f"{frame_name}_mask{frame_idx:09}.jpg")
+    comp_frame = os.path.join(args.outdir, 'hybridframes', f"{frame_name}_comp{frame_idx:09}.jpg")
+    prev_frame = os.path.join(args.outdir, 'hybridframes', f"{frame_name}_prev{frame_idx:09}.jpg")
     prev_img = cv2.cvtColor(prev_img, cv2.COLOR_BGR2RGB)
     prev_img_hybrid = Image.fromarray(prev_img)
     if anim_args.hybrid_use_init_image:

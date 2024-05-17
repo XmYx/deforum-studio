@@ -25,8 +25,9 @@ class AppConfig(LogConfig):
     other_model_dir: str
     output_dir: str
     comfy_update: bool
+    enable_onediff: bool
     allow_blocking_input_frame_lists: bool
-    projectm_docker_image: str
+    projectm_executable: str
 
     @staticmethod
     def load():
@@ -52,8 +53,9 @@ class AppConfig(LogConfig):
             other_model_dir = config('OTHER_MODEL_PATH', default=os.path.join(root_path, "models", "other")),
             output_dir = config('OUTPUT_PATH', default=os.path.join(root_path, "output", "deforum")),
             comfy_update = config('COMFY_UPDATE', default=False, cast=bool),
+            enable_onediff = config('ENABLE_ONEDIFF', default=True, cast=bool),
             allow_blocking_input_frame_lists = config('ALLOW_BLOCKING_INPUT_FRAME_LISTS', default=False, cast=bool),
-            projectm_docker_image = config('PROJECTM_DOCKER_IMAGE', default="rewbs/projectm-cli:0.0.4"),
+            projectm_executable = config('PROJECTM_EXECUTABLE', default="projectMCli"),
             log_level = config('DEFORUM_LOG_LEVEL', default='DEBUG'),
             log_to_file = config('DEFORUM_LOG_TO_FILE', default=False, cast=bool),
             log_dir = config('DEFORUM_LOG_DIR',  default=os.path.join(root_path,'logs')),

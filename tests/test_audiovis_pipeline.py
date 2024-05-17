@@ -22,7 +22,7 @@ def run_projectm(input_audio: str, host_output_path : str, preset: str = 'ORB - 
     # Update with your path to a directory holding all milkdrop presets of interest
     preset_path = "/home/rewbs/milkdrop/presets_all"
     # Update with your path to the projectM binary
-    projectm_path = "projectMCli"
+    projectm_path = config.projectm_executable
     
 
     if not os.path.exists(texture_path):
@@ -42,6 +42,7 @@ def run_projectm(input_audio: str, host_output_path : str, preset: str = 'ORB - 
         "--width", f"{width}",
         "--height", f"{height}",
         "--beatSensitivity", "2.0",
+        "--calibrate", "1",
         "--fps", f"{fps}",
         "--presetFile",  os.path.join(preset_path, preset),
         "--audioPath", f"{input_audio}"
@@ -97,6 +98,8 @@ if __name__ == "__main__":
     #############
 
     expected_frame_count = math.floor(fps * get_audio_duration(input_audio))
+    expected_frame_count = 24 # override max fames for testing
+
     job_name = f"manual_audiovis_{time.strftime('%Y%m%d%H%M%S')}"
     job_output_dir =  os.path.join(config.output_dir, job_name)
     hybrid_frame_path = os.path.join(job_output_dir, "inputframes")
@@ -379,10 +382,10 @@ if __name__ == "__main__":
         "r_upscale_model": "realesr-animevideov3",
         "r_upscale_keep_imgs": True,
         "store_frames_in_ram": False,
-        "frame_interpolation_engine": "FILM",
-        "frame_interpolation_x_amount": 3,
+        "frame_interpolation_engine": "RIFE",
+        "frame_interpolation_x_amount": 2,
         "frame_interpolation_slow_mo_enabled": False,
-        "frame_interpolation_slow_mo_amount": 2,
+        "frame_interpolation_slow_mo_amount": 0,
         "frame_interpolation_keep_imgs": True,
         "frame_interpolation_use_upscaled": False,
         "sd_model_name": "protovisionxl.safetensors",
