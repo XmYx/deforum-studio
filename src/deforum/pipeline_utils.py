@@ -292,6 +292,10 @@ class DeforumGenerationObject(DeforumDataObject):
 
         Returns:
             DeforumGenerationObject: Initialized generation object instance.
+
+        Raises:
+            FileNotFoundError: If the settings file is not found.
+            ValueError: If the provided file type is unsupported.
         """
         instance = cls()
 

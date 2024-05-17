@@ -330,7 +330,7 @@ def optical_flow_motion(cls: Any) -> None:
         None: Modifies the class instance attributes in place.
     """
     if cls.gen.frame_idx < 1:
-        # logger.info("Skipping optical flow motion for first frame.")
+        logger.debug("Skipping optical flow motion for first frame.")
         return
 
     if cls.gen.prev_img is not None and cls.gen.inputfiles is not None:

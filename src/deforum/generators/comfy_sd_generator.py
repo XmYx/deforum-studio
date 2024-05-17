@@ -463,9 +463,9 @@ class ComfyDeforumGenerator:
                 np.array(cnet_image).astype(np.float16) / 255.0
             ).unsqueeze(0)
         if init_image is None or reset_noise:
-            # logger.info(
-            #     f"reset_noise: {reset_noise}; resetting denoise strength to 1.0 from: {denoise}"
-            # )
+            logger.info(
+                f"reset_noise: {reset_noise}; resetting denoise strength to 1.0 from: {denoise}"
+            )
             denoise = 1.0
             if latent is None:
                 if width is None:
@@ -572,7 +572,6 @@ class ComfyDeforumGenerator:
                     )
         if cnet_image is not None:
             cond = apply_controlnet(cond, self.controlnet, cnet_image, 1.0)
-        # logger.info(f"seed/subseed/subseed_str={seed}/{subseed}/{subseed_strength}; strength={strength}; scale={scale}; sampler_name={sampler_name}; scheduler={scheduler};")
         if not hasattr(self, "sampler_node"):
             from nodes import NODE_CLASS_MAPPINGS
             self.sampler_node = NODE_CLASS_MAPPINGS['KSampler //Inspire']()
@@ -581,7 +580,7 @@ class ComfyDeforumGenerator:
             sample_fn = self.sampler_node.sample
         elif hasattr(self.sampler_node, "doit"):
             sample_fn = self.sampler_node.doit
-        #logger.info(f"SEED:{seed}, STPS:{steps}, CFG:{scale}, SMPL:{sampler_name}, SCHD:{scheduler}, DENOISE:{denoise}, STR:{strength}, SUB:{subseed}, SUBSTR:{subseed_strength}")
+        logger.debug(f"SEED:{seed}, STPS:{steps}, CFG:{scale}, SMPL:{sampler_name}, SCHD:{scheduler}, DENOISE:{denoise}, STR:{strength}, SUB:{subseed}, SUBSTR:{subseed_strength}")
         sample = sample_fn(
             self.model,
             seed,
