@@ -68,13 +68,6 @@ QCheckBox::indicator {
     height: 18px;
 }
 
-QCheckBox::indicator:checked {
-    image: url(:/icons/checkbox_checked.png);
-}
-
-QCheckBox::indicator:unchecked {
-    image: url(:/icons/checkbox_unchecked.png);
-}
 
 /* QComboBox styles */
 QComboBox {
