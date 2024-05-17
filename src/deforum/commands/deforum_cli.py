@@ -29,10 +29,9 @@ Raises:
     ValueError: If an invalid option is passed to the command line arguments.
 """
 import argparse
-import os
-import random
 import subprocess
 import sys
+import os
 import traceback
 
 from deforum.commands.deforum_run_unit_test import run_unit_test
@@ -91,7 +90,7 @@ def start_deforum_cli() -> None:
     Function to start the DeForUM's Consule Line Interface, featuring various operational modes.
 
     This function parses command line arguments to determine the operational mode of DeForUM. The operational
-    modes include 'webui', 'animatediff', 'runpresets', 'api', 'setup', 'ui', 'runsingle', 'config', and 'unittest'.
+    modes include 'webui', 'animatediff', 'test', 'api', 'setup', 'ui', 'runsingle', 'config', and 'unittest'.
     Depending on the selected mode, different components of the DeForUM suite are invoked. A file path and additional
     options can also be passed as arguments to the function.
 
@@ -103,7 +102,7 @@ def start_deforum_cli() -> None:
     """
     parser = argparse.ArgumentParser(description="Load settings from a txt file and run the deforum process.")
     # Positional mode argument
-    parser.add_argument("mode", choices=['webui', 'animatediff', 'runpresets', 'api', 'setup', 'ui', 'runsingle', 'config', 'unittest', 'version'], default=None, nargs='?',
+    parser.add_argument("mode", choices=['webui', 'animatediff', 'test', 'api', 'setup', 'ui', 'runsingle', 'config', 'unittest', 'version'], default=None, nargs='?',
                         help="Choose the mode to run.")
 
     parser.add_argument("--file", type=str, help="Path to the deforum settings file.")
@@ -158,19 +157,22 @@ def start_deforum_cli() -> None:
             pipe = DeforumAnimateDiffPipeline.from_civitai(model_id=modelid)
             _ = pipe(**extra_args, **options)
 
-        elif args_main.mode == "runpresets":
+        elif args_main.mode == "test":
+            import time
+            import random
             from deforum import DeforumAnimationPipeline
-            modelid = str(options.get("modelid", "125703"))
+            from deforum.utils.constants import config
+            from deforum.pipeline_utils import load_settings
 
-            deforum = DeforumAnimationPipeline.from_civitai(model_id=modelid)
+            deforum = DeforumAnimationPipeline.from_civitai(model_id="125703")
 
-            preset_dir = "presets"
+            preset_dir = os.path.join(config.root_path, "presets")
+            settings_dir = os.path.join(preset_dir, "settings")
             txt_files = [os.path.join(root, file)
-                        for root, _, files in os.walk(preset_dir)
+                        for root, _, files in os.walk(settings_dir)
                         for file in files if file.endswith(".txt")]
 
-            if options.get("randomize_files", False):
-                random.shuffle(txt_files)
+            random.shuffle(txt_files)
 
             for file_path in txt_files:
                 try:
@@ -178,14 +180,17 @@ def start_deforum_cli() -> None:
                     batch_name = os.path.splitext(os.path.basename(file_path))[0]
                     logger.info(f"Batch Name: {batch_name}")
 
-                    extra_args["settings_file"] = file_path
+                    args = load_settings(file_path)
+                    args["video_init_path"] = os.path.join(settings_dir, args.get("video_init_path", ""))
+                    args["prompts"] = {"0": "A solo delorean speeding on an ethereal highway through time jumps, like in the iconic movie back to the future."}
+                    args["seed"] = 420
 
-                    options.update({
-                        "prompts": {"0": "A solo delorean speeding on an ethereal highway through time jumps, like in the iconic movie back to the future."},
-                        "seed": 420,
-                    })
+                    start_time = time.time()
+                    deforum(**args)
+                    end_time = time.time()
 
-                    deforum(**extra_args, **options)
+                    execution_time = end_time - start_time
+                    logger.info(f"Execution time: {execution_time:.2f} seconds")
                 except Exception as e:
                     logger.error(traceback.format_exc())
 
