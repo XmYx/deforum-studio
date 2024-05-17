@@ -31,7 +31,7 @@ Currently, the repository is in development, and the recommended installation me
    ```
 
 ## Testing
-Prior to testing make sure you clone the `https://github.com/deforum-studio/deforum-presets.git` into the deforum folder withing the root directory. Settings files assume a path of `~/deforum/presets/settings/` by default. You can verify that the path's are setup correctly by running `python tests/test_animation_pipeline.py`. 
+Prior to testing make sure you clone the `https://github.com/deforum-studio/deforum-presets.git` into the deforum folder within the root directory. Settings files assume a path of `~/deforum/presets/settings/` by default. You can verify that the path's are setup correctly by running `python tests/test_animation_pipeline.py`. 
 
 For a full settings run you can use the `deforum test` cli command in the terminal. This will run all presets in the settings folder (`~/deforum/presets/settings/` by default).
 
