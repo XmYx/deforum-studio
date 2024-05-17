@@ -53,10 +53,19 @@ for /f "delims=" %%i in ('powershell -Command "[System.IO.Path]::GetFullPath('%V
 for /f "delims=" %%i in ('powershell -Command "[System.IO.Path]::GetFullPath('%ROOT_DIR%')"') do set "ROOT_PATH=%%i"
 for /f "delims=" %%i in ('powershell -Command "[System.IO.Path]::GetFullPath('%COMFY_DIR%')"') do set "COMFY_PATH=%%i"
 
+REM Trim trailing spaces from paths
+for /f "tokens=* delims= " %%A in ("%VENV_PATH%") do set "VENV_PATH=%%A"
+for /f "tokens=* delims= " %%A in ("%ROOT_PATH%") do set "ROOT_PATH=%%A"
+for /f "tokens=* delims= " %%A in ("%COMFY_PATH%") do set "COMFY_PATH=%%A"
+
 REM Save to .env file
-echo VENV_PATH=%VENV_PATH% > "%CURRENT_DIR%\.env"
-echo ROOT_PATH=%ROOT_PATH% >> "%CURRENT_DIR%\.env"
-echo COMFY_PATH=%COMFY_PATH% >> "%CURRENT_DIR%\.env"
+(
+    echo VENV_PATH=%VENV_PATH%
+    echo ROOT_PATH=%ROOT_PATH%
+    echo COMFY_PATH=%COMFY_PATH%
+) > "%CURRENT_DIR%\.env"
+
+git submodule update --init --recursive
 
 REM Create virtual environment and install dependencies
 pip install virtualenv
