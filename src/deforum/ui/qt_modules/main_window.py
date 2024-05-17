@@ -49,29 +49,28 @@ known_dropdowns = {"milk_path":list_milk_presets(os.path.join(config.root_path, 
 try:
     import pygame
 
+
     class JoystickHandler:
         def __init__(self):
             pygame.init()
             pygame.joystick.init()
-            self.joystick_count = pygame.joystick.get_count()
-            if self.joystick_count > 0:
-                self.joystick = pygame.joystick.Joystick(0)
-                self.joystick.init()
-            else:
-                self.joystick = None
+            self.joysticks = [pygame.joystick.Joystick(i) for i in range(pygame.joystick.get_count())]
+            for joystick in self.joysticks:
+                joystick.init()
 
-        def get_axis(self, axis):
+        def get_axis(self, joystick_index, axis):
             pygame.event.pump()
-            if self.joystick:
-                return self.joystick.get_axis(axis)
+            if 0 <= joystick_index < len(self.joysticks):
+                return self.joysticks[joystick_index].get_axis(axis)
             return 0
 except:
     class JoystickHandler:
         def __init__(self):
             self.joystick_count = 0
             self.joystick = None
+            self.joysticks = []
 
-        def get_axis(self, axis):
+        def get_axis(self, joystick_index, axis):
             return 0
 
 # Usage in your main application
@@ -286,8 +285,9 @@ class LiveControlDockWidget(QDockWidget):
         self.sliders = {}
         self.dropdowns = {}
         self.checkboxes = {}
-        self.joystick_axis_mapping = {axis: -1 for axis in self.engine.parameters}  # -1 means no axis assigned
+        self.joystick_axis_mapping = {axis: (-1, -1) for axis in self.engine.parameters}
         self.invert_joystick = {axis: False for axis in self.engine.parameters}
+
 
         for axis in ['translation_x', 'translation_y', 'translation_z', 'rotation_3d_x', 'rotation_3d_y',
                      'rotation_3d_z']:
@@ -312,13 +312,14 @@ class LiveControlDockWidget(QDockWidget):
             sublayout.addWidget(auto_return_chk)
 
             axis_dropdown = QComboBox()
-            if joystick_handler.joystick is not None:
-                axis_dropdown.addItems(['None'] + [f'Axis {i}' for i in range(joystick_handler.joystick.get_numaxes())])
+            if joystick_handler.joysticks:
+                axis_dropdown.addItems(['None'] + [f'Joystick {i} Axis {j}' for i in range(len(joystick_handler.joysticks)) for j in range(joystick_handler.joysticks[i].get_numaxes())])
             else:
                 axis_dropdown.addItems(['None'])
             axis_dropdown.currentIndexChanged.connect(lambda index, a=axis: self.set_joystick_axis(a, index-1))
             sublayout.addWidget(axis_dropdown)
             self.dropdowns[axis] = axis_dropdown
+
             # Checkbox for inverting joystick input
             invert_checkbox = QCheckBox("Invert")
             invert_checkbox.toggled.connect(lambda checked, a=axis: self.set_invert_joystick(a, checked))
@@ -365,25 +366,27 @@ class LiveControlDockWidget(QDockWidget):
         self.joystick_enabled = checked
         self.joystick_button.setText("Disable Joystick" if checked else "Enable Joystick")
 
-    def set_joystick_axis(self, axis, joystick_index):
-        # Store the joystick axis linked to each parameter
-        self.joystick_axis_mapping[axis] = joystick_index
+    def set_joystick_axis(self, axis, index):
+        if index == -1:
+            self.joystick_axis_mapping[axis] = (-1, -1)
+        else:
+            joystick_index = index // max([j.get_numaxes() for j in joystick_handler.joysticks])
+            axis_index = index % max([j.get_numaxes() for j in joystick_handler.joysticks])
+            self.joystick_axis_mapping[axis] = (joystick_index, axis_index)
 
     def set_invert_joystick(self, axis, invert):
-        # Store inversion state
         self.invert_joystick[axis] = invert
 
-    # Periodically update parameters based on joystick input
     def update_parameters_from_joystick(self):
         if not self.joystick_enabled:
             return
-        for axis, joystick_index in self.joystick_axis_mapping.items():
-            if joystick_index >= 0:
-                raw_input = joystick_handler.get_axis(joystick_index)
+        for axis, (joystick_index, axis_index) in self.joystick_axis_mapping.items():
+            if joystick_index >= 0 and axis_index >= 0:
+                raw_input = joystick_handler.get_axis(joystick_index, axis_index)
                 inverted = -1 if self.invert_joystick[axis] else 1
                 self.engine.parameters[axis] = (self.engine.acceleration[axis] * 1000) * raw_input * inverted
-                # self.engine.update_parameter(axis, 10 * raw_input * inverted)
                 self.status_labels[axis].setText(f"{axis}: {(self.engine.acceleration[axis] * 1000) * raw_input * inverted:.2f}")
+
 
 class MainWindow(DeforumCore):
     def __init__(self):
