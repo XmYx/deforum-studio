@@ -111,8 +111,8 @@ def ensure_comfy(custom_path=None):
     curr_folder = os.getcwd()
     comfy_submodules = [
         # ('https://github.com/XmYx/ComfyUI-AnimateDiff-Evolved', 'commit_id_1'),
-        ('https://github.com/XmYx/ComfyUI-Inspire-Pack', 'd40389f93d6f42b44e0e2f02190a216762d028d8'),
         ('https://github.com/ltdrdata/ComfyUI-Impact-Pack', '48d9ce7528f83074b6db7a7b15ef7e88c7134aa5'),
+        ('https://github.com/XmYx/ComfyUI-Inspire-Pack', 'd40389f93d6f42b44e0e2f02190a216762d028d8'),
         ('https://github.com/shiimizu/ComfyUI_smZNodes', 'a1627ce2ade31822694d82aa9600a4eff0f99d69'),
         ('https://github.com/gameltb/ComfyUI_stable_fast', 'c0327e6f076bd8a36e3c29f3594025c76cf9beae')
     ]
