@@ -101,6 +101,8 @@ echo "VENV_PATH=$VENV_PATH" > .env
 echo "ROOT_PATH=$ROOT_PATH" >> .env
 echo "COMFY_PATH=$COMFY_PATH" >> .env
 
+git submodule update --init --recursive
+
 # Create virtual environment and install dependencies
 python3 -m venv "$VENV_PATH"
 source "$VENV_PATH/bin/activate"
