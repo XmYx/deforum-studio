@@ -1,24 +1,32 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 
-REM Function to create directory if it does not exist
-:CREATE_DIR_IF_NOT_EXISTS
-IF NOT EXIST "%1" (
-    mkdir "%1"
-)
-exit /b
+REM Get current working directory
+set "CURRENT_DIR=%cd%"
 
-REM Check if .env file exists
-IF NOT EXIST .env (
+REM Check if .env file exists in the current directory
+IF NOT EXIST "%CURRENT_DIR%\.env" (
     echo .env file not found. Running install.bat...
     call install.bat
 )
 
 REM Load environment variables from .env file
-for /f "delims=" %%i in ('.env') do set %%i
+for /f "tokens=* delims=" %%i in (%CURRENT_DIR%\.env) do (
+    set "line=%%i"
+    setlocal enabledelayedexpansion
+    for /f "tokens=1,2 delims==" %%j in ("!line!") do (
+        endlocal
+        set "%%j=%%k"
+    )
+)
+
+
+REM Ensure VENV_PATH is correctly formatted
+set "VENV_ACTIVATE=%VENV_PATH%\Scripts\activate.bat"
+echo "%VENV_ACTIVATE%"
 
 REM Activate virtual environment
-call "%VENV_PATH%\Scripts\activate.bat"
+call "%VENV_ACTIVATE%"
 
 REM Menu options
 set "options[1]=deforum ui: PyQt6 UI for configuring and running animations"
@@ -34,11 +42,12 @@ set "options[9]=deforum unittest: Run unit test"
 REM Display menu and get user choice
 echo Select an option:
 for %%i in (1 2 3 4 5 6 7 8 9) do (
-    call echo %%i. %%options[%%i]%%
+    echo %%i. !options[%%i]!
 )
 
 REM Read user choice
 set /p "choice=Enter the number of your choice: "
+
 
 REM Execute the corresponding command
 if "%choice%"=="1" (
