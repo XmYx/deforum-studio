@@ -1,3 +1,5 @@
+from PyQt6.QtWidgets import QApplication
+
 from deforum import logger
 
 import copy
@@ -31,6 +33,7 @@ from deforum.ui.qt_modules.console_widget import NodesConsole, StreamRedirect
 from deforum.ui.qt_modules.core import DeforumCore
 from deforum.ui.qt_modules.custom_ui import ResizableImageLabel, JobDetailPopup, JobQueueItem, AspectRatioMdiSubWindow, \
     DetachableTabWidget, AutoReattachDockWidget, CustomTextBox
+from deforum.ui.qt_modules.help import HelpDialog, AboutDialog
 from deforum.ui.qt_modules.ref import TimeLineQDockWidget
 from deforum.utils.constants import config
 from deforum.ui.qt_modules.viz_thread import VisualGeneratorThread
@@ -395,6 +398,7 @@ class MainWindow(DeforumCore):
         self.setupBatchControls()
         self.setupVideoPlayer()
         self.create_console_widget()
+        self.setupHelpMenu()
         self.tileMdiSubWindows()
         self.timelineDock.hide()
         self.newProject()
@@ -595,6 +599,10 @@ class MainWindow(DeforumCore):
         convertProjectAction.triggered.connect(self.convertProjectToSingleSettingsFile)
         fileMenu.addAction(convertProjectAction)
 
+        # Add Theme Switcher
+        themeMenu = fileMenu.addMenu('&Themes')
+        self.loadThemeMenu(themeMenu)
+
         self.presetsDropdown = menuBar.addMenu('&Presets')
         #self.presetsDropdown.currentIndexChanged.connect(self.loadPreset)
         # self.presetsDropdown.triggered.connect(self.loadPresetsDropdown)
@@ -603,6 +611,23 @@ class MainWindow(DeforumCore):
         layoutsMenu = menuBar.addMenu('&Layouts')
         self.setupLayoutsMenu(layoutsMenu)
 
+    def loadThemeMenu(self, themeMenu):
+        """Load theme switcher menu with available QSS files."""
+        qss_folder = os.path.join(config.src_path, 'deforum', 'ui', 'qss')
+
+        if os.path.exists(qss_folder):
+            for qss_file in os.listdir(qss_folder):
+                if qss_file.endswith('.qss'):
+                    theme_action = QAction(qss_file, self)
+                    theme_action.triggered.connect(lambda checked, qss=qss_file: self.applyTheme(qss))
+                    themeMenu.addAction(theme_action)
+
+    def applyTheme(self, qss_file):
+        """Apply the selected QSS theme."""
+        qss_path = os.path.join(config.src_path, 'deforum', 'ui', 'qss', qss_file)
+        with open(qss_path, 'r') as file:
+            qss = file.read()
+            QApplication.instance().setStyleSheet(qss)
     def setupLayoutsMenu(self, layoutsMenu):
         saveLayoutAction = QAction('&Save Current Layout', self)
         saveLayoutAction.triggered.connect(self.saveCurrentLayout)
@@ -782,6 +807,27 @@ class MainWindow(DeforumCore):
         self.videoSubWindow.widget().setLayout(mainLayout)
         # self.videoSlider.valueChanged.connect(self.setResumeFrom)
         # self.player.mediaStatusChanged.connect(self.onMediaStatusChanged)
+    def setupHelpMenu(self):
+        # Create the Help menu
+        help_menu = self.menuBar().addMenu("Help")
+
+        # Create Help action
+        help_action = QAction("Help", self)
+        help_action.triggered.connect(self.show_help_dialog)
+        help_menu.addAction(help_action)
+
+        # Create About action
+        about_action = QAction("About", self)
+        about_action.triggered.connect(self.show_about_dialog)
+        help_menu.addAction(about_action)
+
+    def show_help_dialog(self):
+        help_dialog = HelpDialog()
+        help_dialog.exec()
+
+    def show_about_dialog(self):
+        about_dialog = AboutDialog()
+        about_dialog.exec()
     def create_console_widget(self):
         # Create a text widget for stdout and stderr
         self.text_widget = NodesConsole()

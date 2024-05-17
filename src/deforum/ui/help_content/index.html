@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deforum Help</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border: 1px solid #ddd;
+            overflow-x: auto;
+        }
+        code {
+            font-family: Consolas, monospace;
+        }
+        ul {
+            margin: 0;
+            padding: 0;
+            list-style-type: none;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Deforum</h1>
+    <p>State-of-the-art Animation Diffusion in PyTorch and TRT.</p>
+
+    <h2>System Requirements</h2>
+    <ul>
+        <li>Linux-like operating system</li>
+        <li>NVIDIA GPU with CUDA drivers</li>
+    </ul>
+
+    <h2>Installation</h2>
+    <p>Currently, the repository is in development, but we already provide an easy installer for Windows and Linux.</p>
+
+    <h3>For Users:</h3>
+    <ul>
+        <li>On Windows, run <code>start.bat</code></li>
+        <li>On Linux, run <code>bash start.sh</code></li>
+    </ul>
+
+    <h3>For Developers:</h3>
+    <p>Clone the repository:</p>
+    <pre><code>git clone --recursive https://github.com/deforum-studio/deforum
+cd deforum
+</code></pre>
+    <p>Create a virtual environment for Python 3.10:</p>
+    <p>Using venv:</p>
+    <pre><code>virtualenv venv -p 3.10
+source venv/bin/activate
+</code></pre>
+    <p>Using conda:</p>
+    <pre><code>conda create -n deforum python=3.10
+conda activate deforum
+</code></pre>
+    <p>Install the library with developer dependencies:</p>
+    <pre><code>pip install -e .
+</code></pre>
+
+    <h2>Testing</h2>
+    <p>Prior to testing, make sure you clone the <code>https://github.com/deforum-studio/deforum-presets.git</code> into the <code>deforum</code> folder within the root directory. Settings files assume a path of <code>~/deforum/presets/settings/</code> by default. You can verify that the paths are set up correctly by running <code>python tests/test_animation_pipeline.py</code>.</p>
+    <p>For a full settings run, you can use the <code>deforum test</code> CLI command in the terminal. This will run all presets in the settings folder (<code>~/deforum/presets/settings/</code> by default).</p>
+
+    <h2>CLI Commands</h2>
+    <p>Deforum has the following CLI modes:</p>
+    <ul>
+        <li><code>deforum ui</code>: PyQt6 UI for configuring and running animations</li>
+        <li><code>deforum webui</code>: Streamlit web UI for configuring and running animations</li>
+        <li><code>deforum animatediff</code>: Command-line tool for running animations</li>
+        <li><code>deforum test</code>: Run through all motion presets for testing purposes</li>
+        <li><code>deforum api</code>: FastAPI server</li>
+        <li><code>deforum setup</code>: Install Stable-Fast optimizations</li>
+        <li><code>deforum runsingle --file ~/deforum/presets/preset.txt</code>: Run single settings file</li>
+        <li><code>deforum config</code></li>
+        <li><code>deforum unittest</code>: Run unit tests</li>
+    </ul>
+
+    <h2>Documentation</h2>
+    <p>Documentation for Deforum is currently a work in progress and will be included as part of this library in the future.</p>
+
+    <h2>Known Issues and Limitations</h2>
+    <p>Please be aware that the codebase is changing rapidly, and it is currently difficult to assess if all features are working properly. However, to our knowledge, the code is functioning as intended.</p>
+
+    <h2>Contributing</h2>
+    <p>Developers who wish to contribute to Deforum should create a branch from the main branch and label it with the format <code>username/branch-name</code>. All pull requests should be made into the develop branch.</p>
+
+    <h2>Acknowledgments and References</h2>
+    <p>There are numerous references and acknowledgments that need to be made for the libraries and resources used in Deforum. This section is currently a work in progress and will be updated in the future.</p>
+
+    <h2>License</h2>
+    <p>Deforum is licensed under the GNU General Public License v3.0. For more information, please refer to the license.</p>
+
+    <h2>TODO Checklist</h2>
+    <ul>
+        <li>Complete comprehensive documentation</li>
+        <li>Add more test cases and examples</li>
+        <li>Improve error handling and logging</li>
+        <li>Optimize performance and resource usage</li>
+        <li>Enhance user experience and usability</li>
+        <li>Implement additional features and functionalities</li>
+        <li>Refactor and clean up codebase</li>
+        <li>Update acknowledgments and references</li>
+    </ul>
+</body>
+</html>
