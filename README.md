@@ -31,18 +31,16 @@ Currently, the repository is in development, and the recommended installation me
    ```
 
 ## Testing
-To ensure that the library is properly installed, run a test generation:
-```bash
-python tests/test_animation_pipeline.py
-```
-The generated outputs will be saved to `$HOME/deforum/outputs`, which is the default output path.
+Prior to testing make sure you clone the `https://github.com/deforum-studio/deforum-presets.git` into the deforum folder within the root directory. Settings files assume a path of `~/deforum/presets/settings/` by default. You can verify that the path's are setup correctly by running `python tests/test_animation_pipeline.py`. 
+
+For a full settings run you can use the `deforum test` cli command in the terminal. This will run all presets in the settings folder (`~/deforum/presets/settings/` by default).
 
 ## CLI Commands
 Deforum has the following CLI modes:
 - `deforum ui`: PyQt6 UI for configuring and running animations
 - `deforum webui`: Streamlit web UI for configuring and running animations
 - `deforum animatediff`: Command-line tool for running animations
-- `deforum runpresets --options randomize_files=True`: Run through all motion presets in `presets/` for testing purposes
+- `deforum test`: Run through all motion presets in for testing purposes
 - `deforum api`: FastAPI server
 - `deforum setup`: Install Stable-Fast optimizations
 - `deforum runsingle --file ~/deforum/presets/preset.txt`: Run single settings file

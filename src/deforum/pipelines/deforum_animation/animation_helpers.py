@@ -326,7 +326,7 @@ def optical_flow_motion(cls: Any) -> None:
         None: Modifies the class instance attributes in place.
     """
     if cls.gen.frame_idx < 1:
-        logger.info("Skipping optical flow motion for first frame.")
+        logger.debug("Skipping optical flow motion for first frame.")
         return
 
     if cls.gen.prev_img is not None and cls.gen.inputfiles is not None:
@@ -1304,7 +1304,7 @@ def rife_interpolate_cls(cls):
         cls.gen.image_paths = []
 
 def save_video_cls(cls):
-    dir_path = os.path.join(config.output_dir, 'video')
+    dir_path = config.video_dir
     os.makedirs(dir_path, exist_ok=True)
     if cls.gen.timestring not in cls.gen.batch_name:
         name = f'{cls.gen.batch_name}_{cls.gen.timestring}'
@@ -1333,6 +1333,7 @@ def save_video_cls(cls):
 
 
     try:
+        logger.info(f"saving to {output_filename_base}.mp4")
         cls.gen.video_path = save_as_h264(cls.images, output_filename_base + ".mp4", audio_path=audio_path, fps=fps)
     except Exception as e:
         logger.error(f"save as h264 failed: {str(e)}")

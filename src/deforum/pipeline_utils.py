@@ -50,6 +50,36 @@ def extract_values(args):
     return {key: value['value'] for key, value in args.items()}
 
 
+def load_settings(settings_file_path: str) -> dict:
+    """
+    Load settings from a provided file.
+
+    Args:
+        settings_file_path (str): Path to the settings file.
+
+    Returns:
+        dict: Loaded settings data.
+
+    Raises:
+        ValueError: If the provided file type is unsupported.
+    """
+    if not os.path.isfile(settings_file_path):
+        raise FileNotFoundError(f"Settings file not found: {settings_file_path}")
+
+    file_ext = os.path.splitext(settings_file_path)[1]
+    if file_ext == '.json':
+        with open(settings_file_path, 'r') as f:
+            data = json.load(f)
+    elif file_ext == '.txt':
+        with open(settings_file_path, 'r') as f:
+            content = f.read()
+            data = json.loads(content)
+    else:
+        raise ValueError("Unsupported file type")
+
+    return data
+
+
 class DeforumDataObject:
     """
     Class representing the data object for Deforum animations.
@@ -264,23 +294,15 @@ class DeforumGenerationObject(DeforumDataObject):
             DeforumGenerationObject: Initialized generation object instance.
 
         Raises:
+            FileNotFoundError: If the settings file is not found.
             ValueError: If the provided file type is unsupported.
         """
         instance = cls()
 
         # Load data from provided file
-        if settings_file_path and os.path.isfile(settings_file_path):
+        if settings_file_path:
             logger.info(f"settings_file_path: {settings_file_path}")
-            file_ext = os.path.splitext(settings_file_path)[1]
-            if file_ext == '.json':
-                with open(settings_file_path, 'r') as f:
-                    data = json.load(f)
-            elif file_ext == '.txt':
-                with open(settings_file_path, 'r') as f:
-                    content = f.read()
-                    data = json.loads(content)
-            else:
-                raise ValueError("Unsupported file type")
+            data = load_settings(settings_file_path)
 
             # Update instance attributes using loaded data
             for key, value in data.items():
@@ -295,7 +317,6 @@ class DeforumGenerationObject(DeforumDataObject):
             instance.animation_prompts = instance.prompts
 
         return instance
-
 
 class DeforumKeyFrame(DeforumDataObject):
     """
