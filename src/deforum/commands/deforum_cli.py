@@ -102,7 +102,7 @@ def start_deforum_cli() -> None:
     """
     parser = argparse.ArgumentParser(description="Load settings from a txt file and run the deforum process.")
     # Positional mode argument
-    parser.add_argument("mode", choices=['webui', 'animatediff', 'test', 'api', 'setup', 'ui', 'runsingle', 'config', 'unittest', 'version'], default=None, nargs='?',
+    parser.add_argument("mode", choices=['webui', 'animatediff', 'test', 'api', 'setup', 'ui', 'runsingle', 'config', 'unittest', 'version', 'lab'], default=None, nargs='?',
                         help="Choose the mode to run.")
 
     parser.add_argument("--file", type=str, help="Path to the deforum settings file.")
@@ -259,7 +259,23 @@ def start_deforum_cli() -> None:
             with open(main_script_path, 'r') as main_script_file:
                 main_script_code = main_script_file.read()
                 exec(main_script_code, {'__name__': '__main__'})
-            # subprocess.run([sys.executable, main_script_path])
+        elif args_main.mode == "lab":
+            install_qtpy()
+
+            # Get the absolute path of the current file
+            current_file_path = os.path.abspath(__file__)
+
+            # Get the parent directory of the current file
+            parent_directory = os.path.dirname(current_file_path)
+
+            # Assuming 'deforum' is in the parent directory of the current file
+            deforum_directory = os.path.dirname(parent_directory)
+            # Construct the path to main.py
+            main_script_path = os.path.join(deforum_directory, "ui", "audio_to_schedule.py")
+
+            with open(main_script_path, 'r') as main_script_file:
+                main_script_code = main_script_file.read()
+                exec(main_script_code, {'__name__': '__main__'})
         elif args_main.mode == 'runsingle':
             install_qtpy()
 
