@@ -1,7 +1,7 @@
 import sys
 import os
 
-from PyQt6.QtGui import QAction, QWindow
+from PyQt6.QtGui import QAction, QWindow, QPalette
 from PyQt6.QtWidgets import QApplication, QMainWindow, QTreeWidget, QTreeWidgetItem, QTextBrowser, QVBoxLayout, \
     QSplitter, QDialog, QLineEdit, QLabel, QTreeWidgetItemIterator
 from PyQt6.QtCore import Qt
@@ -74,16 +74,22 @@ class HelpDialog(QDialog):
             new_item.setData(0, Qt.ItemDataRole.UserRole, path)
         return new_item
 
+    def adjust_html_for_theme(self, html_content):
+        # Check if dark mode is active
+        if self.palette().color(QPalette.ColorRole.Window).lightness() < 128:
+            # Add CSS to invert colors for dark mode
+            return f"<style>body {{ filter: invert(100%); }}</style>{html_content}"
+        return html_content
+
     def display_help_content(self, item, column):
         file_path = item.data(0, Qt.ItemDataRole.UserRole)
-        if file_path == "index.html":
-            self.load_start_page()
-        elif file_path and os.path.exists(file_path):
+        if file_path and os.path.exists(file_path):
             with open(file_path, "r") as file:
                 content = file.read()
-                self.text_browser.setHtml(content)
+                adjusted_content = self.adjust_html_for_theme(content)
+                self.text_browser.setHtml(adjusted_content)
         else:
-            self.text_browser.setHtml("<h1>Help</h1><p>Select a topic to view help content.</p>")
+            self.text_browser.setHtml(self.adjust_html_for_theme("<h1>Help</h1><p>Select a topic to view help content.</p>"))
 
 
     def load_start_page(self):
