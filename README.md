@@ -75,7 +75,7 @@ pytest unittests
 ## Ad-hoc testing
 
 For ad-hoc validation of miscellaneous functionality, you can directly run the test-* scripts under `./tests`.
-TODO: these should probably converted to integration tests with clear expected outputs.
+(TODO: these should probably converted to integration tests with clear expected outputs. Alternatively we can recast these scripts as "examples" of how to use the lib.)
 
 
 ## End-to-end testing

@@ -805,6 +805,7 @@ def post_gen_cls(cls: Any) -> None:
             cls.gen.prev_img = cls.gen.opencv_image
         #     # cls.logger(f"                                   [ updated prev_img ]", True)
 
+        image_full_path = None
         if cls.gen.turbo_steps > 1 and cls.gen.frame_idx > 0:
             cls.gen.turbo_prev_image, cls.gen.turbo_prev_frame_idx = cls.gen.turbo_next_image, cls.gen.turbo_next_frame_idx
             cls.gen.turbo_next_image, cls.gen.turbo_next_frame_idx = cls.gen.opencv_image, cls.gen.frame_idx
