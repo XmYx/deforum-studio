@@ -13,7 +13,14 @@ class BlockingFileList:
     
     For example, for a given access like `blockingFileList[34]` where optional_prefix="foo" and extensions=["jpg", "png"], the order
     in which the files are checked is:
-
+    - "foo000000034.jpg"
+    - "foo000000034.png"
+    - "foo34.jpg"
+    - "foo34.png"
+    - "000000034.jpg"
+    - "000000034.png"
+    - "34.jpg"
+    - "34.png"
 
     Attributes:
         base_directory (str): The directory where the files are located.
