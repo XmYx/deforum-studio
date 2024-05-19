@@ -132,7 +132,7 @@ def run_e2e_test(options, extra_args):
     logurulogger.debug(f"Full list of settings files to run: {' '.join(files)}")
 
     for file_path in files:
-        try:           
+        try:
             logurulogger.info(f"Settings file path: {file_path}")
             batch_name = file_path.split('.')[0].split("/")[-1]
             logurulogger.info(f"Batch Name: {batch_name}")
