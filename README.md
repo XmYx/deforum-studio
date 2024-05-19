@@ -34,10 +34,16 @@ On linux run bash start.sh
    pip install -e .
    ```
 
-## Testing
+## End-to-end Testing
+
+### End-to-end test Setup
+
 Prior to testing make sure you clone the `https://github.com/deforum-studio/deforum-presets.git` into the deforum folder within the root directory. Settings files assume a path of `~/deforum/presets/settings/` by default. You can verify that the path's are setup correctly by running `python tests/test_animation_pipeline.py`. 
 
-For a full settings run you can use the `deforum test` cli command in the terminal. This will run all presets in the settings folder (`~/deforum/presets/settings/` by default).
+### Running end-to-end tests
+
+- For simple end-to-end tests, run the scripts under 
+- For a full settings run you can use the `deforum test` cli command in the terminal. This will run all presets in the settings folder (`~/deforum/presets/settings/` by default) and will take several hours.
 
 ## CLI Commands
 Deforum has the following CLI modes:

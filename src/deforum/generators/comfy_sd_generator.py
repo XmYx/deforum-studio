@@ -333,14 +333,11 @@ class ComfyDeforumGenerator:
                 try:
                     from custom_nodes.onediff_comfy_nodes._nodes import BasicBoosterExecutor
                     from custom_nodes.onediff_comfy_nodes.modules import BoosterScheduler
-                    # from custom_nodes.onediff_comfy_nodes.modules.oneflow.booster_quantization import \
-                    #     OnelineQuantizationBoosterExecutor
                     custom_booster = BoosterScheduler(BasicBoosterExecutor())
-                    logger.info("Starting to load onediff model...")
+                    logger.info("Enabling onediff...")
                     start_time = time.time()
                     self.model = custom_booster(self.model, ckpt_name=self.model_path)
-                    logger.info(f"Onediff model loaded in: {time.time() - start_time}")
-                    # self.vae = BoosterScheduler(BasicBoosterExecutor())(self.vae, ckpt_name=self.model_path)
+                    logger.info(f"Onediff enabled in: {time.time() - start_time}")
                     self.model.weight_inplace_update = True
                     self.onediff_avail = True
                 except:
