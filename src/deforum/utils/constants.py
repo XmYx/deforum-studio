@@ -21,6 +21,7 @@ class AppConfig(LogConfig):
     src_path: str
     comfy_path: str
     settings_path: str
+    presets_path: str
     model_dir: str
     other_model_dir: str
     output_dir: str
@@ -50,6 +51,7 @@ class AppConfig(LogConfig):
             src_path = src_path,
             comfy_path = config('COMFY_PATH', default=os.path.join(src_path, "ComfyUI")),
             settings_path = config('SETTINGS_PATH', default=os.path.join(root_path, "settings")),
+            presets_path =  config('PRESETS_PATH', default=os.path.join(root_path, "presets")),
             model_dir = config('MODEL_PATH', default=os.path.join(root_path, "models")),
             other_model_dir = config('OTHER_MODEL_PATH', default=os.path.join(root_path, "models", "other")),
             output_dir = config('OUTPUT_PATH', default=os.path.join(root_path, "output", "deforum")),

@@ -166,8 +166,7 @@ def start_deforum_cli() -> None:
 
             deforum = DeforumAnimationPipeline.from_civitai(model_id="125703")
 
-            preset_dir = os.path.join(config.root_path, "presets")
-            settings_dir = os.path.join(preset_dir, "settings")
+            settings_dir = os.path.join(config.presets_path, "settings")
             txt_files = [os.path.join(root, file)
                         for root, _, files in os.walk(settings_dir)
                         for file in files if file.endswith(".txt")]

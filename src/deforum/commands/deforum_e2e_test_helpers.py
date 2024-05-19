@@ -121,7 +121,7 @@ def run_e2e_test(options, extra_args):
     logurulogger.add(log_file_path, rotation="10 MB", compression="zip", level="INFO")
     logurulogger.info("Logger configured and ready to record test results.")
 
-    preset_dir = config.settings_path
+    preset_dir = os.path.join(config.presets_path, "settings")
     files = []
     for root, _, filenames in os.walk(preset_dir):
         for file in filenames:
@@ -133,11 +133,15 @@ def run_e2e_test(options, extra_args):
 
     for file_path in files:
         try:
+            # Local import to work around circular dependency issue
+            from deforum.pipeline_utils import load_settings
+
             logurulogger.info(f"Settings file path: {file_path}")
             batch_name = file_path.split('.')[0].split("/")[-1]
             logurulogger.info(f"Batch Name: {batch_name}")
 
             extra_args["settings_file"] = file_path
+            settings_data = load_settings(file_path)
             options.update({
                 "prompts": {"0": "A solo delorean speeding on an ethereal highway through time jumps, like in the iconic movie back to the future."},
                 "seed": 420,
@@ -146,7 +150,8 @@ def run_e2e_test(options, extra_args):
                 "batch_name": batch_name,
                 "dry_run": False,
                 "max_frames": 10,
-                "hybrid_use_full_video": False
+                "hybrid_use_full_video": False,
+                "video_init_path": os.path.join(preset_dir, settings_data.get("video_init_path", ""))
             })
             start_time = time.time()
             animation = deforum(**extra_args, **options)
@@ -160,4 +165,4 @@ def run_e2e_test(options, extra_args):
             else:
                 logurulogger.info("Baseline established; no comparison needed.")
         except Exception as e:
-            logurulogger.error(f"Exception during test run: {str(e)}")
+            logurulogger.exception(f"Exception during test run.")

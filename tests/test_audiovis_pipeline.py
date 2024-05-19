@@ -4,13 +4,25 @@ import threading
 import os
 import time
 import math
+import requests
 import shutil
 from subprocess import Popen
+import tempfile
 import mutagen
 from deforum.utils.constants import config
 from deforum.utils.logging_config import logger
 
-def run_projectm(input_audio: str, host_output_path : str, preset: str = 'ORB - Chop chop.milk', fps: int = 20, width: int = 1024, height: int = 576) -> Popen[bytes]:
+#############
+# Setup
+INPUT_AUDIO = "https://vizrecord.app/audio/120bpm.mp3"
+MILKDROP_PRESET = os.path.join(config.presets_path, 'projectm', '01.milk')
+FPS = 24
+WIDTH = 1024
+HEIGHT = 576
+OVERRIDE_FRAME_COUNT = 48 # limit frame count for testing, set to None to generate full length
+#############
+
+def run_projectm(input_audio: str, host_output_path : str, preset : str, fps: int = 20, width: int = 1024, height: int = 576) -> Popen[bytes]:
 
     logger.info(f"Starting projectM. Writing frames to: {host_output_path}")
 
@@ -19,20 +31,17 @@ def run_projectm(input_audio: str, host_output_path : str, preset: str = 'ORB - 
 
     # Update with your path to 'texture' subdirectory of https://github.com/projectM-visualizer/presets-milkdrop-texture-pack
     texture_path = "/home/rewbs/milkdrop/textures"
-    # Update with your path to a directory holding all milkdrop presets of interest
-    preset_path = "/home/rewbs/milkdrop/presets_all"
-    # Update with your path to the projectM binary
     projectm_path = config.projectm_executable
-    
 
-    if not os.path.exists(texture_path):
-        logger.warning("No projectM texture directory found. Some presets may not render as expected. Tried: " + preset_path)
-    if not os.path.exists(preset_path):
-        logger.error("No projectM preset directory found. Tried: " + preset_path)
-        return    
     if not shutil.which(projectm_path):
         logger.error("No projectm executable found. Tried: " + projectm_path)
         return
+    if not os.path.exists(preset):
+        logger.error("No projectM preset found at: " + preset)
+        return
+    if not os.path.exists(texture_path):
+        # Not fatal but may affect output of some presets that depend on textures.
+        logger.warning("No projectM texture directory found. Some presets may not render as expected. Tried: " + texture_path)
 
     command = [
         projectm_path,
@@ -44,7 +53,7 @@ def run_projectm(input_audio: str, host_output_path : str, preset: str = 'ORB - 
         "--beatSensitivity", "2.0",
         "--calibrate", "1",
         "--fps", f"{fps}",
-        "--presetFile",  os.path.join(preset_path, preset),
+        "--presetFile",  preset,
         "--audioPath", f"{input_audio}"
     ]
 
@@ -87,18 +96,17 @@ def get_audio_duration(audio_file):
     return audio.info.length
 
 if __name__ == "__main__":
-    
-    #############
-    # User settings
-    preset = 'Flexi, martin + geiss - dedicated to the sherwin maxawow.milk'
-    input_audio = "/home/rewbs/120bpm.mp3"
-    fps = 24
-    width = 1024
-    height = 576
-    #############
 
-    expected_frame_count = math.floor(fps * get_audio_duration(input_audio))
-    expected_frame_count = 24 # override max fames for testing
+    audio_file_path = None
+    if INPUT_AUDIO.startswith("http"):
+        requests.get(INPUT_AUDIO)
+        audio_file_path = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False).name
+        with open(audio_file_path, "wb") as file:
+            file.write(requests.get(INPUT_AUDIO).content)
+    else:
+        audio_file_path = INPUT_AUDIO
+            
+    expected_frame_count = OVERRIDE_FRAME_COUNT or math.floor(FPS * get_audio_duration(audio_file_path))
 
     job_name = f"manual_audiovis_{time.strftime('%Y%m%d%H%M%S')}"
     job_output_dir =  os.path.join(config.output_dir, job_name)
@@ -107,10 +115,10 @@ if __name__ == "__main__":
 
     # Start projectM and monitor it on a background thread.
     projectm_process = run_projectm(
-        input_audio = input_audio,
+        input_audio = audio_file_path,
         host_output_path = hybrid_frame_path,
-        preset = preset,
-        fps = fps
+        preset = MILKDROP_PRESET,
+        fps = FPS
     )
     if projectm_process is None:
         logger.error("ProjectM process failed to start. Exiting.")
@@ -123,8 +131,8 @@ if __name__ == "__main__":
 
     args = {
         "outdir": job_output_dir,
-        "width": width,
-        "height": height,
+        "width": WIDTH,
+        "height": HEIGHT,
         "show_info_on_ui": True,
         "tiling": False,
         "restore_faces": False,

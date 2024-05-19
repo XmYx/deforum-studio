@@ -43,7 +43,7 @@ Configuraton is loaded with [python-decouple](https://pypi.org/project/python-de
 Configuration options include:
 
 - `ROOT_PATH` (aka deforum storage path): root path under which deforum will store and search all non-code assets like models, settings files, output videos etc.... Default: `~/deforum`
-- `PRESET_PATH`: directory in which tests and run commands expect to find presets as defined by `https://github.com/deforum-studio/deforum-presets.git`. Default: `{ROOT_DIR}/presets`
+- `PRESETS_PATH`: directory in which tests and run commands expect to find presets as defined by `https://github.com/deforum-studio/deforum-presets.git`. Default: `{ROOT_DIR}/presets`
 - `SETTINGS_PATH`: output directory for settings files. Default: `{ROOT_DIR}/settings`
 - `OUTPUT_PATH`: output directory for generation results (images, intermediaries etc...). Default: `{ROOT_DIR}/output`
 - `VIDEO_PATH`: output directory for videos. Default:  `{ROOT_DIR}/output/videos`
@@ -72,6 +72,11 @@ Unit tests are under `./unittests`. Point your IDE's test mechanism to this dire
 pytest unittests
 ```
 
+## Ad-hoc testing
+
+For ad-hoc validation of miscellaneous functionality, you can directly run the test-* scripts under `./tests`.
+TODO: these should probably converted to integration tests with clear expected outputs.
+
 
 ## End-to-end testing
 
@@ -79,14 +84,14 @@ There are full tests that require a GPU and can take hours to run depending on t
 
 ### Setup
 
-Prior to testing make sure you clone the `https://github.com/deforum-studio/deforum-presets.git` into `PRESET_PATH`, which defaults to `~/deforum/presets`. Therefore, by default, the settings files within that repo assume a path of `~/deforum/presets/settings/`.
+Prior to testing make sure you clone the `https://github.com/deforum-studio/deforum-presets.git` into `PRESETS_PATH`, which defaults to `~/deforum/presets`. Therefore, by default, the settings files within that repo assume a path of `~/deforum/presets/settings/`.
 
 You can verify that the paths are setup correctly by running `python tests/test_animation_pipeline.py`. 
 
 ### Execution
 
-- Run `deforum run-all` for a full run of all settings files under `{PRESET_PATH}/settings`.
-- Run `deforum test-e2e` for a full run of all settings files under `{PRESET_PATH}/settings`, and compare results to a baseline (or create a new baseline if none exists).
+- Run `deforum run-all` for a full run of all settings files under `{PRESETS_PATH}/settings`.
+- Run `deforum test-e2e` for a full run of all settings files under `{PRESETS_PATH}/settings`, and compare results to a baseline (or create a new baseline if none exists).
 
 
 ## CLI Commands
@@ -98,8 +103,8 @@ Deforum has the following CLI modes:
 - `deforum setup`: Install Stable-Fast optimizations
 - `deforum runsingle --file ~/deforum/presets/preset.txt`: Run single settings file
 - `deforum config`
-- `deforum test-e2e`: Run all settings files under `{PRESET_PATH}/settings` (defaults to `~/deforum/presets/settings/`) 
-- `deforum run-all`: Run all settings files under `{PRESET_PATH}/settings` (defaults to `~/deforum/presets/settings/`) and compare to or create a baseline. 
+- `deforum test-e2e`: Run all settings files under `{PRESETS_PATH}/settings` (defaults to `~/deforum/presets/settings/`) 
+- `deforum run-all`: Run all settings files under `{PRESETS_PATH}/settings` (defaults to `~/deforum/presets/settings/`) and compare to or create a baseline. 
 
 
 ## Documentation
