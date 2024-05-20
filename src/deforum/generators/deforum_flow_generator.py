@@ -348,8 +348,13 @@ import numpy as np
 import cv2
 
 # Compute gradients
-sobel_x = torch.tensor([[[[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]]], dtype=torch.float32).to('cuda')
-sobel_y = torch.tensor([[[[-1, -2, -1], [0, 0, 0], [1, 2, 1]]]], dtype=torch.float32).to('cuda')
+try:
+    sobel_x = torch.tensor([[[[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]]], dtype=torch.float32).to('cuda')
+    sobel_y = torch.tensor([[[[-1, -2, -1], [0, 0, 0], [1, 2, 1]]]], dtype=torch.float32).to('cuda')
+except Exception:
+    logger.exception("Could not create sobel kernels for optical flow computation. This most likely means you do not have CUDA device available.")
+    sobel_x = None
+    sobel_y = None
 
 @torch.inference_mode()
 def get_flow_from_images_Farneback_torch(i1, i2, preset="normal", last_flow=None, pyr_scale=0.5, levels=3, winsize=15,
@@ -638,7 +643,6 @@ def rel_flow_to_abs_flow(rel_flow, width, height):
     fx = rel_fx * (max_flow * width)
     fy = rel_fy * (max_flow * height)
     return np.dstack((fx, fy))
-
 
 
 def remap(img,
