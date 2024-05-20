@@ -1,17 +1,20 @@
-from deforum import DeforumAnimationPipeline
-import subprocess
-import threading
-import os
-import time
 import math
-import requests
+import os
 import shutil
-from subprocess import Popen
+import subprocess
 import tempfile
+import threading
+import time
+from subprocess import Popen
+
 import mutagen
+import requests
+
+from deforum import DeforumAnimationPipeline
 from deforum.pipeline_utils import load_settings
 from deforum.utils.constants import config
 from deforum.utils.logging_config import logger
+
 
 #############
 # Setup
@@ -62,16 +65,16 @@ def run_projectm(input_audio: str, host_output_path : str, preset : str, fps: in
     # Start the process (without blocking)
     logger.info("Running projectM with command: " + " ".join(command))
     projectm_env = os.environ.copy()
-    projectm_env["EGL_PLATFORM"] = "surfaceless" 
+    projectm_env["EGL_PLATFORM"] = "surfaceless"
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=projectm_env)
 
     return process
 
 def monitor_projectm(process : Popen[bytes]):
     while True:
-        logger.info("ProjectM running...")        
+        logger.info("ProjectM running...")
         output = process.stdout.readline()
-        error = process.stderr.readline()        
+        error = process.stderr.readline()
         if output:
             logger.info("[PROJECTM - stdout] - " +  output.decode().strip())
         if error:
@@ -88,9 +91,9 @@ def monitor_projectm(process : Popen[bytes]):
                 logger.error(f"ProjectM exited with code {process.returncode}")
             else:
                 logger.info("ProjectM completed successfully")
-            break    
+            break
 
-        time.sleep(1) 
+        time.sleep(1)
 
 
 def get_audio_duration(audio_file):
@@ -107,13 +110,13 @@ if __name__ == "__main__":
             file.write(requests.get(INPUT_AUDIO).content)
     else:
         audio_file_path = INPUT_AUDIO
-            
+
     expected_frame_count = OVERRIDE_FRAME_COUNT or math.floor(FPS * get_audio_duration(audio_file_path))
 
     job_name = f"manual_audiovis_{time.strftime('%Y%m%d%H%M%S')}"
     job_output_dir =  os.path.join(config.output_dir, job_name)
     hybrid_frame_path = os.path.join(job_output_dir, "inputframes")
-    os.makedirs(hybrid_frame_path, exist_ok=True)   
+    os.makedirs(hybrid_frame_path, exist_ok=True)
 
     # Start projectM and monitor it on a background thread.
     projectm_process = run_projectm(
@@ -133,7 +136,7 @@ if __name__ == "__main__":
 
     args = load_settings(BASE_DEFORUM_PRESET)
     args["outdir"] = job_output_dir
-    args["batch_name"] = job_name    
+    args["batch_name"] = job_name
     args["max_frames"] = expected_frame_count
     args["width"] = WIDTH
     args["height"] = HEIGHT
@@ -146,12 +149,11 @@ if __name__ == "__main__":
     args["hybrid_generate_inputframes"] = False
     args["hybrid_composite"] = "Normal"
     args["hybrid_comp_alpha_schedule"] = "0:(0.2)"
-    args["hybrid_motion"] = "Optical Flow" 
+    args["hybrid_motion"] = "Optical Flow"
     args["hybrid_flow_factor_schedule"] = "0:(1)"
     args["hybrid_motion_use_prev_img"] = True
     args["hybrid_use_first_frame_as_init_image"] = False
     args["hybrid_flow_method"] = "Farneback"
-    args["diffusion_cadence"] = 1
 
     gen = pipeline(**args)
 

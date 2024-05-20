@@ -1,8 +1,11 @@
-import pytest
 import time
+from threading import Event, Thread
 from unittest.mock import patch
-from threading import Thread, Event
+
+import pytest
+
 from deforum.utils.blocking_file_list import BlockingFileList
+
 
 class TestBlockingFileList:
     @patch('deforum.utils.blocking_file_list.os.path.exists')
