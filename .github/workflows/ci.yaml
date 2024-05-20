@@ -53,6 +53,7 @@ jobs:
 
     - name: Run pylint
       run: |
+        git-ratchet dump
         pylint --output-format=json --exit-zero src/deforum > reports/pylint_report.json
         pylint_count=$(jq length reports/pylint_report.json)
         echo "pylint,$pylint_count" > measures.csv
@@ -63,9 +64,10 @@ jobs:
 
     - name: Run ruff
       run: |
+        git-ratchet dump
         ruff check --exit-zero . > reports/ruff_report.txt
         ruff_count=$(cat reports/ruff_report.txt | grep \.py\: | wc -l)
-        echo "ruff,$ruff_count" > measures.csv
+        echo "ruff,$ruff_count" >> measures.csv
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"        
         git-ratchet check -v -w < measures.csv || (echo "Ruff issues have increased")

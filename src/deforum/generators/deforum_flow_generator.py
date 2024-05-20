@@ -352,7 +352,7 @@ try:
     sobel_x = torch.tensor([[[[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]]]], dtype=torch.float32).to('cuda')
     sobel_y = torch.tensor([[[[-1, -2, -1], [0, 0, 0], [1, 2, 1]]]], dtype=torch.float32).to('cuda')
 except Exception:
-    logger.exception("Could not create sobel kernels for optical flow computation. This most likely means you do not have CUDA device available.")
+    logger.warning("Could not create sobel kernels for optical flow computation. This most likely means you do not have CUDA device available.")
     sobel_x = None
     sobel_y = None
 
