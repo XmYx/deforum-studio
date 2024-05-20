@@ -107,7 +107,7 @@ _deps = [
     'qtpy==2.4.1',
     'pyqt6==6.5.0',
     'pyqt6-qt6==6.5.0',
-    'pyqtgraph==0.13.7'
+    'pyqtgraph==0.13.7',
     'pytest>=8.2.0'
 ]
 
