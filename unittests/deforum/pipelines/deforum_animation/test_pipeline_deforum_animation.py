@@ -20,15 +20,15 @@ class TestPipelineDeforumAnimation:
 
     @pytest.fixture(autouse=True)
     def setup_method(self):
-        with patch('deforum.pipelines.deforum_animation.pipeline_deforum_animation.os'):  # mock out file system operations
-            self.deforum = DeforumAnimationPipeline(Mock())
-            self.deforum.gen = TestPipelineDeforumAnimation.build_minimal_mock_generator()
+        self.deforum = DeforumAnimationPipeline(Mock())
+        self.deforum.gen = TestPipelineDeforumAnimation.build_minimal_mock_generator()
 
     def use_cadence(self, cadence:int) -> None:
         # diffusion_cadence is obained from gen.get, so we need to provide it via a mock get method:
         self.deforum.gen.get.side_effect = lambda arg, default=None: cadence if arg == 'diffusion_cadence' else default
 
 
+    @patch('deforum.pipelines.deforum_animation.pipeline_deforum_animation.os')  # mock out file system operations
     def test_cadence_post_function_correctly_added(self, _):
         # Setup
         self.use_cadence(2)
@@ -40,6 +40,7 @@ class TestPipelineDeforumAnimation:
         assert generate_interpolated_frames in self.deforum.shoot_fns
 
 
+    @patch('deforum.pipelines.deforum_animation.pipeline_deforum_animation.os')  # mock out file system operations
     def test_cadence_post_function_correctly_omitted(self, _):
         # Setup
         self.use_cadence(1)
@@ -51,6 +52,7 @@ class TestPipelineDeforumAnimation:
         assert generate_interpolated_frames not in self.deforum.shoot_fns
 
 
+    @patch('deforum.pipelines.deforum_animation.pipeline_deforum_animation.os')  # mock out file system operations
     def test_cadence_post_function_not_affectect_by_optical_flow_cadence(self, _):
         # Setup
         self.use_cadence(2)
