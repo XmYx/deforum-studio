@@ -19,8 +19,8 @@ from deforum.utils.logging_config import logger
 #############
 # Setup
 INPUT_AUDIO = "https://vizrecord.app/audio/120bpm.mp3"
-MILKDROP_PRESET = os.path.join(config.presets_path, 'projectm', 'waveform.milk')
-BASE_DEFORUM_PRESET = os.path.join(config.presets_path, 'settings', 'Classic-3D-Motion.txt')
+MILKDROP_PRESET = os.path.join(config.presets_path, 'projectm', 'rewbs-01.milk')
+BASE_DEFORUM_PRESET = os.path.join(config.presets_path, 'settings', 'Shapes-Squares.txt')
 FPS = 24
 WIDTH = 1024
 HEIGHT = 576
@@ -51,7 +51,7 @@ def run_projectm(input_audio: str, host_output_path : str, preset : str, fps: in
     command = [
         projectm_path,
         "--outputPath", f"{host_output_path}",
-        "--outputType", "image",
+        "--outputType", "both",
         "--texturePath", f"{texture_path}",
         "--width", f"{width}",
         "--height", f"{height}",
@@ -143,17 +143,17 @@ if __name__ == "__main__":
     args["fps"] = FPS
     args["add_soundtrack"] = "File"
     args["soundtrack_path"] = audio_file_path
-    args["seed"] = 10
-    args["sampler"] ="DPM++ SDE Karras"
+    # args["seed"] = 10
+    # args["sampler"] ="DPM++ SDE Karras"
     args["prompts"] = {"0": "A solo delorean speeding on an ethereal highway through time jumps, like in the iconic movie back to the future."}
     args["hybrid_generate_inputframes"] = False
-    args["hybrid_composite"] = "Normal"
-    args["hybrid_comp_alpha_schedule"] = "0:(0.2)"
-    args["hybrid_motion"] = "Optical Flow"
-    args["hybrid_flow_factor_schedule"] = "0:(1)"
-    args["hybrid_motion_use_prev_img"] = True
-    args["hybrid_use_first_frame_as_init_image"] = False
-    args["hybrid_flow_method"] = "Farneback"
+    # args["hybrid_composite"] = "Normal"
+    # args["hybrid_comp_alpha_schedule"] = "0:(0.2)"
+    # args["hybrid_motion"] = "Optical Flow"
+    # args["hybrid_flow_factor_schedule"] = "0:(1)"
+    # args["hybrid_motion_use_prev_img"] = True
+    # args["hybrid_use_first_frame_as_init_image"] = False
+    # args["hybrid_flow_method"] = "Farneback"
 
     gen = pipeline(**args)
 
