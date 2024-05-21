@@ -81,7 +81,6 @@ def compare_videos(path1, path2):
         return False, f"Videos differ. Avg SSIM: {average_ssim:.4f}, Avg PSNR: {average_psnr:.4f}"
 
 
-
 def manage_test_storage(src_video_path, batch_name):
     """Manage storage of test videos and establish a baseline if not present."""
     tests_dir = f"{config.root_path}/tests"
@@ -104,8 +103,8 @@ def manage_test_storage(src_video_path, batch_name):
         shutil.copy(src_video_path, test_video_path)
     return base_video_path, test_video_path, True  # Proceed with comparison
 
-def run_unit_test(options, extra_args):
-    """Run unit tests using DeforumAnimationPipeline and manage test outputs."""
+def run_e2e_test(options, extra_args):
+    """Run e2e tests using DeforumAnimationPipeline and manage test outputs."""
     from deforum import DeforumAnimationPipeline
 
     modelid = str(options.get("modelid", "125703"))
@@ -122,24 +121,27 @@ def run_unit_test(options, extra_args):
     logurulogger.add(log_file_path, rotation="10 MB", compression="zip", level="INFO")
     logurulogger.info("Logger configured and ready to record test results.")
 
-    # main_log_file_path = f"{log_directory}/summary.log"
-    # logurulogger.add(main_log_file_path, level="INFO")
-
-    preset_dir = "presets_deforum"
+    preset_dir = os.path.join(config.presets_path, "settings")
     files = []
     for root, _, filenames in os.walk(preset_dir):
         for file in filenames:
             if file.endswith('.txt'):
                 files.append(os.path.join(root, file))
 
-    # file_path = files[-1]  # Use the latest file
+    logurulogger.info(f"Running {len(files)} settings from path: {preset_dir}")
+    logurulogger.debug(f"Full list of settings files to run: {' '.join(files)}")
+
     for file_path in files:
         try:
+            # Local import to work around circular dependency issue
+            from deforum.pipeline_utils import load_settings
+
             logurulogger.info(f"Settings file path: {file_path}")
             batch_name = file_path.split('.')[0].split("/")[-1]
             logurulogger.info(f"Batch Name: {batch_name}")
 
             extra_args["settings_file"] = file_path
+            settings_data = load_settings(file_path)
             options.update({
                 "prompts": {"0": "A solo delorean speeding on an ethereal highway through time jumps, like in the iconic movie back to the future."},
                 "seed": 420,
@@ -148,7 +150,8 @@ def run_unit_test(options, extra_args):
                 "batch_name": batch_name,
                 "dry_run": False,
                 "max_frames": 10,
-                "hybrid_use_full_video": False
+                "hybrid_use_full_video": False,
+                "video_init_path": os.path.join(preset_dir, settings_data.get("video_init_path", ""))
             })
             start_time = time.time()
             animation = deforum(**extra_args, **options)
@@ -162,4 +165,4 @@ def run_unit_test(options, extra_args):
             else:
                 logurulogger.info("Baseline established; no comparison needed.")
         except Exception as e:
-            logurulogger.error(f"Exception during test run: {str(e)}")
+            logurulogger.exception(f"Exception during test run.")

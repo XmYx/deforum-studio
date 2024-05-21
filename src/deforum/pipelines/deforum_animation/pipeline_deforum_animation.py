@@ -382,6 +382,8 @@ class DeforumAnimationPipeline(DeforumBase):
                     self.post_fns.append(film_interpolate_cls)
                 elif 'rife' in self.gen.frame_interpolation_engine.lower():
                     self.post_fns.append(rife_interpolate_cls)
+                else:
+                    raise ValueError(f"Unknown frame interpolation engine: {self.gen.frame_interpolation_engine}")
 
         if self.gen.max_frames > 1 and not self.gen.skip_video_creation:
             self.post_fns.append(save_video_cls)

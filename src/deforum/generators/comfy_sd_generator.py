@@ -3,11 +3,11 @@ import os
 import platform
 import re
 import secrets
+import time
 
 import numpy as np
 import torch
 from PIL import Image
-
 
 from .comfy_utils import ensure_comfy
 from .rng_noise_generator import ImageRNGNoise, slerp
@@ -191,7 +191,7 @@ class ComfyDeforumGenerator:
         module_name = 'ComfyUI.custom_nodes.ComfyUI_smZNodes.__init__'
         # Import the module dynamically
         init_module = importlib.import_module(module_name)
-        logger.info(str(init_module))
+        logger.info("Init module: " + str(init_module))
         self.clip_skip = 0
         self.device = "cuda"
         self.prompt = ""
@@ -329,18 +329,22 @@ class ComfyDeforumGenerator:
             self.model = settings_node.run(self.model, **settings_dict)[0]
             self.clip = settings_node.run(self.clip, **settings_dict)[0]
             self.clip.clip_layer(-2)
-            try:
-                from custom_nodes.onediff_comfy_nodes._nodes import BasicBoosterExecutor
-                from custom_nodes.onediff_comfy_nodes.modules import BoosterScheduler
-                # from custom_nodes.onediff_comfy_nodes.modules.oneflow.booster_quantization import \
-                #     OnelineQuantizationBoosterExecutor
-                custom_booster = BoosterScheduler(BasicBoosterExecutor())
-                self.model = custom_booster(self.model, ckpt_name=self.model_path)
-                # self.vae = BoosterScheduler(BasicBoosterExecutor())(self.vae, ckpt_name=self.model_path)
-                self.model.weight_inplace_update = True
-                self.onediff_avail = True
-            except:
-                logger.info("ONEDIFF NOT AVAILABLE IN YOUR BUILD (YET")
+            if config.enable_onediff:
+                try:
+                    from custom_nodes.onediff_comfy_nodes._nodes import BasicBoosterExecutor
+                    from custom_nodes.onediff_comfy_nodes.modules import BoosterScheduler
+                    custom_booster = BoosterScheduler(BasicBoosterExecutor())
+                    logger.info("Enabling onediff...")
+                    start_time = time.time()
+                    self.model = custom_booster(self.model, ckpt_name=self.model_path)
+                    logger.info(f"Onediff enabled in: {time.time() - start_time}")
+                    self.model.weight_inplace_update = True
+                    self.onediff_avail = True
+                except:
+                    logger.warn("NOT using onediff due to initialisation error. If you meant to, please check onediff custom nodes and their deps are correctly installed. To hid this message, set ENABLE_ONEDIFF=false.", exc_info=True)
+            else:
+                logger.info("NOT using onediff. If you meant to, set ENABLE_ONEDIFF=true", exc_info=True)
+                
 
             self.model_loaded = True
             # from ..optimizations.deforum_comfy_trt.deforum_trt_comfyunet import TrtUnet

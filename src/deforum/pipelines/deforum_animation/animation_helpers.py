@@ -214,22 +214,18 @@ def hybrid_composite_cls(cls: Any) -> None:
         prev_img = copy.deepcopy(cls.gen.prev_img)
 
         video_frame_path = os.path.join(cls.gen.outdir, 'inputframes')
+        frame_name = get_frame_name(cls.gen.video_init_path or "") 
 
         if config.allow_blocking_input_frame_lists:
-            inputfiles = BlockingFileList(video_frame_path, cls.gen.max_frames)
+            inputfiles = BlockingFileList(video_frame_path, cls.gen.max_frames, optional_prefix=frame_name)
             video_frame = inputfiles[cls.gen.frame_idx]
         else: 
             video_frame = cls.gen.inputfiles[cls.gen.frame_idx]
-        video_depth_frame = os.path.join(cls.gen.outdir, 'hybridframes',
-                                         get_frame_name(
-                                             cls.gen.video_init_path) + f"_vid_depth{cls.gen.frame_idx:09}.jpg")
+        video_depth_frame = os.path.join(cls.gen.outdir, 'hybridframes', f"{frame_name}_vid_depth{cls.gen.frame_idx:09}.jpg")
         depth_frame = os.path.join(cls.gen.outdir, f"{cls.gen.timestring}_depth_{cls.gen.frame_idx - 1:09}.png")
-        mask_frame = os.path.join(cls.gen.outdir, 'hybridframes',
-                                  get_frame_name(cls.gen.video_init_path) + f"_mask{cls.gen.frame_idx:09}.jpg")
-        comp_frame = os.path.join(cls.gen.outdir, 'hybridframes',
-                                  get_frame_name(cls.gen.video_init_path) + f"_comp{cls.gen.frame_idx:09}.jpg")
-        prev_frame = os.path.join(cls.gen.outdir, 'hybridframes',
-                                  get_frame_name(cls.gen.video_init_path) + f"_prev{cls.gen.frame_idx:09}.jpg")
+        mask_frame = os.path.join(cls.gen.outdir, 'hybridframes', f"{frame_name}_mask{cls.gen.frame_idx:09}.jpg")
+        comp_frame = os.path.join(cls.gen.outdir, 'hybridframes', f"{frame_name}_comp{cls.gen.frame_idx:09}.jpg")
+        prev_frame = os.path.join(cls.gen.outdir, 'hybridframes', f"{frame_name}_prev{cls.gen.frame_idx:09}.jpg")
         prev_img = cv2.cvtColor(prev_img, cv2.COLOR_BGR2RGB)
         prev_img_hybrid = Image.fromarray(prev_img)
         if cls.gen.hybrid_use_init_image:
@@ -809,6 +805,7 @@ def post_gen_cls(cls: Any) -> None:
             cls.gen.prev_img = cls.gen.opencv_image
         #     # cls.logger(f"                                   [ updated prev_img ]", True)
 
+        image_full_path = None
         if cls.gen.turbo_steps > 1 and cls.gen.frame_idx > 0:
             cls.gen.turbo_prev_image, cls.gen.turbo_prev_frame_idx = cls.gen.turbo_next_image, cls.gen.turbo_next_frame_idx
             cls.gen.turbo_next_image, cls.gen.turbo_next_frame_idx = cls.gen.opencv_image, cls.gen.frame_idx

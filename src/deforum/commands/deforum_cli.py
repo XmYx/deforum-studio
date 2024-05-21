@@ -5,7 +5,7 @@ First, the main docstring introduces a global CLI script that starts DeForUM wit
 
 1. `install_qtpy()`: This function ensures the proper installation of the QtPy library for UI-related activities by checking its presence; if not available, it installs PyQt6-Qt6, PyQt6 and QtPy via pip.
 
-2. `start_deforum_cli() -> None`: This function serves as the main entry point for the command-line interface (CLI) through which users interact with DeForUM. Supported operational modes include 'webui', 'animatediff',  'runpresets', 'api', 'setup', 'ui', 'runsingle', 'config', 'unittest'. According to the mode selection, the corresponding operations are invoked.
+2. `start_deforum_cli() -> None`: This function serves as the main entry point for the command-line interface (CLI) through which users interact with DeForUM. Supported operational modes include 'webui', 'animatediff',  'runpresets', 'api', 'setup', 'ui', 'runsingle', 'config', 'run-all', 'test-e2e'. According to the mode selection, the corresponding operations are invoked.
 
 Example Usage:
 
@@ -34,7 +34,7 @@ import sys
 import os
 import traceback
 
-from deforum.commands.deforum_run_unit_test import run_unit_test
+from deforum.commands.deforum_e2e_test_helpers import run_e2e_test
 from deforum.docutils.decorator import deforumdoc
 from deforum.utils.constants import config
 from deforum.utils.logging_config import logger
@@ -90,7 +90,7 @@ def start_deforum_cli() -> None:
     Function to start the DeForUM's Consule Line Interface, featuring various operational modes.
 
     This function parses command line arguments to determine the operational mode of DeForUM. The operational
-    modes include 'webui', 'animatediff', 'test', 'api', 'setup', 'ui', 'runsingle', 'config', and 'unittest'.
+    modes include 'webui', 'animatediff', 'run-all', 'api', 'setup', 'ui', 'runsingle', 'config', and 'test-e2e'.
     Depending on the selected mode, different components of the DeForUM suite are invoked. A file path and additional
     options can also be passed as arguments to the function.
 
@@ -102,7 +102,7 @@ def start_deforum_cli() -> None:
     """
     parser = argparse.ArgumentParser(description="Load settings from a txt file and run the deforum process.")
     # Positional mode argument
-    parser.add_argument("mode", choices=['webui', 'animatediff', 'test', 'api', 'setup', 'ui', 'runsingle', 'config', 'unittest', 'version', 'lab'], default=None, nargs='?',
+    parser.add_argument("mode", choices=['webui', 'animatediff', 'run-all', 'api', 'setup', 'ui', 'runsingle', 'config', 'test-e2e', 'version', 'lab'], default=None, nargs='?',
                         help="Choose the mode to run.")
 
     parser.add_argument("--file", type=str, help="Path to the deforum settings file.")
@@ -157,7 +157,7 @@ def start_deforum_cli() -> None:
             pipe = DeforumAnimateDiffPipeline.from_civitai(model_id=modelid)
             _ = pipe(**extra_args, **options)
 
-        elif args_main.mode == "test":
+        elif args_main.mode == "run-all":
             import time
             import random
             from deforum import DeforumAnimationPipeline
@@ -166,13 +166,14 @@ def start_deforum_cli() -> None:
 
             deforum = DeforumAnimationPipeline.from_civitai(model_id="125703")
 
-            preset_dir = os.path.join(config.root_path, "presets")
-            settings_dir = os.path.join(preset_dir, "settings")
+            settings_dir = os.path.join(config.presets_path, "settings")
             txt_files = [os.path.join(root, file)
                         for root, _, files in os.walk(settings_dir)
                         for file in files if file.endswith(".txt")]
 
             random.shuffle(txt_files)
+            logger.info(f"Running {len(txt_files)} settings from path: {settings_dir}")
+            logger.debug(f"Full list of settings files to run: {' '.join(txt_files)}")
 
             for file_path in txt_files:
                 try:
@@ -306,8 +307,8 @@ def start_deforum_cli() -> None:
             # Construct the path to main.py
             main_script_path = os.path.join(deforum_directory, "commands", "deforum_config.py")
             subprocess.run([sys.executable, main_script_path])
-        elif args_main.mode == "unittest":
-            run_unit_test(options, extra_args)
+        elif args_main.mode == "test-e2e":
+            run_e2e_test(options, extra_args)
     else:
         from deforum import DeforumAnimationPipeline
         deforum = DeforumAnimationPipeline.from_civitai()
