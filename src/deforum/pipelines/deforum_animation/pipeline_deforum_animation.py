@@ -277,7 +277,7 @@ class DeforumAnimationPipeline(DeforumBase):
                                      midas_weight=self.gen.midas_weight)
             if 'adabins' in self.gen.depth_algorithm.lower():
                 self.gen.use_adabins = True
-                
+
                 logger.info("Setting AdaBins usage")
             logger.info(f"[ Loaded Depth model ]")
             self.loaded_depth_model = self.gen.depth_algorithm.lower()
@@ -321,7 +321,7 @@ class DeforumAnimationPipeline(DeforumBase):
         self.shoot_fns.append(get_generation_params)
 
         self.gen.turbo_steps = self.gen.get('diffusion_cadence', 1)
-        if self.gen.turbo_steps > 1 and self.gen.optical_flow_cadence != 'None':
+        if self.gen.turbo_steps > 1:
             self.shoot_fns.append(generate_interpolated_frames)
         if self.gen.color_coherence == 'Video Input' and hybrid_available:
             self.shoot_fns.append(color_match_video_input)
