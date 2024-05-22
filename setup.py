@@ -107,8 +107,7 @@ _deps = [
     'pyqtgraph==0.13.7',
     'pytest>=8.2.0',
     'ruff>=0.4.4',
-    'pylint>=3.2.1',
-
+    'pylint>=3.2.1'
 ]
 
 # this is a lookup table with items like:
