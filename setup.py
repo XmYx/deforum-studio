@@ -76,7 +76,7 @@ _deps = [
     'timm==0.6.13',
     'transformers==4.40.2',
     'omegaconf==2.3.0',
-    'aiohttp==3.9.5',
+    'aiohttp==3.9.3',
     'psutil==5.9.6',
     'clip-interrogator==0.6.0',
     'streamlit==1.27.2',
