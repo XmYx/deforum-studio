@@ -3,12 +3,18 @@ import math
 import cv2
 import numpy as np
 import torch
-from PIL import Image, ImageOps
+from PIL import ImageOps
 from torch.nn.functional import interpolate
+
 from deforum.utils.deforum_framewarp_utils import sample_to_cv2
 from deforum.utils.logging_config import logger
 
-deforum_noise_gen = torch.Generator(device='cuda')
+
+try:
+    deforum_noise_gen = torch.Generator(device='cuda')
+except Exception:
+    logger.warning("CUDA not available, falling back to CPU.")
+    deforum_noise_gen = torch.Generator(device='cpu')
 
 def rand_perlin_2d(shape, res, fade=lambda t: 6 * t ** 5 - 15 * t ** 4 + 10 * t ** 3):
     delta = (res[0] / shape[0], res[1] / shape[1])

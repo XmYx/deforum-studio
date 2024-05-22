@@ -1,0 +1,11 @@
+[MASTER]
+persistent=yes
+
+[MESSAGES CONTROL]
+# Only very enable specific errors for now
+disable=all
+enable=E0602,E0606
+
+[REPORTS]
+reports=no
+evaluation=10.0 - ((float(5 * error + warning + refactor + convention) / statement) * 10)

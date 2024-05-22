@@ -54,7 +54,7 @@ This is a **non-exhaustive** list. See `src/deforum/utils/constants.py` for more
 
 ## Unit testing
 
-These tests will ultimately run in CI on every commit on free hardware, so NEVER add unit tests that require a GPU. Mock away!
+These tests run in CI on every commit on free hardware, so NEVER add unit tests that require a GPU. Mock away!
 
 ### Setup
 
@@ -92,6 +92,13 @@ You can verify that the paths are setup correctly by running `python tests/test_
 
 - Run `deforum run-all` for a full run of all settings files under `{PRESETS_PATH}/settings`.
 - Run `deforum test-e2e` for a full run of all settings files under `{PRESETS_PATH}/settings`, and compare results to a baseline (or create a new baseline if none exists).
+
+## Linting 
+
+We use `ruff` for formatting & basic linting, and `pylint` for a small number of checks that are not supported by ruff. See `pyproject.toml` and `.pylintrc` for their respective config.
+When working on the code, please set up your IDE accordingly to avoid build failures. 
+
+We currently have many linting issues to fix, but are using a ratcheting mechanism in CI to ensure the number does not increase.
 
 
 ## CLI Commands

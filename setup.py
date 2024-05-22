@@ -108,7 +108,9 @@ _deps = [
     'pyqt6==6.5.0',
     'pyqt6-qt6==6.5.0',
     'pyqtgraph==0.13.7',
-    'pytest>=8.2.0'
+    'pytest>=8.2.0',
+    'ruff>=0.4.4',
+    'pylint>=3.2.1'
 ]
 
 # this is a lookup table with items like:
@@ -231,7 +233,7 @@ install_requires = deps_list('torch',
                              'pyqtgraph'
                              )
 
-extras['dev'] = deps_list('pytest')
+extras['dev'] = deps_list('pytest', 'ruff', 'pylint')
 
 
 setup(

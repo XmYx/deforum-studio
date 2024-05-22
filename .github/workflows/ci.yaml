@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # allow action to write back to the git repo
+    strategy:
+      matrix:
+        python-version: [3.11]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+
+    - name: 'Setup jq'
+      uses: dcarbone/install-jq-action@v2
+      with:
+        version: '1.7'
+        force: false
+
+    - name: 'Setup auto commit'
+      uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit_message: "Auto commit by GitHub Action"
+        commit_options: '--no-verify'
+        commit_user_name: 'GitHub Action'
+
+    - name: Download and install git-ratchet
+      run: |
+        sudo curl -L https://github.com/iangrunert/git-ratchet/releases/download/v0.3.2/linux_amd64_git-ratchet -o /usr/local/bin/git-ratchet
+        sudo chmod a+x /usr/local/bin/git-ratchet
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e .['dev']
+        mkdir -p reports/
+
+    - name: Run pylint
+      run: |
+        git-ratchet dump
+        pylint --output-format=json --exit-zero src/deforum > reports/pylint_report.json
+        pylint_count=$(jq length reports/pylint_report.json)
+        echo "pylint,$pylint_count" > measures.csv
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"        
+        git-ratchet check -v -w < measures.csv || (echo "Pylint issues have increased")
+        git-ratchet dump
+
+    - name: Run ruff
+      run: |
+        git-ratchet dump
+        ruff check --exit-zero . > reports/ruff_report.txt
+        ruff_count=$(cat reports/ruff_report.txt | grep \.py\: | wc -l)
+        echo "ruff,$ruff_count" >> measures.csv
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"        
+        git-ratchet check -v -w < measures.csv || (echo "Ruff issues have increased")
+        git-ratchet dump
+
+    - name: Run tests with pytest
+      run: |
+        pytest unittests --junitxml=reports/junit.xml
+      continue-on-error: false        
+
+    - name: Upload reports
+      uses: actions/upload-artifact@v2
+      with:
+        name: reports
+        path: reports
