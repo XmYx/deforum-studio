@@ -1,6 +1,7 @@
 import os
 import secrets
 
+import numpy as np
 from PIL import Image
 import torch
 from diffusers import AutoPipelineForText2Image, AutoPipelineForImage2Image, StableDiffusionXLPipeline, \
@@ -402,7 +403,7 @@ class DeforumDiffusersGenerator:
             self.img2img_pipe._denoising_end = None
             self.img2img_pipe._denoising_start = None
             self.img2img_pipe._interrupt = False
-            image = self.img2img_pipe.image_processor.preprocess(init_image / 255.0)
+            image = self.img2img_pipe.image_processor.preprocess(np.array(init_image).astype(np.uint8) / 255.0)
             latents, timesteps = self.prepare_latents_with_subseed(image, steps, strength, seed, subseed, subseed_strength)
             image = self.img2img_pipe(
                 prompt=prompt,
