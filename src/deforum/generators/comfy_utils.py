@@ -7,6 +7,7 @@ import sys
 import traceback
 from collections import namedtuple
 
+import requests
 import torch
 import torchsde
 
@@ -14,15 +15,14 @@ from deforum.generators.rng_noise_generator import randn_local
 from deforum.utils.constants import config
 from deforum.utils.logging_config import logger
 
+comfy_initialized = False
+cfg_guider = None
 
 def replace_torchsde_browinan():
     import torchsde._brownian.brownian_interval
-
     def torchsde_randn(size, dtype, device, seed):
         return randn_local(seed, size).to(device=device, dtype=dtype)
-
     torchsde._brownian.brownian_interval._randn = torchsde_randn
-
 
 @contextlib.contextmanager
 def change_dir(destination):
@@ -106,62 +106,89 @@ def load_custom_node(module_path, ignore=set()):
         logging.warning(f"Cannot import {module_path} module for custom nodes: {e}")
         return False
 
+ip_adapter_model_dict = {
+    "https://huggingface.co/h94/IP-Adapter/resolve/main/models/image_encoder/model.safetensors": f"{config.comfy_path}/models/clip_vision/CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors",
+    "https://huggingface.co/h94/IP-Adapter/resolve/main/sdxl_models/ip-adapter-plus_sdxl_vit-h.safetensors": f"{config.comfy_path}/models/ipadapter/ip-adapter-plus_sdxl_vit-h.safetensors"
+}
+def download_models(model_dict):
+    for url, local_path in model_dict.items():
+        # Check if the local directory exists, create it if it doesn't
+        local_dir = os.path.dirname(local_path)
+        if not os.path.exists(local_dir):
+            os.makedirs(local_dir)
 
+        # Check if the file already exists
+        if not os.path.exists(local_path):
+            print(f"Downloading {url} to {local_path}...")
+            try:
+                # Download the file
+                response = requests.get(url)
+                response.raise_for_status()  # Raise an exception for HTTP errors
+
+                # Save the file
+                with open(local_path, 'wb') as file:
+                    file.write(response.content)
+                print(f"Downloaded {local_path} successfully.")
+            except requests.exceptions.RequestException as e:
+                print(f"Error downloading {url}: {e}")
+        else:
+            print(f"File {local_path} already exists. Skipping download.")
 def ensure_comfy(custom_path=None):
-    curr_folder = os.getcwd()
-    comfy_submodules = [
-        # ('https://github.com/XmYx/ComfyUI-AnimateDiff-Evolved', 'commit_id_1'),
-        ('https://github.com/ltdrdata/ComfyUI-Impact-Pack', '48d9ce7528f83074b6db7a7b15ef7e88c7134aa5'),
-        ('https://github.com/XmYx/ComfyUI-Inspire-Pack', 'd40389f93d6f42b44e0e2f02190a216762d028d8'),
-        ('https://github.com/shiimizu/ComfyUI_smZNodes', 'a1627ce2ade31822694d82aa9600a4eff0f99d69'),
-        ('https://github.com/gameltb/ComfyUI_stable_fast', 'c0327e6f076bd8a36e3c29f3594025c76cf9beae')
-    ]
-    comfy_path = custom_path or config.comfy_path
-    comfy_submodule_folder = os.path.join(comfy_path, 'custom_nodes')
+    global comfy_initialized
+    if not comfy_initialized:
+        comfy_initialized = True
+        curr_folder = os.getcwd()
+        comfy_submodules = [
+            ('https://github.com/ltdrdata/ComfyUI-Impact-Pack', '48d9ce7528f83074b6db7a7b15ef7e88c7134aa5'),
+            ('https://github.com/XmYx/ComfyUI-Inspire-Pack', 'd40389f93d6f42b44e0e2f02190a216762d028d8'),
+            ('https://github.com/shiimizu/ComfyUI_smZNodes', 'a1627ce2ade31822694d82aa9600a4eff0f99d69'),
+            ('https://github.com/gameltb/ComfyUI_stable_fast', 'c0327e6f076bd8a36e3c29f3594025c76cf9beae'),
+            ('https://github.com/cubiq/ComfyUI_IPAdapter_plus', '20125bf9394b1bc98ef3228277a31a3a52c72fc2')
+        ]
+        comfy_path = custom_path or config.comfy_path
+        comfy_submodule_folder = os.path.join(comfy_path, 'custom_nodes')
 
-    if not os.path.exists(config.comfy_path):
-        try:
-            print("Initializing and updating git submodules...")
-            subprocess.check_call(['git', 'submodule', 'update', '--init', '--recursive'])
-            print("Submodules initialized and updated.")
-        except subprocess.CalledProcessError as e:
-            print(f"Failed to initialize submodules: {e}")
+        if not os.path.exists(config.comfy_path):
+            try:
+                print("Initializing and updating git submodules...")
+                subprocess.check_call(['git', 'submodule', 'update', '--init', '--recursive'])
+                print("Submodules initialized and updated.")
+            except subprocess.CalledProcessError as e:
+                print(f"Failed to initialize submodules: {e}")
 
-    with change_dir(comfy_submodule_folder):
-        for module, commit_id in comfy_submodules:
-            if not os.path.exists(os.path.join(os.getcwd(), module.split("/")[-1])):
-                clone_repo(module, commit_id)
+        with change_dir(comfy_submodule_folder):
+            for module, commit_id in comfy_submodules:
+                if not os.path.exists(os.path.join(os.getcwd(), module.split("/")[-1])):
+                    clone_repo(module, commit_id)
 
-    os.chdir(curr_folder)
-    # Add paths to sys.path
-    add_to_sys_path(comfy_path)
+        os.chdir(curr_folder)
+        # Add paths to sys.path
+        add_to_sys_path(comfy_path)
+        #Download IP Adapter models
+        download_models(ip_adapter_model_dict)
+        # Create and add the mock module to sys.modules
+        from comfy.cli_args import LatentPreviewMethod as lp
 
-    # Create and add the mock module to sys.modules
-    from comfy.cli_args import LatentPreviewMethod as lp
+        class MockCLIArgsModule:
+            args = mock_args
+            LatentPreviewMethod = lp
 
-    class MockCLIArgsModule:
-        args = mock_args
-        LatentPreviewMethod = lp
-
-    sys.modules["comfy.cli_args"] = MockCLIArgsModule()
-    # replace_torchsde_browinan()
-    import asyncio
-    import execution
-    from nodes import init_custom_nodes
-    import server
-    #
-    # # Creating a new event loop and setting it as the default loop
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    #
-    # # Creating an instance of PromptServer with the loop
-    server_instance = server.PromptServer(loop)
-    # execution.PromptQueue(server_instance)
-    init_custom_nodes()
-    loop.stop()
-
-    # comfy.k_diffusion.sampling.BatchedBrownianTree = DeforumBatchedBrownianTree
-
+        sys.modules["comfy.cli_args"] = MockCLIArgsModule()
+        import asyncio
+        import execution
+        from nodes import init_custom_nodes
+        import server
+        import comfy.samplers
+        comfy.samplers.CFGGuider = HIJackCFGGuider
+        comfy.samplers.sample = sampleDeforum
+        # # Creating a new event loop and setting it as the default loop
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        # # Creating an instance of PromptServer with the loop
+        server_instance = server.PromptServer(loop)
+        execution.PromptQueue(server_instance)
+        init_custom_nodes()
+        loop.stop()
 
 # Define the namedtuple structure based on the properties identified
 CLIArgs = namedtuple(
@@ -269,6 +296,131 @@ mock_args = CLIArgs(
     multi_user=True,
     max_upload_size=1024,
 )
+class HIJackCFGGuider:
+    def __init__(self, model_patcher):
+        # print("BIG HOOOORAAAAY\n\n\n\n\n")
+        self.model_patcher = model_patcher
+        self.inner_model = self.model_patcher.model
+        self.model_options = model_patcher.model_options
+        self.original_conds = {}
+        self.cfg = 1.0
+
+    def set_conds(self, positive, negative):
+        self.inner_set_conds({"positive": positive, "negative": negative})
+
+    def set_cfg(self, cfg):
+        self.cfg = cfg
+
+    def inner_set_conds(self, conds):
+        import comfy
+
+        for k in conds:
+            self.original_conds[k] = comfy.sampler_helpers.convert_cond(conds[k])
+
+    def __call__(self, *args, **kwargs):
+        return self.predict_noise(*args, **kwargs)
+
+    def predict_noise(self, x, timestep, model_options={}, seed=None):
+        import comfy
+
+        return comfy.samplers.sampling_function(
+            self.model_patcher.model,
+            x,
+            timestep,
+            self.conds.get("negative", None),
+            self.conds.get("positive", None),
+            self.cfg,
+            model_options=model_options,
+            seed=seed,
+        )
+
+    def inner_sample(
+        self,
+        noise,
+        latent_image,
+        device,
+        sampler,
+        sigmas,
+        denoise_mask,
+        callback,
+        disable_pbar,
+        seed,
+    ):
+        import comfy
+
+        if (
+            latent_image is not None and torch.count_nonzero(latent_image) > 0
+        ):  # Don't shift the empty latent image.
+            latent_image = self.model_patcher.model.process_latent_in(latent_image)
+
+        self.conds = comfy.samplers.process_conds(
+            self.model_patcher.model,
+            noise,
+            self.conds,
+            device,
+            latent_image,
+            denoise_mask,
+            seed,
+        )
+
+        extra_args = {"model_options": self.model_options, "seed": seed}
+
+        samples = sampler.sample(
+            self,
+            sigmas,
+            extra_args,
+            callback,
+            noise,
+            latent_image,
+            denoise_mask,
+            disable_pbar,
+        )
+        return self.model_patcher.model.process_latent_out(samples.to(torch.float16))
+
+    def sample(
+        self,
+        noise,
+        latent_image,
+        sampler,
+        sigmas,
+        denoise_mask=None,
+        callback=None,
+        disable_pbar=False,
+        seed=None,
+    ):
+        self.conds = self.original_conds
+        device = torch.device("cuda")
+        sigmas = sigmas.to(device)
+        output = self.inner_sample(
+            noise, latent_image, device, sampler, sigmas, denoise_mask, None, True, seed
+        )
+        return output
+
+
+def sampleDeforum(
+    model,
+    noise,
+    positive,
+    negative,
+    cfg,
+    device,
+    sampler,
+    sigmas,
+    model_options={},
+    latent_image=None,
+    denoise_mask=None,
+    callback=None,
+    disable_pbar=False,
+    seed=None,
+):
+    global cfg_guider
+    if cfg_guider is None:
+        cfg_guider = HIJackCFGGuider(model)
+    cfg_guider.set_conds(positive, negative)
+    cfg_guider.set_cfg(cfg)
+    return cfg_guider.sample(
+        noise, latent_image, sampler, sigmas, denoise_mask, callback, disable_pbar, seed
+    )
 
 
 class DeforumBatchedBrownianTree:
