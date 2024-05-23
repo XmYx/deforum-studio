@@ -19,6 +19,8 @@ from ..utils.model_download import (
     download_from_civitai_by_version_id,
 )
 
+def pil2tensor(image):
+    return torch.from_numpy(np.array(image).astype(np.float32) / 255.0).unsqueeze(0)
 
 class ComfyDeforumGenerator:
     def __init__(self, model_path: str = None, *args, **kwargs):
@@ -46,12 +48,16 @@ class ComfyDeforumGenerator:
         try:
             sfast_node = NODE_CLASS_MAPPINGS["ApplyStableFastUnet"]()
             self.optimizations.append('stable_fast')
+            logger.info("Stable Fast optimization available")
+
         except:
             logger.info("Stable Fast optimization not available")
 
         try:
             from custom_nodes.onediff_comfy_nodes._nodes import BasicBoosterExecutor
             self.optimizations.append('onediff')
+            logger.info("Onediff optimization available")
+
         except:
             logger.info("Onediff optimization not available")
 
@@ -81,6 +87,33 @@ class ComfyDeforumGenerator:
         model = custom_booster(model, ckpt_name=model_path)
         model.weight_inplace_update = True
         return model
+    @torch.inference_mode()
+    def set_ip_adapter_image(self, image, weight=1.0, start=0.0, end=1.0):
+        # if self.model_loaded and self.optimized:
+        #     self.cleanup()
+        if not self.model_loaded:
+            self.load_model()
+
+        from nodes import NODE_CLASS_MAPPINGS
+        if not hasattr(self, 'ip_loader_node'):
+            self.ip_loader_node = NODE_CLASS_MAPPINGS['IPAdapterModelLoader']()
+            self.clip_vision_loader_node = NODE_CLASS_MAPPINGS['CLIPVisionLoader']()
+            self.ip_adapter_apply_node = NODE_CLASS_MAPPINGS['IPAdapterAdvanced']()
+            self.ip_adapter = self.ip_loader_node.load_ipadapter_model('ip-adapter-plus_sdxl_vit-h.safetensors')[0]
+            self.clip_vision = self.clip_vision_loader_node.load_clip('CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors')[0]
+
+        img_tensor = pil2tensor(image)
+
+        self.model = self.ip_adapter_apply_node.apply_ipadapter(self.model,
+                                                                self.ip_adapter,
+                                                                clip_vision=self.clip_vision,
+                                                                image=img_tensor,
+                                                                weight=weight,
+                                                                weight_type='linear',
+                                                                combine_embeds='concat',
+                                                                start_at=start,
+                                                                end_at=end,
+                                                                embeds_scaling='V only')[0]
 
     @torch.inference_mode()
     def encode_latent(
