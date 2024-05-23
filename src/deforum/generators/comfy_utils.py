@@ -1,3 +1,7 @@
+"""
+This module provides utilities for managing and configuring ComfyUI extensions,
+including downloading models, cloning repositories, and handling custom nodes.
+"""
 import contextlib
 import importlib
 import logging
@@ -15,10 +19,18 @@ from deforum.generators.rng_noise_generator import randn_local
 from deforum.utils.constants import config
 from deforum.utils.logging_config import logger
 
+ip_adapter_model_dict = {
+    "https://huggingface.co/h94/IP-Adapter/resolve/main/models/image_encoder/model.safetensors": f"{config.comfy_path}/models/clip_vision/CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors",
+    "https://huggingface.co/h94/IP-Adapter/resolve/main/sdxl_models/ip-adapter-plus_sdxl_vit-h.safetensors": f"{config.comfy_path}/models/ipadapter/ip-adapter-plus_sdxl_vit-h.safetensors"
+}
+
 comfy_initialized = False
 cfg_guider = None
 
 def replace_torchsde_browinan():
+    """
+    Replace the default torchsde Brownian noise generator with a custom one using local random noise.
+    """
     import torchsde._brownian.brownian_interval
     def torchsde_randn(size, dtype, device, seed):
         return randn_local(seed, size).to(device=device, dtype=dtype)
@@ -26,6 +38,12 @@ def replace_torchsde_browinan():
 
 @contextlib.contextmanager
 def change_dir(destination):
+    """
+    Context manager to temporarily change the current working directory.
+
+    Args:
+        destination (str): The path to change to.
+    """
     cwd = os.getcwd()
     try:
         os.chdir(destination)
@@ -35,7 +53,13 @@ def change_dir(destination):
 
 
 def clone_repo(repo_url, commit_id=None):
-    """Clones a Git repository and optionally checks out a specific commit."""
+    """
+    Clone a Git repository and optionally check out a specific commit.
+
+    Args:
+        repo_url (str): The URL of the repository to clone.
+        commit_id (str, optional): The commit ID to check out. Defaults to None.
+    """
     try:
         subprocess.run(["git", "clone", repo_url])
         if commit_id:
@@ -48,6 +72,13 @@ def clone_repo(repo_url, commit_id=None):
 
 
 def clone_repo_to(repo_url, dest_path):
+    """
+    Clone a Git repository to a specific destination path.
+
+    Args:
+        repo_url (str): The URL of the repository to clone.
+        dest_path (str): The destination path to clone the repository to.
+    """
     try:
         subprocess.run(["git", "clone", repo_url, dest_path])
     except Exception as e:
@@ -55,67 +86,25 @@ def clone_repo_to(repo_url, dest_path):
 
 
 def add_to_sys_path(path):
+    """
+    Add a directory to the system path.
+
+    Args:
+        path (str): The directory path to add.
+    """
     sys.path.append(path)
 
-
-def load_custom_node(module_path, ignore=set()):
-    from nodes import NODE_CLASS_MAPPINGS
-
-    module_name = os.path.basename(module_path)
-    if os.path.isfile(module_path):
-        sp = os.path.splitext(module_path)
-        module_name = sp[0]
-    try:
-        logging.debug("Trying to load custom node {}".format(module_path))
-        if os.path.isfile(module_path):
-            module_spec = importlib.util.spec_from_file_location(
-                module_name, module_path
-            )
-            module_dir = os.path.split(module_path)[0]
-        else:
-            module_spec = importlib.util.spec_from_file_location(
-                module_name, os.path.join(module_path, "__init__.py")
-            )
-            module_dir = module_path
-
-        module = importlib.util.module_from_spec(module_spec)
-        sys.modules[module_name] = module
-        module_spec.loader.exec_module(module)
-
-        # if hasattr(module, "WEB_DIRECTORY") and getattr(module, "WEB_DIRECTORY") is not None:
-        #     web_dir = os.path.abspath(os.path.join(module_dir, getattr(module, "WEB_DIRECTORY")))
-        #     if os.path.isdir(web_dir):
-        #         EXTENSION_WEB_DIRS[module_name] = web_dir
-
-        if (
-                hasattr(module, "NODE_CLASS_MAPPINGS")
-                and getattr(module, "NODE_CLASS_MAPPINGS") is not None
-        ):
-            for name in module.NODE_CLASS_MAPPINGS:
-                if name not in ignore:
-                    NODE_CLASS_MAPPINGS[name] = module.NODE_CLASS_MAPPINGS[name]
-
-            return True
-        else:
-            logging.warning(
-                f"Skip {module_path} module for custom nodes due to the lack of NODE_CLASS_MAPPINGS."
-            )
-            return False
-    except Exception as e:
-        logging.warning(traceback.format_exc())
-        logging.warning(f"Cannot import {module_path} module for custom nodes: {e}")
-        return False
-
-ip_adapter_model_dict = {
-    "https://huggingface.co/h94/IP-Adapter/resolve/main/models/image_encoder/model.safetensors": f"{config.comfy_path}/models/clip_vision/CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors",
-    "https://huggingface.co/h94/IP-Adapter/resolve/main/sdxl_models/ip-adapter-plus_sdxl_vit-h.safetensors": f"{config.comfy_path}/models/ipadapter/ip-adapter-plus_sdxl_vit-h.safetensors"
-}
 def download_models(model_dict):
+    """
+    Download models from given URLs and save them to specified local paths.
+
+    Args:
+        model_dict (dict): A dictionary with URLs as keys and local paths as values.
+    """
     for url, local_path in model_dict.items():
         # Check if the local directory exists, create it if it doesn't
         local_dir = os.path.dirname(local_path)
-        if not os.path.exists(local_dir):
-            os.makedirs(local_dir)
+        os.makedirs(local_dir, exist_ok=True)
 
         # Check if the file already exists
         if not os.path.exists(local_path):
@@ -134,6 +123,12 @@ def download_models(model_dict):
         else:
             print(f"File {local_path} already exists. Skipping download.")
 def ensure_comfy(custom_path=None):
+    """
+    Ensure that ComfyUI is initialized and configured properly.
+
+    Args:
+        custom_path (str, optional): A custom path for ComfyUI. Defaults to None.
+    """
     global comfy_initialized
     if not comfy_initialized:
         comfy_initialized = True
