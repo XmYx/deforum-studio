@@ -69,6 +69,7 @@ class ComfyDeforumGenerator:
         self.ip_adapter = None
         self.clip_vision = None
         self.clip_node = None
+        self.sampler_node = None
         self.pipe = None
         self.loaded_lora = None
         self.model_loaded = None
@@ -268,7 +269,7 @@ class ComfyDeforumGenerator:
         Returns:
             Conditioning tensors.
         """
-        if not hasattr(self, "clip_node"):
+        if self.clip_node is None:
             from nodes import NODE_CLASS_MAPPINGS
             self.clip_node = NODE_CLASS_MAPPINGS["smZ CLIPTextEncode"]()
         conds = self.clip_node.encode(
@@ -641,7 +642,7 @@ class ComfyDeforumGenerator:
                     )
         if cnet_image is not None:
             cond = apply_controlnet(cond, self.controlnet, cnet_image, 1.0)
-        if not hasattr(self, "sampler_node"):
+        if self.sampler_node is None:
             from nodes import NODE_CLASS_MAPPINGS
             self.sampler_node = NODE_CLASS_MAPPINGS['KSampler //Inspire']()
         steps = round(denoise * steps)
