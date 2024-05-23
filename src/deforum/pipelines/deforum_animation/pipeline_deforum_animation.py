@@ -485,7 +485,7 @@ class DeforumAnimationPipeline(DeforumBase):
             }
             params = {k: v for k, v in params.items() if v is not None}
             self.generator.set_ip_adapter_image(ip_image, **params)
-            logger.info(f"IP Adapter setup complete. Start: {params['start'] * 100}%, End: {params['end']*100}%, Weight: {params['weight']}")
+            logger.info(f"IP Adapter setup complete. Start: {params['start']}%, End: {params['end']}%, Weight: {params['weight']}")
 
 
 
