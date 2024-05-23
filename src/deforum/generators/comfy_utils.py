@@ -143,13 +143,13 @@ def ensure_comfy(custom_path=None):
         comfy_path = custom_path or config.comfy_path
         comfy_submodule_folder = os.path.join(comfy_path, 'custom_nodes')
 
-        if not os.path.exists(config.comfy_path):
-            try:
-                print("Initializing and updating git submodules...")
-                subprocess.check_call(['git', 'submodule', 'update', '--init', '--recursive'])
-                print("Submodules initialized and updated.")
-            except subprocess.CalledProcessError as e:
-                print(f"Failed to initialize submodules: {e}")
+        # if not os.path.exists(config.comfy_path):
+        try:
+            print("Initializing and updating git submodules...")
+            subprocess.check_call(['git', 'submodule', 'update', '--init', '--recursive'])
+            print("Submodules initialized and updated.")
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to initialize submodules: {e}")
 
         with change_dir(comfy_submodule_folder):
             for module, commit_id in comfy_submodules:
