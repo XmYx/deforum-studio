@@ -475,6 +475,21 @@ class DeforumAnimationPipeline(DeforumBase):
         os.makedirs(self.gen.outdir, exist_ok=True)
         self.gen.image_paths = []
 
+
+        if hasattr(self.gen, 'ip_adapter_image') and hasattr(self.generator, 'set_ip_adapter_image'):
+            ip_image = load_image(self.gen.ip_adapter_image)
+            params = {
+                "weight": getattr(self.gen, "ip_adapter_strength", None),
+                "start": getattr(self.gen, "ip_adapter_start", None),
+                "end": getattr(self.gen, "ip_adapter_end", None),
+            }
+            params = {k: v for k, v in params.items() if v is not None}
+            self.generator.set_ip_adapter_image(ip_image, **params)
+            logger.info(f"IP Adapter setup complete. Start: {params['start'] * 100}%, End: {params['end']*100}%, Weight: {params['weight']}")
+
+
+
+
     @deforumdoc
     def live_update_from_kwargs(self, **kwargs):
         """
