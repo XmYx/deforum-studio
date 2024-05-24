@@ -344,39 +344,6 @@ class ComfyDeforumGenerator:
         self.clip = settings_node.run(self.clip, **settings_dict)[0]
         self.model_loaded = True
 
-=======
-            self.apply_smz_optimizations()
-
-    def apply_smz_optimizations(self):
-        """
-        Apply SMZ optimizations to the model and CLIP.
-        """
-        from nodes import NODE_CLASS_MAPPINGS
-
-        settings_node = NODE_CLASS_MAPPINGS["smZ Settings"]()
-        settings_dict = {}
-        for k, v in settings_node.INPUT_TYPES()["optional"].items():
-            if "default" in v[1]:
-                settings_dict[k] = v[1]["default"]
-        settings_dict["RNG"] = "gpu"
-        settings_dict["pad_cond_uncond"] = True
-        settings_dict["Use CFGDenoiser"] = True
-        settings_dict["disable_nan_check"] = True
-        settings_dict["upcast_sampling"] = False
-        settings_dict["batch_cond_uncond"] = True
-        settings_dict["sgm_noise_multiplier"] = False
-        settings_dict["enable_emphasis"] = True
-        settings_dict["ENSD"] = 0
-        settings_dict["s_noise"] = 1.0
-        settings_dict["eta"] = 1.0
-        settings_dict["s_churn"] = 0.0
-        settings_dict["t_min"] = 0.0
-        settings_dict["t_max"] = 0.0
-        self.model = settings_node.run(self.model, **settings_dict)[0]
-        self.clip = settings_node.run(self.clip, **settings_dict)[0]
-        self.model_loaded = True
-
->>>>>>> origin/main
     def load_lora_from_civitai(self,
                                lora_id="",
                                model_strength=0.0,
