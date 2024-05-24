@@ -16,6 +16,18 @@
       "label": "Upload Settings File",
       "accessible_name": "Settings File Upload"
     },
+    "ip_adapter_image": {
+      "label": "IP Adapter Image Path",
+      "widget_type": "text input",
+      "default": ""
+    },
+    "ip_adapter_strength": {
+      "widget_type": "float",
+      "default": 0.6,
+      "min": 0.0,
+      "max": 10.0,
+      "label": "Ip Adapter Strength"
+    },
     "dry_run": {
       "widget_type": "checkbox",
       "default": false,
