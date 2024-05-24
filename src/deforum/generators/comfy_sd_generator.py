@@ -313,26 +313,7 @@ class ComfyDeforumGenerator:
             self.vae.patcher.offload_device = torch.device("cuda")
             self.vae.first_stage_model.cuda()
             self.clip.clip_layer(-2)
-<<<<<<< HEAD
-            if config.enable_onediff:
-                try:
-                    from custom_nodes.onediff_comfy_nodes._nodes import BasicBoosterExecutor
-                    from custom_nodes.onediff_comfy_nodes.modules import BoosterScheduler
-                    custom_booster = BoosterScheduler(BasicBoosterExecutor())
-                    logger.info("Enabling onediff...")
-                    start_time = time.time()
-                    self.model = custom_booster(self.model, ckpt_name=self.model_path)
-                    logger.info(f"Onediff enabled in: {time.time() - start_time}")
-                    self.model.weight_inplace_update = True
-                    self.onediff_avail = True
-                except Exception:
-                    logger.warning("NOT using onediff due to initialisation error. If you meant to, please check onediff custom nodes and their deps are correctly installed. To hid this message, set ENABLE_ONEDIFF=false.", exc_info=True)
-            else:
-                logger.info("NOT using onediff. If you meant to, set ENABLE_ONEDIFF=true")
-            self.model_loaded = True
-=======
             self.apply_smz_optimizations()
->>>>>>> ab6370a (ruff lint comments - set ip adapter image)
 
     def apply_smz_optimizations(self):
         """
@@ -363,6 +344,39 @@ class ComfyDeforumGenerator:
         self.clip = settings_node.run(self.clip, **settings_dict)[0]
         self.model_loaded = True
 
+=======
+            self.apply_smz_optimizations()
+
+    def apply_smz_optimizations(self):
+        """
+        Apply SMZ optimizations to the model and CLIP.
+        """
+        from nodes import NODE_CLASS_MAPPINGS
+
+        settings_node = NODE_CLASS_MAPPINGS["smZ Settings"]()
+        settings_dict = {}
+        for k, v in settings_node.INPUT_TYPES()["optional"].items():
+            if "default" in v[1]:
+                settings_dict[k] = v[1]["default"]
+        settings_dict["RNG"] = "gpu"
+        settings_dict["pad_cond_uncond"] = True
+        settings_dict["Use CFGDenoiser"] = True
+        settings_dict["disable_nan_check"] = True
+        settings_dict["upcast_sampling"] = False
+        settings_dict["batch_cond_uncond"] = True
+        settings_dict["sgm_noise_multiplier"] = False
+        settings_dict["enable_emphasis"] = True
+        settings_dict["ENSD"] = 0
+        settings_dict["s_noise"] = 1.0
+        settings_dict["eta"] = 1.0
+        settings_dict["s_churn"] = 0.0
+        settings_dict["t_min"] = 0.0
+        settings_dict["t_max"] = 0.0
+        self.model = settings_node.run(self.model, **settings_dict)[0]
+        self.clip = settings_node.run(self.clip, **settings_dict)[0]
+        self.model_loaded = True
+
+>>>>>>> origin/main
     def load_lora_from_civitai(self,
                                lora_id="",
                                model_strength=0.0,
