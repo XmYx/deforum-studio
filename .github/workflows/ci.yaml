@@ -73,9 +73,9 @@ jobs:
         git-ratchet check -v -w < measures.csv || (echo "Ruff issues have increased")
         git-ratchet dump
 
-    - name: Run tests with pytest
+    - name: Run unit tests with pytest
       run: |
-        pytest tests --junitxml=reports/junit.xml
+        pytest tests/unittests --junitxml=reports/junit.xml
       continue-on-error: false        
 
     - name: Upload reports
