@@ -340,11 +340,10 @@ class ComfyDeforumGenerator:
                     logger.info(f"Onediff enabled in: {time.time() - start_time}")
                     self.model.weight_inplace_update = True
                     self.onediff_avail = True
-                except:
-                    logger.warn("NOT using onediff due to initialisation error. If you meant to, please check onediff custom nodes and their deps are correctly installed. To hid this message, set ENABLE_ONEDIFF=false.", exc_info=True)
+                except Exception:
+                    logger.warning("NOT using onediff due to initialisation error. If you meant to, please check onediff custom nodes and their deps are correctly installed. To hid this message, set ENABLE_ONEDIFF=false.", exc_info=True)
             else:
-                logger.info("NOT using onediff. If you meant to, set ENABLE_ONEDIFF=true", exc_info=True)
-                
+                logger.info("NOT using onediff. If you meant to, set ENABLE_ONEDIFF=true")
 
             self.model_loaded = True
             # from ..optimizations.deforum_comfy_trt.deforum_trt_comfyunet import TrtUnet

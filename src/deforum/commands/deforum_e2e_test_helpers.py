@@ -1,14 +1,16 @@
-import shutil
 import datetime
+import json
 import os
+import shutil
 import time
 
 import cv2
 import numpy as np
-from skimage.metrics import structural_similarity as ssim
 from loguru import logger as logurulogger
+from skimage.metrics import structural_similarity as ssim
+
 from deforum.utils.constants import config
-import json
+
 
 def save_test_configuration(test_path, configuration):
     config_path = os.path.join(test_path, 'configuration.json')
@@ -27,6 +29,19 @@ def get_frames(video_path):
         frames.append(frame)
     cap.release()
     return frames
+
+
+def get_video_properties(video_path):
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        print("Error: Could not open video.")
+        return None
+
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    cap.release()
+
+    return total_frames, fps
 
 
 def get_psnr(frame1, frame2):
@@ -164,5 +179,5 @@ def run_e2e_test(options, extra_args):
                 logurulogger.info(f"Comparison result for {batch_name}: {comparison_result}")
             else:
                 logurulogger.info("Baseline established; no comparison needed.")
-        except Exception as e:
-            logurulogger.exception(f"Exception during test run.")
+        except Exception:
+            logurulogger.exception("Exception during test run.")

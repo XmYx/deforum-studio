@@ -14,62 +14,60 @@ import time
 from glob import glob
 from typing import Callable, Optional
 
-import PIL.Image
 import cv2
 import numexpr
 import numpy as np
 import pandas as pd
+import PIL.Image
 import torch
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from torch import nn
 from tqdm import tqdm
 
-from .animation_helpers import (
-    anim_frame_warp_cls,
-    hybrid_composite_cls,
-    affine_persp_motion,
-    optical_flow_motion,
-    color_match_cls,
-    set_contrast_image,
-    handle_noise_mask,
-    add_noise_cls,
-    get_generation_params,
-    optical_flow_redo,
-    diffusion_redo,
-    main_generate_with_cls,
-    post_hybrid_composite_cls,
-    post_color_match_with_cls,
-    overlay_mask_cls,
-    post_gen_cls,
-    color_match_video_input,
-    film_interpolate_cls,
-    save_video_cls,
-    DeforumAnimKeys,
-    LooperAnimKeys,
-    generate_interpolated_frames,
-    rife_interpolate_cls,
-    cls_subtitle_handler,
-    apply_temporal_flow_cls,
-)
-
-from .parseq_adapter import ParseqAdapter
-
-from .animation_params import auto_to_comfy
-from ..deforum_pipeline import DeforumBase
-from ... import ComfyDeforumGenerator
 from deforum.docutils.decorator import deforumdoc
-from ...models import DepthModel, RAFT
-from ...pipeline_utils import DeforumGenerationObject, pairwise_repl, isJson
+from deforum.utils.logging_config import logger
+
+from ... import ComfyDeforumGenerator
+from ...models import RAFT, DepthModel
+from ...pipeline_utils import DeforumGenerationObject
 from ...utils.constants import config
 from ...utils.deforum_hybrid_animation import hybrid_generation
 from ...utils.deforum_logger_util import Logger
-from ...utils.image_utils import load_image_with_mask, prepare_mask, check_mask_for_errors, load_image
+from ...utils.image_utils import load_image
 from ...utils.resume_vars import get_resume_vars
 from ...utils.sdxl_styles import STYLE_NAMES, apply_style
-from ...utils.string_utils import split_weighted_subprompts, check_is_number
-from ...utils.video_frame_utils import get_frame_name
+from ...utils.string_utils import split_weighted_subprompts
+from ..deforum_pipeline import DeforumBase
+from .animation_helpers import (
+    DeforumAnimKeys,
+    LooperAnimKeys,
+    add_noise_cls,
+    affine_persp_motion,
+    anim_frame_warp_cls,
+    apply_temporal_flow_cls,
+    cls_subtitle_handler,
+    color_match_cls,
+    color_match_video_input,
+    diffusion_redo,
+    film_interpolate_cls,
+    generate_interpolated_frames,
+    get_generation_params,
+    handle_noise_mask,
+    hybrid_composite_cls,
+    main_generate_with_cls,
+    optical_flow_motion,
+    optical_flow_redo,
+    overlay_mask_cls,
+    post_color_match_with_cls,
+    post_gen_cls,
+    post_hybrid_composite_cls,
+    rife_interpolate_cls,
+    save_video_cls,
+    set_contrast_image,
+)
+from .animation_params import auto_to_comfy
+from .parseq_adapter import ParseqAdapter
 
-from deforum.utils.logging_config import logger
 
 class DeforumAnimationPipeline(DeforumBase):
     """
@@ -161,10 +159,9 @@ class DeforumAnimationPipeline(DeforumBase):
         self.run_prep_fn_list()
 
 
-        while self.gen.frame_idx + 1 <= self.gen.max_frames:
-            # MAIN LOOP
+        # MAIN LOOP.
+        while self.gen.frame_idx < self.gen.max_frames:
             frame_start = time.time()
-
             self.run_shoot_fn_list()
 
             self.pbar.update(self.gen.turbo_steps)
@@ -262,7 +259,7 @@ class DeforumAnimationPipeline(DeforumBase):
         self.gen.predict_depths = self.gen.use_depth_warping or self.gen.save_depth_maps
         self.gen.predict_depths = self.gen.predict_depths or (
                 self.gen.hybrid_composite and self.gen.hybrid_comp_mask_type in ['Depth', 'Video Depth'])
-        if self.gen.predict_depths or self.depth_model is None or self.loaded_depth_model != self.gen.depth_algorithm.lower():
+        if self.gen.predict_depths and (self.depth_model is None or self.loaded_depth_model != self.gen.depth_algorithm.lower()):
             # if self.opts is not None:
             #     self.keep_in_vram = self.opts.data.get("deforum_keep_3d_models_in_vram")
             # else:
@@ -279,7 +276,7 @@ class DeforumAnimationPipeline(DeforumBase):
                 self.gen.use_adabins = True
 
                 logger.info("Setting AdaBins usage")
-            logger.info(f"[ Loaded Depth model ]")
+            logger.info("[ Loaded Depth model ]")
             self.loaded_depth_model = self.gen.depth_algorithm.lower()
             # depth-based hybrid composite mask requires saved depth maps
             if self.gen.hybrid_composite != 'None' and self.gen.hybrid_comp_mask_type == 'Depth':
@@ -376,7 +373,7 @@ class DeforumAnimationPipeline(DeforumBase):
             if self.gen.deforum_save_gen_info_as_srt:
                 self.shoot_fns.append(cls_subtitle_handler)
 
-        if self.gen.frame_interpolation_engine != "None":
+        if getattr(self.gen, "frame_interpolation_engine", None) and self.gen.frame_interpolation_engine != "None":
             if self.gen.max_frames > 3:
                 if self.gen.frame_interpolation_engine == "FILM":
                     self.post_fns.append(film_interpolate_cls)
@@ -622,7 +619,7 @@ class DeforumAnimationPipeline(DeforumBase):
                         scheduler = auto_to_comfy[self.gen.sampler_name]["scheduler"]
                         self.gen.sampler_name = sampler_name
                         self.gen.scheduler = scheduler
-                except:
+                except Exception:
                     logger.info("No Comfy available when setting scheduler name")
         if self.gen.scheduled_sampler_name is not None and self.gen.enable_sampler_scheduling:
             if self.gen.scheduled_sampler_name in auto_to_comfy.keys():
@@ -711,9 +708,27 @@ class DeforumAnimationPipeline(DeforumBase):
             # Blend images
             processed = Image.blend(default_image, self.gen.first_frame, blend_factor)
 
+            # Overlay frame number on the image
+            draw = ImageDraw.Draw(processed)
+            text_position = (120, 120)
+            text="Diffused frame: " + str(self.gen.frame_idx) + "/" + str(self.gen.max_frames-1)
+            font=ImageFont.load_default(size=50)
+            bbox = draw.textbbox(xy=text_position, text=text, font=font)
+
+            background_position = (bbox[0] - 5, bbox[1] - 5, bbox[2] + 5, bbox[3] + 5)
+            draw.rectangle(background_position, fill="black")
+            draw.text(xy=text_position, text=text, font=font, fill="white")
+
             # Update first_frame at the end of each cycle
             if (self.gen.frame_idx + 1) % 200 == 0:  # Reset first frame after each full cycle
                 self.gen.first_frame = processed
+
+        # These values are used in generate_interpolated_frames() to known between which frames
+        # to interpolate on the next cycle around the MAIN LOOP.
+        # Note that self.gen.next_frame_to_diffuse may be greater than max_frames – this is OK,
+        # as it will be clamped in generate_interpolated_frames().
+        self.gen.last_diffused_frame = self.gen.frame_idx
+        self.gen.next_frame_to_diffuse = self.gen.frame_idx + self.gen.turbo_steps
 
         return processed
 

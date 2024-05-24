@@ -34,13 +34,13 @@ class MidasDepth:
             self.normalization,
             PrepareForNet()
         ])
-        
+
         download_file_with_checksum(url=self.midas_model_url, expected_checksum=self.midas_model_checksum, dest_folder=models_path, dest_filename=self.midas_model_filename)
-        
+
         self.load_midas_model(models_path, self.midas_model_filename)
         if half_precision:
             self.midas_model = self.midas_model.half()
-            
+
     def load_midas_model(self, models_path, midas_model_filename):
         model_file = os.path.join(models_path, midas_model_filename)
         logger.info(f"Loading MiDaS model from {midas_model_filename}...")
@@ -103,7 +103,7 @@ class MidasDepth:
         # ).squeeze().cpu().numpy()
         # depth_tensor = torch.from_numpy(np.expand_dims(midas_depth, axis=0)).squeeze().to(self.device)
         # return depth_tensor
-        
+
     def to(self, device):
         self.device = device
         self.midas_model = self.midas_model.to(device, memory_format=torch.channels_last if device == torch.device("cuda") else None)

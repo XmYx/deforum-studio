@@ -66,10 +66,10 @@ pip install -e .['dev']
 
 ### Execution
 
-Unit tests are under `./unittests`. Point your IDE's test mechanism to this directory. Alternatively, you can run them from the command line with:
+Unit tests are under `./tests/unittests`. Point your IDE's test mechanism to this directory. Alternatively, you can run them from the command line with:
 
 ```bash
-pytest unittests
+pytest tests/unittests
 ```
 
 ## Ad-hoc testing

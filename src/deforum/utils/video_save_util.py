@@ -30,8 +30,8 @@ def save_as_h264(frames, filename, audio_path=None, fps=12):
         frames = [Image.open(frame_path) for frame_path in frames]
     elif isinstance(frames[0], np.ndarray):
         frames = [Image.fromarray(frame) for frame in frames]
-    writer = imageio.get_writer(filename, fps=fps, codec='libx264', pixelformat='yuv420p', output_params=['-crf', '5'])
-    
+    writer = imageio.get_writer(filename, fps=fps, codec='libx264', pixelformat='yuv420p', output_params=['-crf', '17'])
+
     for frame in frames:
         writer.append_data(np.array(frame))
     writer.close()
@@ -72,5 +72,5 @@ def save_as_h264(frames, filename, audio_path=None, fps=12):
         finally:
             if os.path.exists(extracted_audio_tmpfile):
                 os.remove(extracted_audio_tmpfile)
-        
+
     return filename

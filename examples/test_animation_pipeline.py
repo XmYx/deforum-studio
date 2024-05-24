@@ -1,12 +1,14 @@
 import os
 import time
+
 from deforum import DeforumAnimationPipeline
-from deforum.utils.constants import config
 from deforum.pipeline_utils import load_settings
+from deforum.utils.constants import config
+
 
 preset_dir = os.path.join(config.root_path,"presets")
 settings_dir = os.path.join(preset_dir,"settings")
-settings_file = "Zoom-To-New.txt"
+settings_file = "Classic-3D-Motion.txt"
 settings_path = os.path.join(settings_dir,settings_file)
 
 pipeline = DeforumAnimationPipeline.from_civitai("125703")
