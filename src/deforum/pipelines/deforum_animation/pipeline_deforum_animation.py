@@ -474,15 +474,16 @@ class DeforumAnimationPipeline(DeforumBase):
 
 
         if hasattr(self.gen, 'ip_adapter_image') and hasattr(self.generator, 'set_ip_adapter_image'):
-            ip_image = load_image(self.gen.ip_adapter_image)
-            params = {
-                "weight": getattr(self.gen, "ip_adapter_strength", 1.0),
-                "start": getattr(self.gen, "ip_adapter_start", 0.0),
-                "end": getattr(self.gen, "ip_adapter_end", 1.0),
-            }
-            params = {k: v for k, v in params.items() if v is not None}
-            self.generator.set_ip_adapter_image(ip_image, **params)
-            logger.info(f"IP Adapter setup complete. Start: {params['start']}%, End: {params['end']}%, Weight: {params['weight']}")
+            if self.gen.ip_adapter_image != "":
+                ip_image = load_image(self.gen.ip_adapter_image)
+                params = {
+                    "weight": getattr(self.gen, "ip_adapter_strength", 1.0),
+                    "start": getattr(self.gen, "ip_adapter_start", 0.0),
+                    "end": getattr(self.gen, "ip_adapter_end", 1.0),
+                }
+                params = {k: v for k, v in params.items() if v is not None}
+                self.generator.set_ip_adapter_image(ip_image, **params)
+                logger.info(f"IP Adapter setup complete. Start: {params['start']}%, End: {params['end']}%, Weight: {params['weight']}")
 
 
 
