@@ -8,7 +8,11 @@ from deforum.commands.deforum_e2e_test_helpers import get_video_properties
 from deforum.utils.constants import config
 
 
-class TestPipelineDeforumAnimation:
+##
+# Uses dry run to confirm we generate diffusion and interpolation frames
+# at the correct positions, for various values of the diffusion cadence.
+##
+class TestCadence:
 
     @pytest.fixture(autouse=True)
     def inject_request(self, request):

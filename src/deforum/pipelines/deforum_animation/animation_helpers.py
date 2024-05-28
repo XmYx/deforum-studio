@@ -1162,8 +1162,9 @@ def cls_subtitle_handler(cls):
                 cls.gen.srt_frame_duration = init_srt_file(cls.gen.srt_filename, cls.gen.fps)
             params_to_print = ["Trans X", "Trans Y", "Trans Z", "Str Sch", "Subseed Str Sch"]
             params_string = format_animation_params(cls.gen.keys, cls.gen.prompt_series, cls.gen.frame_idx, params_to_print)
+            is_diffused =  (cls.gen.frame_idx % max(1, cls.gen.turbo_steps) == 0)
             write_frame_subtitle(cls.gen.srt_filename, cls.gen.frame_idx, cls.gen.srt_frame_duration,
-                                 f"F#: {cls.gen.frame_idx}; Cadence: false; Seed: {cls.gen.seed}; {params_string}")
+                                 f"F#: {cls.gen.frame_idx}; Cadence: {not is_diffused}; Seed: {cls.gen.seed}; {params_string}")
 
 class DeforumAnimKeys():
     def __init__(self, anim_args, seed=-1, *args, **kwargs):

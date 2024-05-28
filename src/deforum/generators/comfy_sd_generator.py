@@ -80,6 +80,7 @@ class ComfyDeforumGenerator:
         self.n_prompt = ""
         self.device = "cuda"
         self.optimizations = []
+        self.initialize_optimizations()
 
     def initialize_optimizations(self):
         """
