@@ -36,9 +36,6 @@ settings_files = [
     'Elastic-Vision.txt',
     'Evolve-Fast-30s.txt',
     'Evolve-Fast.txt',
-    'Evolve-Glitch-2.txt',
-    'Evolve-Glitch-30s.txt',
-    'Evolve-Glitch.txt',
     'Evolve-Pulse-2-30s.txt',
     'Evolve-Pulse-2.txt',
     'Evolve-Pulse-30s.txt',
@@ -108,6 +105,10 @@ settings_files = [
     'Zoom-To-New.txt',
     # TODO: this one seems to have a lot of variance run-to-run. Need to find out why.
     # 'Evolve-Glitch-2-30s.txt',
+    # 'Evolve-Glitch-2.txt',
+    # 'Evolve-Glitch-30s.txt',
+    # 'Evolve-Glitch.txt',
+
 ]
 
 ##
