@@ -18,7 +18,7 @@ from skimage.exposure import match_histograms
 
 from deforum.utils.blocking_file_list import BlockingFileList
 from deforum.utils.logging_config import logger
-from deforum.utils.rhythm_artithmetic import frame_to_beat, frame_to_sec, frames_per_beat
+from deforum.utils.rhythm_artithmetic import beat_to_sec, frame_to_beat, frame_to_sec, frames_per_beat, beat_to_frame, sec_to_frame
 
 from ... import FILMInterpolator
 from ...generators.deforum_flow_generator import (
@@ -1288,13 +1288,10 @@ class FrameInterpolator:
         fps = self.settings.fps
         beat_offset = self.settings.get("beat_offset", 0)
 
-        local_variables = {
-            "max_f": self.max_frames - 1,
-            "s": self.seed,
-            "bpm": bpm,
-            "beat_offset": beat_offset,
-            "fps": fps,
-        }
+        unsorted_events = self.settings.get("schedule_events", [])
+        events = sorted(unsorted_events, key=lambda event: event['time'])
+        for e in events:
+            e.frame = sec_to_frame(e.time, fps)
 
         value_is_number = None
         value = None
@@ -1305,26 +1302,7 @@ class FrameInterpolator:
                 if value_is_number:  # if it's only a number, leave the rest for the default interpolation
                     key_frame_series[i] = self.sanitize_value(value)
             if not value_is_number and value is not None:
-                local_variables["t"] = i
-                local_variables["s"] = frame_to_sec(i, fps)
-                local_variables["beat"] = frame_to_beat(i, fps, bpm) - beat_offset
-                
-                # local_variables["progress_to_next_event"]
-                # local_variables["frames_to_next_event"]
-                # local_variables["frames_from_prev_event"]
-                # local_variables["beats_to_next_event"]
-                # local_variables["beats_from_prev_event"]
-                # local_variables["seconds_to_next_event"]
-                # local_variables["seconds_from_prev_event"]
-                
-                frames_per_beat
-
-                # local_variables["progress_until_beat"]
-                # local_variables["frames_until_beat"]
-                # local_variables["seconds_until_beat"]
-                
-
-                
+                local_variables = self.prepare_local_variables(current_frame=i, bpm=bpm, fps=fps, beat_offset=beat_offset, events=events)
                 key_frame_series[i] = numexpr.evaluate(str(value), casting='unsafe', local_dict=local_variables) if not is_single_string else self.sanitize_value(value)
             elif is_single_string:  
                 # for values formatted like 0:("I am test") as used by sampler schedules, just take previous string value and replicate it
@@ -1342,6 +1320,53 @@ class FrameInterpolator:
         if integer:
             return key_frame_series.astype(int)
         return key_frame_series
+
+    def prepare_local_variables(self, current_frame, bpm, fps, beat_offset, events):
+        
+        local_variables = {
+            "max_f": self.max_frames - 1,
+            "s": self.seed,
+            "bpm": bpm,
+            "beat_offset": beat_offset,
+            "fps": fps,
+        }
+
+        local_variables["t"] = current_frame
+        local_variables["f"] = current_frame
+        local_variables["sec"] = frame_to_sec(current_frame, fps)
+
+        current_beat = frame_to_beat(current_frame, fps, bpm) - beat_offset
+        local_variables["beat"] = current_beat
+        local_variables["whole_beat"] = math.floor(current_beat)
+        local_variables["progress_until_beat"] = current_beat % 1
+        local_variables["frames_until_beat"] = beat_to_frame(1 - (current_beat % 1), fps, bpm)  
+        local_variables["frames_since_beat"] = beat_to_frame((current_beat % 1), fps, bpm)
+        local_variables["second_until_beat"] = beat_to_sec(1 - (current_beat % 1), bpm)  
+        local_variables["seconds_since_beat"] = beat_to_sec((current_beat % 1), bpm)
+        local_variables["frames_to_go"] = self.max_frames - 1 - current_frame
+        local_variables["beats_to_go"] = frame_to_beat(self.max_frames - 1 - current_frame, fps, bpm)
+        local_variables["seconds_to_go"] = frame_to_sec(self.max_frames - 1 - current_frame, fps)
+                
+        prev_event = next((event for event in reversed(events) if event.frame<current_frame), None)
+        next_event = next((event for event in events if event.frame>=current_frame), None)
+        prev_event_frame = prev_event.frame if prev_event else 0
+        next_event_frame = next_event.frame if next_event else self.max_frames-1
+
+        local_variables["events_passed"] = len([event for event in events if event.frame<current_frame])
+        local_variables["events_to_go"] = len(events) - local_variables["events_passed"]
+        local_variables["events_total"] = len(events)
+
+        local_variables["progress_until_next_event"] = (current_frame - prev_event_frame) / (next_event_frame - prev_event_frame)                
+        local_variables["frames_until_next_event"] = next_event_frame - current_frame
+        local_variables["beats_until_next_event"] = frame_to_beat(next_event_frame - current_frame, fps, bpm)
+        local_variables["seconds_until_next_event"] = frame_to_sec(next_event_frame - current_frame, fps)
+
+        local_variables["frames_since_prev_event"] = current_frame - prev_event_frame
+        local_variables["beats_since_prev_event"] = frame_to_beat(next_event_frame - current_frame, fps, bpm)
+        local_variables["seconds_since_prev_event"] = frame_to_sec(next_event_frame - current_frame, fps)
+
+        return local_variables
+
 
     def parse_key_frames(self, string):
         # because math functions (i.e. sin(t)) can utilize brackets

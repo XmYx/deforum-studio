@@ -1,3 +1,6 @@
+from typing import Any, List
+
+
 def frame_to_beat(frame: int, fps: float, bpm: float) -> float:
     return frame / ((fps * 60) / bpm)
 
@@ -27,3 +30,11 @@ def frames_per_beat(fps: float, bpm: float) -> float:
 
 def beats_per_frames(fps: float, bpm: float) -> float:
     return 1 / frames_per_beat(fps, bpm)
+
+def count_until_criteria(lst : List[Any], criteria) -> int:
+    count = 0
+    for item in lst:
+        if criteria(item):
+            break
+        count += 1
+    return count
