@@ -367,14 +367,15 @@ class DeforumAnimationPipeline(DeforumBase):
         if self.gen.overlay_mask:
             self.shoot_fns.append(overlay_mask_cls)
 
-        self.shoot_fns.append(post_gen_cls)
-        if hasattr(self.gen, 'enable_temporal_flow'):
-            if self.gen.enable_temporal_flow and self.gen.turbo_steps < 2:
-                self.shoot_fns.append(apply_temporal_flow_cls)
-
         if hasattr(self.gen, "deforum_save_gen_info_as_srt"):
             if self.gen.deforum_save_gen_info_as_srt:
                 self.shoot_fns.append(cls_subtitle_handler)
+
+        self.shoot_fns.append(post_gen_cls)
+        
+        if hasattr(self.gen, 'enable_temporal_flow'):
+            if self.gen.enable_temporal_flow and self.gen.turbo_steps < 2:
+                self.shoot_fns.append(apply_temporal_flow_cls)
 
         if getattr(self.gen, "frame_interpolation_engine", None) and self.gen.frame_interpolation_engine != "None":
             if self.gen.max_frames > 3:
