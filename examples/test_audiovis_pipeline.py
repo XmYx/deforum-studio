@@ -1,10 +1,13 @@
+import contexttimer
 import math
+import numpy as np
 import os
 import shutil
 import subprocess
 import tempfile
 import threading
 import time
+import librosa
 from subprocess import Popen
 
 import mutagen
@@ -18,13 +21,13 @@ from deforum.utils.logging_config import logger
 
 #############
 # Setup
-INPUT_AUDIO = "https://vizrecord.app/audio/120bpm.mp3"
-MILKDROP_PRESET = os.path.join(config.presets_path, 'projectm', 'rewbs-01.milk')
-BASE_DEFORUM_PRESET = os.path.join(config.presets_path, 'settings', 'Shapes-Squares.txt')
-FPS = 24
+INPUT_AUDIO = "https://vizrecord.app/audio/ArtThing.mp3"
+MILKDROP_PRESET = os.path.join(config.presets_path, 'projectm', 'rewbs-04.milk')
+BASE_DEFORUM_PRESET = os.path.join(config.presets_path, 'settings', 'Classic-Zoom-In.txt')
+FPS = 20
 WIDTH = 1024
 HEIGHT = 576
-OVERRIDE_FRAME_COUNT = 48 # limit frame count for testing, set to None to generate full length
+OVERRIDE_FRAME_COUNT = 640 # limit frame count for testing, set to None to generate full length
 #############
 
 def run_projectm(input_audio: str, host_output_path : str, preset : str, fps: int = 20, width: int = 1024, height: int = 576) -> Popen[bytes]:
@@ -100,6 +103,27 @@ def get_audio_duration(audio_file):
     audio = mutagen.File(audio_file)
     return audio.info.length
 
+
+def detect_onsets(audio_file_path):
+    with contexttimer.Timer() as onset_timer:
+        y, sr = librosa.load(audio_file_path, sr=None, mono=True)
+        onset_env = librosa.onset.onset_strength(y=y, sr=sr)
+        onset_frames = librosa.onset.onset_detect(onset_envelope=onset_env, sr=sr)
+        onsets = librosa.frames_to_time(onset_frames, sr=sr)
+        onset_strengths = onset_env[onset_frames]
+        if onset_strengths.size > 0:
+            onset_strengths = (onset_strengths - onset_strengths.min()) / (onset_strengths.max() - onset_strengths.min())
+        events = []
+        for onset in onsets.tolist():
+            events.append({
+                "time": onset,
+                
+            })
+
+    logger.info(f'Onset detection in: {onset_timer.elapsed}s')
+    return events
+
+
 if __name__ == "__main__":
 
     audio_file_path = None
@@ -112,6 +136,10 @@ if __name__ == "__main__":
         audio_file_path = INPUT_AUDIO
 
     expected_frame_count = OVERRIDE_FRAME_COUNT or math.floor(FPS * get_audio_duration(audio_file_path))
+
+    events = detect_onsets(audio_file_path)
+    logger.info(events)
+
 
     job_name = f"manual_audiovis_{time.strftime('%Y%m%d%H%M%S')}"
     job_output_dir =  os.path.join(config.output_dir, job_name)
@@ -128,8 +156,8 @@ if __name__ == "__main__":
     if projectm_process is None:
         logger.error("ProjectM process failed to start. Exiting.")
         exit(1)
-    thread = threading.Thread(target=monitor_projectm, args=(projectm_process,))
-    thread.start()
+    projectM_thread = threading.Thread(target=monitor_projectm, args=(projectm_process,))
+    projectM_thread.start()
 
     # Run Deforum pipeline on main thread while projectM runs in the background
     pipeline = DeforumAnimationPipeline.from_civitai("125703")
@@ -143,17 +171,22 @@ if __name__ == "__main__":
     args["fps"] = FPS
     args["add_soundtrack"] = "File"
     args["soundtrack_path"] = audio_file_path
+    args["schedule_events"] = events
+    #args["dry_run"] = True
+    args["translation_z"] = "(0): 6*(1-progress_until_next_event)"
+    args["rotation_3d_y"] = "(0): (where(events_passed%2==0, 1, -1) * (1-progress_until_next_event) * 3)"
+    args["translation_x"] = "(0): (where(events_passed%2==0, -1, 1) * (1-progress_until_next_event) * 3 * (1024/90))"
     # args["seed"] = 10
-    # args["sampler"] ="DPM++ SDE Karras"
-    args["prompts"] = {"0": "A solo delorean speeding on an ethereal highway through time jumps, like in the iconic movie back to the future."}
+    args["sampler"] ="DPM++ SDE Karras"
+    args["prompts"] = {"0": "Mind-blowing splish splosh splash of metallic paint, irridescent, viscous, satisfying, cinematic lighting, studio professional macrophotography."}
     args["hybrid_generate_inputframes"] = False
-    # args["hybrid_composite"] = "Normal"
-    # args["hybrid_comp_alpha_schedule"] = "0:(0.2)"
-    # args["hybrid_motion"] = "Optical Flow"
-    # args["hybrid_flow_factor_schedule"] = "0:(1)"
-    # args["hybrid_motion_use_prev_img"] = True
-    # args["hybrid_use_first_frame_as_init_image"] = False
-    # args["hybrid_flow_method"] = "Farneback"
+    args["hybrid_composite"] = "Normal"
+    args["hybrid_comp_alpha_schedule"] = "0:(0.2)"
+    args["hybrid_motion"] = "Optical Flow"
+    args["hybrid_flow_factor_schedule"] = "0:(1)"
+    #args["hybrid_motion_use_prev_img"] = True
+    args["hybrid_use_first_frame_as_init_image"] = False
+    args["hybrid_flow_method"] = "Farneback"
 
     gen = pipeline(**args)
 
