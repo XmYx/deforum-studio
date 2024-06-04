@@ -66,16 +66,31 @@ pip install -e .['dev']
 
 ### Execution
 
-Unit tests are under `./unittests`. Point your IDE's test mechanism to this directory. Alternatively, you can run them from the command line with:
+Unit tests are under `./tests/unittests`. Point your IDE's test mechanism to this directory or the parent to include `integrationtests` as well. Alternatively, you can run them from the command line with:
 
 ```bash
-pytest unittests
+pytest tests/unittests
 ```
 
-## Ad-hoc testing
+## Integration testing
 
-For ad-hoc validation of miscellaneous functionality, you can directly run the test-* scripts under `./tests`.
-(TODO: these should probably converted to integration tests with clear expected outputs. Alternatively we can recast these scripts as "examples" of how to use the lib.)
+These tests should be fast enough to run frequently as part of your dev loop, but require a GPU so don't yet run in CI.
+
+### Setup
+
+Run the following to install test dependencies:
+
+```bash
+pip install -e .['dev']
+```
+
+### Execution
+
+Integration tests are under `./tests/integrationtests`. Point your IDE's test mechanism to this directory or the parent to include `unittests` as well. Alternatively, you can run them from the command line with:
+
+```bash
+pytest tests/integrationtests
+```
 
 
 ## End-to-end testing
@@ -92,6 +107,12 @@ You can verify that the paths are setup correctly by running `python tests/test_
 
 - Run `deforum run-all` for a full run of all settings files under `{PRESETS_PATH}/settings`.
 - Run `deforum test-e2e` for a full run of all settings files under `{PRESETS_PATH}/settings`, and compare results to a baseline (or create a new baseline if none exists).
+
+## Ad-hoc testing
+
+For ad-hoc validation of miscellaneous functionality, you can directly run the test-* scripts under `./examples`.
+(TODO: these should probably converted to integration tests with clear expected outputs. Alternatively we can recast these scripts as "examples" of how to use the lib.)
+
 
 ## Linting 
 

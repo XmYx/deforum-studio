@@ -248,6 +248,8 @@ class DeforumGenerationObject(DeforumDataObject):
         self.color_match_sample = None
         self.start_frame = 0
         self.frame_idx = 0
+        self.last_diffused_frame = None
+        self.next_frame_to_diffuse = None
         self.flow = None
         self.prev_flow = None
         self.image = None

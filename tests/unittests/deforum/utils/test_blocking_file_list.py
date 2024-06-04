@@ -34,7 +34,7 @@ class TestBlockingFileList:
         base_directory = "/base/dir"
         expected_file_count = 10
         extensions = ["jpg", "png"]
-        timeout_seconds = 1 
+        timeout_seconds = 1
         optional_prefix = "optional_prefix"
 
         file_list = BlockingFileList(base_directory, expected_file_count, optional_prefix, extensions, timeout_seconds)
@@ -80,7 +80,7 @@ class TestBlockingFileList:
             ("/base/dir/foo000000034.jpg",),
             ("/base/dir/foo000000034.png",),
             ("/base/dir/foo34.jpg",),
-            ("/base/dir/foo34.png",),          
+            ("/base/dir/foo34.png",),
             ("/base/dir/000000034.jpg",),
             ("/base/dir/000000034.png",),
             ("/base/dir/34.jpg",),
@@ -117,7 +117,7 @@ class TestBlockingFileList:
         # Thread event to simulate file creation
         file_created = Event()
         def create_file():
-            time.sleep(2) 
+            time.sleep(2)
             file_created.set()
         creation_thread = Thread(target=create_file)
         creation_thread.start()

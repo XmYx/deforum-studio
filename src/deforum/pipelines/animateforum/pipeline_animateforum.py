@@ -301,7 +301,6 @@ def animatediff_handler(cls):
         #cls.gen.prev_img = animatediff_prev_img
         cls.gen.animatediff_prev_img = animatediff_img
 
-        
         logger.info(f"BLURRINESS: {calculate_blurriness_metric(cls.gen.opencv_image)}")
         str = cls.gen.keys.strength_schedule_series[cls.gen.frame_idx]
         adj = calculate_blurriness_metric(cls.gen.prev_img)

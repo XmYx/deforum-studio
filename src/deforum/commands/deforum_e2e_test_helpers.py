@@ -1,20 +1,24 @@
-import shutil
 import datetime
+import json
 import os
+import shutil
 import time
+from dataclasses import dataclass
 
 import cv2
 import numpy as np
-from skimage.metrics import structural_similarity as ssim
 from loguru import logger as logurulogger
+from skimage.metrics import structural_similarity as ssim
+
 from deforum.utils.constants import config
-import json
+
 
 def save_test_configuration(test_path, configuration):
     config_path = os.path.join(test_path, 'configuration.json')
     with open(config_path, 'w') as config_file:
         json.dump(configuration, config_file, indent=4)
     logurulogger.info(f"Configuration saved: {config_path}")
+
 
 def get_frames(video_path):
     """Extract frames from a given video path using OpenCV."""
@@ -29,6 +33,19 @@ def get_frames(video_path):
     return frames
 
 
+def get_video_properties(video_path):
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        print("Error: Could not open video.")
+        return None
+
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    cap.release()
+
+    return total_frames, fps
+
+
 def get_psnr(frame1, frame2):
     """Calculate the PSNR between two frames."""
     mse = np.mean((frame1 - frame2) ** 2)
@@ -39,7 +56,54 @@ def get_psnr(frame1, frame2):
     psnr = 20 * np.log10(max_pixel / np.sqrt(mse))
     return psnr
 
-def compare_videos(path1, path2):
+
+@dataclass
+class VideoComparisonResult:
+
+    # Value above these thresholds imply sufficient similarity (up is good)
+    ssim_threshold = 0.72
+    psnr_threshold = 30
+
+    ssim_scores: list[float]
+    psnr_scores: list[float]
+    average_ssim: float
+    average_psnr: float
+
+    @classmethod
+    def of(cls, frames1, frames2):
+
+        if len(frames1) != len(frames2): 
+            raise ValueError(f"Cannot compare videos with different numbers of frames ({len(frames1)} vs {len(frames1)}")
+
+        ssim_scores = []
+        psnr_scores = []
+        for frame1, frame2 in zip(frames1, frames2):
+            frame1_gray = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
+            frame2_gray = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+            score, _ = ssim(frame1_gray, frame2_gray, full=True)
+            ssim_scores.append(score)
+            psnr_score = get_psnr(frame1_gray, frame2_gray)
+            psnr_scores.append(psnr_score)
+
+        average_ssim = sum(ssim_scores) / len(ssim_scores)
+        average_psnr = sum(psnr_scores) / len(psnr_scores)
+
+        logurulogger.info(f"Average SSIM: {average_ssim:.4f}")
+        logurulogger.info(f"Average PSNR: {average_psnr:.4f}")
+
+        return VideoComparisonResult(ssim_scores, psnr_scores, average_ssim, average_psnr)
+
+
+    def evaluate(self) -> tuple[bool, str]:
+        if self.average_ssim >= VideoComparisonResult.ssim_threshold and self.average_psnr >= VideoComparisonResult.psnr_threshold:
+            logurulogger.info("Videos are similar based on set thresholds.")
+            return True, f"Videos are similar. Avg SSIM: {self.average_ssim:.4f}, Avg PSNR: {self.average_psnr:.4f}"
+        else:
+            logurulogger.warning("Videos differ based on set thresholds.")
+            return False, f"Videos differ. Avg SSIM: {self.average_ssim:.4f}, Avg PSNR: {self.average_psnr:.4f}"
+
+
+def compare_videos(path1, path2) -> tuple[bool, str]:
     logurulogger.info(f"Comparing videos: {path1} vs {path2}")
     frames1 = get_frames(path1)
     frames2 = get_frames(path2)
@@ -48,37 +112,9 @@ def compare_videos(path1, path2):
         logurulogger.error("Different number of frames")
         return False, "Different number of frames"
 
-    ssim_scores = []
-    psnr_scores = []
-    for frame1, frame2 in zip(frames1, frames2):
-        frame1_gray = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
-        frame2_gray = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
+    result = VideoComparisonResult.of(frames1, frames2)
 
-        # Calculate SSIM
-        score, _ = ssim(frame1_gray, frame2_gray, full=True)
-        ssim_scores.append(score)
-
-        # Calculate PSNR
-        psnr_score = get_psnr(frame1_gray, frame2_gray)
-        psnr_scores.append(psnr_score)
-
-    average_ssim = sum(ssim_scores) / len(ssim_scores)
-    average_psnr = sum(psnr_scores) / len(psnr_scores)
-
-
-    logurulogger.info(f"Average SSIM: {average_ssim:.4f}")
-    logurulogger.info(f"Average PSNR: {average_psnr:.4f}")
-
-    # Define thresholds
-    ssim_threshold = 0.75
-    psnr_threshold = 30
-
-    if average_ssim >= ssim_threshold and average_psnr >= psnr_threshold:
-        logurulogger.info("Videos are similar based on set thresholds.")
-        return True, f"Videos are similar. Avg SSIM: {average_ssim:.4f}, Avg PSNR: {average_psnr:.4f}"
-    else:
-        logurulogger.warning("Videos differ based on set thresholds.")
-        return False, f"Videos differ. Avg SSIM: {average_ssim:.4f}, Avg PSNR: {average_psnr:.4f}"
+    return result.evaluate()
 
 
 def manage_test_storage(src_video_path, batch_name):
@@ -102,6 +138,7 @@ def manage_test_storage(src_video_path, batch_name):
         # Copy video to current test directory
         shutil.copy(src_video_path, test_video_path)
     return base_video_path, test_video_path, True  # Proceed with comparison
+
 
 def run_e2e_test(options, extra_args):
     """Run e2e tests using DeforumAnimationPipeline and manage test outputs."""
@@ -164,5 +201,5 @@ def run_e2e_test(options, extra_args):
                 logurulogger.info(f"Comparison result for {batch_name}: {comparison_result}")
             else:
                 logurulogger.info("Baseline established; no comparison needed.")
-        except Exception as e:
-            logurulogger.exception(f"Exception during test run.")
+        except Exception:
+            logurulogger.exception("Exception during test run.")

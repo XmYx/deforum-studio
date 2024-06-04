@@ -1,16 +1,15 @@
 import math
 from functools import reduce
 
+import cv2
+import numpy as np
 import torch
 import torch.nn.functional as F
-import numpy as np
 from einops import rearrange
-import cv2
 
+from deforum.utils.logging_config import logger
 
 from . import py3d_tools as p3d
-
-DEBUG_MODE = True
 
 
 def sample_from_cv2(sample: np.ndarray) -> torch.Tensor:
@@ -246,7 +245,8 @@ def anim_frame_warp_3d(device, prev_img_cv2, depth, anim_args, keys, frame_idx):
         result = transform_image_3d_switcher(torch.device('cuda'), prev_img_cv2, depth, rot_mat, translate_xyz,
                                                    anim_args, keys, frame_idx)
         return result, None
-    except:
+    except Exception:
+        logger.warning("Issue during 3d warp. Continuing with unwarped or partially warped image.", exec_info=True)
         return prev_img_cv2, None
 
 
