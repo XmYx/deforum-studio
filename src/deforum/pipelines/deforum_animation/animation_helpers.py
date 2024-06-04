@@ -1291,7 +1291,7 @@ class FrameInterpolator:
         unsorted_events = self.settings.get("schedule_events", [])
         events = sorted(unsorted_events, key=lambda event: event['time'])
         for e in events:
-            e.frame = sec_to_frame(e.time, fps)
+            e["frame"] = sec_to_frame(e["time"], fps)
 
         value_is_number = None
         value = None
@@ -1347,16 +1347,17 @@ class FrameInterpolator:
         local_variables["beats_to_go"] = frame_to_beat(self.max_frames - 1 - current_frame, fps, bpm)
         local_variables["seconds_to_go"] = frame_to_sec(self.max_frames - 1 - current_frame, fps)
                 
-        prev_event = next((event for event in reversed(events) if event.frame<current_frame), None)
-        next_event = next((event for event in events if event.frame>=current_frame), None)
-        prev_event_frame = prev_event.frame if prev_event else 0
-        next_event_frame = next_event.frame if next_event else self.max_frames-1
+        prev_event = next((event for event in reversed(events) if event["frame"]<current_frame), None)
+        next_event = next((event for event in events if event["frame"]>=current_frame), None)
+        prev_event_frame = prev_event["frame"] if prev_event else 0
+        next_event_frame = next_event["frame"] if next_event else self.max_frames-1
 
-        local_variables["events_passed"] = len([event for event in events if event.frame<current_frame])
+        local_variables["events_passed"] = len([event for event in events if event["frame"]<current_frame])
         local_variables["events_to_go"] = len(events) - local_variables["events_passed"]
         local_variables["events_total"] = len(events)
 
-        local_variables["progress_until_next_event"] = (current_frame - prev_event_frame) / (next_event_frame - prev_event_frame)                
+        event_gap = (next_event_frame - prev_event_frame)
+        local_variables["progress_until_next_event"] = 0 if (event_gap == 0) else ((current_frame - prev_event_frame) / event_gap)
         local_variables["frames_until_next_event"] = next_event_frame - current_frame
         local_variables["beats_until_next_event"] = frame_to_beat(next_event_frame - current_frame, fps, bpm)
         local_variables["seconds_until_next_event"] = frame_to_sec(next_event_frame - current_frame, fps)
@@ -1377,16 +1378,34 @@ class FrameInterpolator:
         frames = dict()
         if string is None:
             string = ""
-        for match_object in string.split(","):
+        for match_object in split_on_commas_outside_parentheses(string):
             frameParam = match_object.split(":")
             max_f = self.max_frames - 1
             s = self.seed
-            frame = int(self.sanitize_value(frameParam[0])) if check_is_number(
-                self.sanitize_value(frameParam[0].strip())) else int(numexpr.evaluate(
-                frameParam[0].strip().replace("'", "", 1).replace('"', "", 1)[::-1].replace("'", "", 1).replace('"', "",
-                                                                                                                1)[
-                ::-1]))
+            frame = int(self.sanitize_value(frameParam[0])) if check_is_number(self.sanitize_value(frameParam[0].strip())) else int(numexpr.evaluate(frameParam[0].strip().replace("'", "", 1).replace('"', "", 1)[::-1].replace("'", "", 1).replace('"', "", 1)[::-1]))
             frames[frame] = frameParam[1].strip()
         if frames == {} and len(string) != 0:
             raise RuntimeError('Key Frame string not correctly formatted')
         return frames
+
+
+# This is hideous but necessary to be able to use expressions with functions with commas.
+# This should really be a proper lexer/parser.
+def split_on_commas_outside_parentheses(s):
+    parts = []
+    current = []
+    paren_depth = 0
+
+    for char in s:
+        if char == ',' and paren_depth == 0:
+            parts.append(''.join(current).strip())
+            current = []
+        else:
+            current.append(char)
+            if char == '(':
+                paren_depth += 1
+            elif char == ')':
+                paren_depth -= 1
+
+    parts.append(''.join(current).strip()) 
+    return parts
