@@ -1295,7 +1295,9 @@ class FrameInterpolator:
             "max_f": self.max_frames - 1,
             "s": self.seed,
             "bpm": bpm,
-            "beat_offset": beat_offset,
+            "beat_offset_s": beat_offset,
+            "beat_offset_f": int(round(beat_offset*fps)),
+            "pi": np.pi,
             "fps": fps,
             "unique": random.randint(0,99999999)
         }
