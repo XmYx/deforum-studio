@@ -1290,6 +1290,16 @@ class FrameInterpolator:
 
         unsorted_events = self.settings.get("schedule_events", [])
         events = sorted(unsorted_events, key=lambda event: event['time'])
+
+        local_constants = {
+            "max_f": self.max_frames - 1,
+            "s": self.seed,
+            "bpm": bpm,
+            "beat_offset": beat_offset,
+            "fps": fps,
+            "unique": random.randint(0,99999999)
+        }
+
         for e in events:
             e["frame"] = sec_to_frame(e["time"], fps)
 
@@ -1302,7 +1312,7 @@ class FrameInterpolator:
                 if value_is_number:  # if it's only a number, leave the rest for the default interpolation
                     key_frame_series[i] = self.sanitize_value(value)
             if not value_is_number and value is not None:
-                local_variables = self.prepare_local_variables(current_frame=i, bpm=bpm, fps=fps, beat_offset=beat_offset, events=events)
+                local_variables = self.prepare_local_variables(current_frame=i, bpm=bpm, fps=fps, beat_offset=beat_offset, local_constants=local_constants, events=events)
                 key_frame_series[i] = numexpr.evaluate(str(value), casting='unsafe', local_dict=local_variables) if not is_single_string else self.sanitize_value(value)
             elif is_single_string:  
                 # for values formatted like 0:("I am test") as used by sampler schedules, just take previous string value and replicate it
@@ -1321,21 +1331,16 @@ class FrameInterpolator:
             return key_frame_series.astype(int)
         return key_frame_series
 
-    def prepare_local_variables(self, current_frame, bpm, fps, beat_offset, events):
+    def prepare_local_variables(self, current_frame, bpm, fps, beat_offset, local_constants, events):
         
-        local_variables = {
-            "max_f": self.max_frames - 1,
-            "s": self.seed,
-            "bpm": bpm,
-            "beat_offset": beat_offset,
-            "fps": fps,
-        }
+        local_variables = copy.deepcopy(local_constants)
 
         local_variables["t"] = current_frame
         local_variables["f"] = current_frame
         local_variables["sec"] = frame_to_sec(current_frame, fps)
 
         current_beat = frame_to_beat(current_frame, fps, bpm) - beat_offset
+ 
         local_variables["beat"] = current_beat
         local_variables["whole_beat"] = math.floor(current_beat)
         local_variables["progress_until_beat"] = current_beat % 1

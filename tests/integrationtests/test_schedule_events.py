@@ -99,19 +99,7 @@ class TestScheduleVariables:
         # set up
         options = self.build_options_to_test()
         options["bpm"] = 120
-        options["fps"] = 10
-            # "schedule_events": [
-            #     {
-            #         "time": 0.25,
-            #         "strength": 0.2,
-            #         "label": "beat"
-            #     },
-            #     {
-            #         "time": 0.6,
-            #         "strength": 0.9,
-            #         "label": "bump"
-            #     },
-            # ],        
+        options["fps"] = 10   
         options["angle"] = "(0): beat"
 
         # act
@@ -149,3 +137,130 @@ class TestScheduleVariables:
 
         # assert
         assert result.keys.angle_series.round(2).to_list() == [-0.1, 0.1, 0.3, 0.5, 0.7]
+
+
+    def test_frames_until_next_event(self):
+        # set up
+        options = self.build_options_to_test()
+        options["bpm"] = 120
+        options["fps"] = 10
+        options["max_frames"] = 10
+        options["angle"] = "(0): frames_until_next_event"
+        options["schedule_events"] = [
+            {
+                "time": 0.2,
+
+            },
+            {
+                "time": 0.55,
+            },
+            {
+                "time": 0.8,
+            },            
+        ]
+
+        # act
+        result = self.run_deforum_with(options)
+
+        # assert
+        assert result.keys.angle_series.round(2).to_list() == [2, 1, 0, 2, 1, 0, 2, 1, 0, 0]
+
+
+    def test_frames_since_prev_event(self):
+        # set up
+        options = self.build_options_to_test()
+        options["bpm"] = 120
+        options["fps"] = 10
+        options["max_frames"] = 10
+        options["angle"] = "(0): frames_since_prev_event"
+        options["schedule_events"] = [
+            {
+                "time": 0.2,
+
+            },
+            {
+                "time": 0.55,
+            },
+            {
+                "time": 0.8,
+            },            
+        ]
+
+        # act
+        result = self.run_deforum_with(options)
+
+        # assert
+        assert result.keys.angle_series.round(2).to_list() == [0, 1, 2, 1, 2, 3, 1, 2, 3, 1]
+
+
+    def test_events_conditional(self):
+        # set up
+        options = self.build_options_to_test()
+        options["bpm"] = 120
+        options["fps"] = 10
+        options["angle"] = "(0): where((sec>0.2) & (frames_until_next_event<1), 1, -1)"
+        options["schedule_events"] = [
+            {
+                "time": 0.2,
+
+            },
+            {
+                "time": 0.3,
+            },
+        ]
+
+        # act
+        result = self.run_deforum_with(options)
+
+        # assert
+        assert result.keys.angle_series.round(2).to_list() == [-1.0, -1.0, -1.0, 1.0, 1.0]
+
+
+
+    def test_strength_conditional(self):
+        # set up
+        options = self.build_options_to_test()
+        options["bpm"] = 120
+        options["fps"] = 10
+        options["strength_schedule"] = "(0): where(frames_until_next_event<1, 0.2, 0.8)",
+        options["schedule_events"] = [
+            {
+                "time": 0.2,
+            }
+        ]
+
+        # act
+        result = self.run_deforum_with(options)
+
+        # assert
+        assert result.keys.strength_schedule_series.round(2).to_list() == [0.8, 0.8, 0.2, 0.8, 0.2]
+
+    def test_seed_reference(self):
+        # set up
+        options = self.build_options_to_test()
+        options["bpm"] = 120
+        options["fps"] = 10
+        options["max_frames"] = 10
+        options["seed"] = -1
+        options["seed_behaviour"] = "schedule"
+        options["seed_schedule"] = "(0): unique+events_passed",
+        options["schedule_events"] = [
+            {
+                "time": 0.2,
+
+            },
+            {
+                "time": 0.5,
+            },
+        ]
+
+        # act
+        result = self.run_deforum_with(options)
+
+        # assert
+        assert result.keys.seed_schedule_series[9]-result.keys.seed_schedule_series[3] == 1
+        assert result.keys.seed_schedule_series[3]-result.keys.seed_schedule_series[0] == 1
+
+
+
+ 
