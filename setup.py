@@ -71,7 +71,7 @@ _deps = [
     'gdown==4.7.1',
     'py3d==0.0.87',
     'librosa==0.10.0.post2',
-    'numpy==1.24.2',
+    'numpy==1.26.4',
     'opencv-python-headless',
     'timm==0.6.13',
     'transformers==4.40.2',
@@ -113,7 +113,6 @@ _deps = [
     'coverage>=7.5.2',
     'librosa>=0.10.0.post2',
     'contexttimer>=0.3.3'
-
 ]
 
 # this is a lookup table with items like:

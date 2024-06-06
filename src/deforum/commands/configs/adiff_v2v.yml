@@ -1,0 +1,52 @@
+models_dir:
+  models
+
+additional_dirs:
+  - models/clip_vision
+  - models/animatediff_models
+
+requirements:
+  - apscheduler
+
+base:
+  comfyanonymous/ComfyUI
+
+custom_nodes:
+  - ltdrdata/ComfyUI-Manager
+  - Kosinkadink/ComfyUI-AnimateDiff-Evolved
+  - Kosinkadink/ComfyUI-Advanced-ControlNet
+  - Kosinkadink/ComfyUI-VideoHelperSuite
+  - BlenderNeko/ComfyUI_ADV_CLIP_emb
+  - cubiq/ComfyUI_IPAdapter_plus
+  - Fannovel16/comfy_controlnet_preprocessors
+  - Fannovel16/comfyui_controlnet_aux
+  - Fannovel16/ComfyUI-Frame-Interpolation
+  - jags111/efficiency-nodes-comfyui
+
+civitai:
+  token:
+    7e497cb6cca441e2b03c7fd7e1c7af4c
+  models:
+    - id: 160989
+      dest: checkpoints/epicrealism_naturalSin.safetensors
+
+huggingface:
+  models:
+    - id: stabilityai/sd-vae-ft-mse-original
+      path:  vae-ft-mse-840000-ema-pruned.safetensors
+      dest: vae/vae-ft-mse-840000-ema-pruned.safetensors
+    - id: lllyasviel/ControlNet-v1-1
+      path: control_v11f1p_sd15_depth.pth
+      dest: controlnet/control_v11f1p_sd15_depth.pth
+    - id: wangfuyun/AnimateLCM
+      path: AnimateLCM_sd15_t2v_lora.safetensors
+      dest: loras/AnimateLCM_sd15_t2v_lora.safetensors
+    - id: h94/IP-Adapter
+      path: models/ip-adapter-plus_sd15.safetensors
+      dest: ipadapter/ip-adapter-plus_sd15.safetensors
+    - id: h94/IP-Adapter
+      path: models/image_encoder/model.safetensors
+      dest: clip_vision/CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors
+    - id: wangfuyun/AnimateLCM
+      path: AnimateLCM_sd15_t2v.ckpt
+      dest: animatediff_models/AnimateLCM_sd15_t2v.ckpt

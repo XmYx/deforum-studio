@@ -102,7 +102,7 @@ def start_deforum_cli() -> None:
     """
     parser = argparse.ArgumentParser(description="Load settings from a txt file and run the deforum process.")
     # Positional mode argument
-    parser.add_argument("mode", choices=['webui', 'animatediff', 'run-all', 'api', 'setup', 'ui', 'runsingle', 'config', 'test-e2e', 'version', 'lab'], default=None, nargs='?',
+    parser.add_argument("mode", choices=['webui', 'animatediff', 'run-all', 'api', 'setup', 'ui', 'runsingle', 'config', 'test-e2e', 'version', 'lab', 'setup-adiff', 'adiff'], default=None, nargs='?',
                         help="Choose the mode to run.")
 
     parser.add_argument("--file", type=str, help="Path to the deforum settings file.")
@@ -309,6 +309,26 @@ def start_deforum_cli() -> None:
             subprocess.run([sys.executable, main_script_path])
         elif args_main.mode == "test-e2e":
             run_e2e_test(options, extra_args)
+        elif args_main.mode == "setup-adiff":
+            # Assuming 'deforum' is in the parent directory of the current file
+            current_file_path = os.path.abspath(__file__)
+            parent_directory = os.path.dirname(current_file_path)
+            deforum_directory = os.path.dirname(parent_directory)
+
+            config_path = os.path.join(deforum_directory, "commands", "configs", "adiff_v2v.yml")
+            from deforum.utils.constants import config
+            main_script_path = os.path.join(deforum_directory, "commands", "setup_comfy_api.py")
+            subprocess.run([sys.executable, main_script_path, config_path, config.comfy_path])
+        elif args_main.mode == 'adiff':
+            # Assuming 'deforum' is in the parent directory of the current file
+            current_file_path = os.path.abspath(__file__)
+            parent_directory = os.path.dirname(current_file_path)
+            deforum_directory = os.path.dirname(parent_directory)
+            main_script_path = os.path.join(deforum_directory, "generators", "comfy_animatediff_v2v.py")
+            from deforum.utils.constants import config
+
+            subprocess.run([sys.executable, main_script_path, f"{extra_args['settings_file']}", config.comfy_path])
+
     else:
         from deforum import DeforumAnimationPipeline
         deforum = DeforumAnimationPipeline.from_civitai()
