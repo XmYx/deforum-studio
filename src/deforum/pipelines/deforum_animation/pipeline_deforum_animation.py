@@ -174,7 +174,7 @@ class DeforumAnimationPipeline(DeforumBase):
         if self.logging:
             self.logger.dump()
             total_duration = (time.time() - self.start_total_time) * 1000
-            average_time_per_frame = total_duration / self.gen.max_frames
+            average_time_per_frame = (total_duration / self.gen.max_frames) if self.gen.max_frames!=0  else 0
             self.logger.log(f"Total time taken: {total_duration:.2f} ms")
             self.logger.log(f"Average time per frame: {average_time_per_frame:.2f} ms")
             self.logger.close_session()
@@ -212,7 +212,8 @@ class DeforumAnimationPipeline(DeforumBase):
         frame_warp_modes = ['2D', '3D']
         hybrid_motion_modes = ['Affine', 'Perspective', 'Optical Flow']
 
-        self.gen.max_frames += 5
+        # TODO WTF was this monstrosity?
+        #self.gen.max_frames += 5
 
         # if self.gen.animation_mode in frame_warp_modes:
         #     # handle hybrid video generation
@@ -250,7 +251,9 @@ class DeforumAnimationPipeline(DeforumBase):
                 prompt_series[int(numexpr.evaluate(i))] = prompt
         prompt_series = prompt_series.ffill().bfill()
         self.gen.prompt_series = prompt_series
-        self.gen.max_frames -= 5
+        
+        # TODO WTF was this monstrosity?
+        #self.gen.max_frames -= 5
 
         # check for video inits
         self.gen.using_vid_init = self.gen.animation_mode == 'Video Input'
@@ -364,14 +367,15 @@ class DeforumAnimationPipeline(DeforumBase):
         if self.gen.overlay_mask:
             self.shoot_fns.append(overlay_mask_cls)
 
-        self.shoot_fns.append(post_gen_cls)
-        if hasattr(self.gen, 'enable_temporal_flow'):
-            if self.gen.enable_temporal_flow and self.gen.turbo_steps < 2:
-                self.shoot_fns.append(apply_temporal_flow_cls)
-
         if hasattr(self.gen, "deforum_save_gen_info_as_srt"):
             if self.gen.deforum_save_gen_info_as_srt:
                 self.shoot_fns.append(cls_subtitle_handler)
+
+        self.shoot_fns.append(post_gen_cls)
+        
+        if hasattr(self.gen, 'enable_temporal_flow'):
+            if self.gen.enable_temporal_flow and self.gen.turbo_steps < 2:
+                self.shoot_fns.append(apply_temporal_flow_cls)
 
         if getattr(self.gen, "frame_interpolation_engine", None) and self.gen.frame_interpolation_engine != "None":
             if self.gen.max_frames > 3:

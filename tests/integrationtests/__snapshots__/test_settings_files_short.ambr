@@ -1,6 +1,10 @@
 # serializer version: 1
 # name: TestSettingsFilesShort.test_settings_file_short[Classic-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.220; StrSch: 0.600; SubSStrSch: 0.750
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 421; TrX: 0; TrY: 0; TrZ: 0.220; StrSch: 0.600; SubSStrSch: 0.748
@@ -37,15 +41,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 429; TrX: 0; TrY: 0; TrZ: 0.182; StrSch: 0.600; SubSStrSch: 0.627
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 430; TrX: 0; TrY: 0; TrZ: 0.173; StrSch: 0.600; SubSStrSch: 0.602
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Classic-3D-Motion-2-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: -1.400; StrSch: 0.580; SubSStrSch: 0
+  
   3
   00:00:00,166 --> 00:00:00,250
   F#: 2; Cadence: False; Seed: 421; TrX: 0; TrY: 0; TrZ: -1.400; StrSch: 0.580; SubSStrSch: 0
@@ -66,44 +70,44 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: True; Seed: 425; TrX: 0; TrY: 0; TrZ: -1.400; StrSch: 0.580; SubSStrSch: 0
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 426; TrX: 0; TrY: 0; TrZ: -1.400; StrSch: 0.580; SubSStrSch: 0
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Classic-3D-Motion-2.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: -1.200; StrSch: 0.580; SubSStrSch: 0
+  
   3
   00:00:00,166 --> 00:00:00,250
-  F#: 2; Cadence: False; Seed: 421; TrX: -0.442; TrY: 0; TrZ: -1.200; StrSch: 0.584; SubSStrSch: 0
+  F#: 2; Cadence: False; Seed: 421; TrX: 0; TrY: 0; TrZ: -1.200; StrSch: 0.580; SubSStrSch: 0
   
   5
   00:00:00,333 --> 00:00:00,416
-  F#: 4; Cadence: False; Seed: 422; TrX: -0.885; TrY: 0; TrZ: -1.200; StrSch: 0.588; SubSStrSch: 0
+  F#: 4; Cadence: False; Seed: 422; TrX: 0; TrY: 0; TrZ: -1.200; StrSch: 0.580; SubSStrSch: 0
   
   7
   00:00:00,500 --> 00:00:00,583
-  F#: 6; Cadence: False; Seed: 423; TrX: -1.327; TrY: 0; TrZ: -1.200; StrSch: 0.592; SubSStrSch: 0
+  F#: 6; Cadence: False; Seed: 423; TrX: 0; TrY: 0; TrZ: -1.200; StrSch: 0.580; SubSStrSch: 0
   
   9
   00:00:00,666 --> 00:00:00,750
-  F#: 8; Cadence: False; Seed: 424; TrX: -1.769; TrY: 0; TrZ: -1.200; StrSch: 0.596; SubSStrSch: 0
+  F#: 8; Cadence: False; Seed: 424; TrX: 0; TrY: 0; TrZ: -1.200; StrSch: 0.580; SubSStrSch: 0
   
   10
   00:00:00,750 --> 00:00:00,833
-  F#: 9; Cadence: True; Seed: 425; TrX: -1.991; TrY: 0; TrZ: -1.200; StrSch: 0.598; SubSStrSch: 0
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 426; TrX: -2.212; TrY: 0; TrZ: -1.200; StrSch: 0.600; SubSStrSch: 0
+  F#: 9; Cadence: True; Seed: 425; TrX: 0; TrY: 0; TrZ: -1.200; StrSch: 0.580; SubSStrSch: 0
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Classic-3D-Motion-3-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: -1.400; TrZ: -1.800; StrSch: 0.500; SubSStrSch: 0
+  
   3
   00:00:00,166 --> 00:00:00,250
   F#: 2; Cadence: False; Seed: 421; TrX: 0; TrY: -1.400; TrZ: -1.800; StrSch: 0.500; SubSStrSch: 0
@@ -124,73 +128,73 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: True; Seed: 425; TrX: 0; TrY: -1.400; TrZ: -1.800; StrSch: 0.500; SubSStrSch: 0
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 426; TrX: 0; TrY: -1.400; TrZ: -1.800; StrSch: 0.500; SubSStrSch: 0
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Classic-3D-Motion-3.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: -1.400; TrZ: -1.800; StrSch: 0.580; SubSStrSch: 0
+  
   3
   00:00:00,166 --> 00:00:00,250
-  F#: 2; Cadence: False; Seed: 421; TrX: 0; TrY: -1.400; TrZ: -1.800; StrSch: 0.584; SubSStrSch: 0
+  F#: 2; Cadence: False; Seed: 421; TrX: 0; TrY: -1.400; TrZ: -1.800; StrSch: 0.580; SubSStrSch: 0
   
   5
   00:00:00,333 --> 00:00:00,416
-  F#: 4; Cadence: False; Seed: 422; TrX: 0; TrY: -1.400; TrZ: -1.800; StrSch: 0.588; SubSStrSch: 0
+  F#: 4; Cadence: False; Seed: 422; TrX: 0; TrY: -1.400; TrZ: -1.800; StrSch: 0.580; SubSStrSch: 0
   
   7
   00:00:00,500 --> 00:00:00,583
-  F#: 6; Cadence: False; Seed: 423; TrX: 0; TrY: -1.400; TrZ: -1.800; StrSch: 0.592; SubSStrSch: 0
+  F#: 6; Cadence: False; Seed: 423; TrX: 0; TrY: -1.400; TrZ: -1.800; StrSch: 0.580; SubSStrSch: 0
   
   9
   00:00:00,666 --> 00:00:00,750
-  F#: 8; Cadence: False; Seed: 424; TrX: 0; TrY: -1.400; TrZ: -1.800; StrSch: 0.596; SubSStrSch: 0
+  F#: 8; Cadence: False; Seed: 424; TrX: 0; TrY: -1.400; TrZ: -1.800; StrSch: 0.580; SubSStrSch: 0
   
   10
   00:00:00,750 --> 00:00:00,833
-  F#: 9; Cadence: True; Seed: 425; TrX: 0; TrY: -1.400; TrZ: -1.800; StrSch: 0.598; SubSStrSch: 0
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 426; TrX: 0; TrY: -1.400; TrZ: -1.800; StrSch: 0.600; SubSStrSch: 0
+  F#: 9; Cadence: True; Seed: 425; TrX: 0; TrY: -1.400; TrZ: -1.800; StrSch: 0.580; SubSStrSch: 0
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Classic-3D-Motion-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: -0.500; StrSch: 0.620; SubSStrSch: 0
+  
   3
   00:00:00,166 --> 00:00:00,250
-  F#: 2; Cadence: False; Seed: 421; TrX: -0.248; TrY: 0; TrZ: -0.500; StrSch: 0.608; SubSStrSch: 0
+  F#: 2; Cadence: False; Seed: 421; TrX: 0; TrY: 0; TrZ: -0.500; StrSch: 0.620; SubSStrSch: 0
   
   5
   00:00:00,333 --> 00:00:00,416
-  F#: 4; Cadence: False; Seed: 422; TrX: -0.496; TrY: 0; TrZ: -0.500; StrSch: 0.597; SubSStrSch: 0
+  F#: 4; Cadence: False; Seed: 422; TrX: 0; TrY: 0; TrZ: -0.500; StrSch: 0.620; SubSStrSch: 0
   
   7
   00:00:00,500 --> 00:00:00,583
-  F#: 6; Cadence: False; Seed: 423; TrX: -0.744; TrY: 0; TrZ: -0.500; StrSch: 0.585; SubSStrSch: 0
+  F#: 6; Cadence: False; Seed: 423; TrX: 0; TrY: 0; TrZ: -0.500; StrSch: 0.620; SubSStrSch: 0
   
   9
   00:00:00,666 --> 00:00:00,750
-  F#: 8; Cadence: False; Seed: 424; TrX: -0.993; TrY: 0; TrZ: -0.500; StrSch: 0.573; SubSStrSch: 0
+  F#: 8; Cadence: False; Seed: 424; TrX: 0; TrY: 0; TrZ: -0.500; StrSch: 0.620; SubSStrSch: 0
   
   10
   00:00:00,750 --> 00:00:00,833
-  F#: 9; Cadence: True; Seed: 425; TrX: -1.117; TrY: 0; TrZ: -0.500; StrSch: 0.568; SubSStrSch: 0
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 426; TrX: -1.241; TrY: 0; TrZ: -0.500; StrSch: 0.562; SubSStrSch: 0
+  F#: 9; Cadence: True; Seed: 425; TrX: 0; TrY: 0; TrZ: -0.500; StrSch: 0.620; SubSStrSch: 0
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Classic-3D-Motion-4-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: -2; TrZ: -2.400; StrSch: 0.400; SubSStrSch: 0
+  
   3
   00:00:00,166 --> 00:00:00,250
   F#: 2; Cadence: False; Seed: 421; TrX: 0; TrY: -2; TrZ: -2.400; StrSch: 0.400; SubSStrSch: 0
@@ -210,16 +214,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: True; Seed: 425; TrX: 0; TrY: -2; TrZ: -2.400; StrSch: 0.400; SubSStrSch: 0
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 426; TrX: 0; TrY: -2; TrZ: -2.400; StrSch: 0.400; SubSStrSch: 0
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Classic-3D-Motion-4.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: -2; TrZ: -2.400; StrSch: 0.400; SubSStrSch: 0
+  
   3
   00:00:00,166 --> 00:00:00,250
   F#: 2; Cadence: False; Seed: 421; TrX: 0; TrY: -2; TrZ: -2.400; StrSch: 0.400; SubSStrSch: 0
@@ -240,44 +244,44 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: True; Seed: 425; TrX: 0; TrY: -2; TrZ: -2.400; StrSch: 0.400; SubSStrSch: 0
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 426; TrX: 0; TrY: -2; TrZ: -2.400; StrSch: 0.400; SubSStrSch: 0
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Classic-3D-Motion.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: -0.500; StrSch: 0.620; SubSStrSch: 0
+  
   3
   00:00:00,166 --> 00:00:00,250
-  F#: 2; Cadence: False; Seed: 421; TrX: -0.248; TrY: 0; TrZ: -0.500; StrSch: 0.608; SubSStrSch: 0
+  F#: 2; Cadence: False; Seed: 421; TrX: 0; TrY: 0; TrZ: -0.500; StrSch: 0.620; SubSStrSch: 0
   
   5
   00:00:00,333 --> 00:00:00,416
-  F#: 4; Cadence: False; Seed: 422; TrX: -0.496; TrY: 0; TrZ: -0.500; StrSch: 0.597; SubSStrSch: 0
+  F#: 4; Cadence: False; Seed: 422; TrX: 0; TrY: 0; TrZ: -0.500; StrSch: 0.620; SubSStrSch: 0
   
   7
   00:00:00,500 --> 00:00:00,583
-  F#: 6; Cadence: False; Seed: 423; TrX: -0.744; TrY: 0; TrZ: -0.500; StrSch: 0.585; SubSStrSch: 0
+  F#: 6; Cadence: False; Seed: 423; TrX: 0; TrY: 0; TrZ: -0.500; StrSch: 0.620; SubSStrSch: 0
   
   9
   00:00:00,666 --> 00:00:00,750
-  F#: 8; Cadence: False; Seed: 424; TrX: -0.993; TrY: 0; TrZ: -0.500; StrSch: 0.573; SubSStrSch: 0
+  F#: 8; Cadence: False; Seed: 424; TrX: 0; TrY: 0; TrZ: -0.500; StrSch: 0.620; SubSStrSch: 0
   
   10
   00:00:00,750 --> 00:00:00,833
-  F#: 9; Cadence: True; Seed: 425; TrX: -1.117; TrY: 0; TrZ: -0.500; StrSch: 0.568; SubSStrSch: 0
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 426; TrX: -1.241; TrY: 0; TrZ: -0.500; StrSch: 0.562; SubSStrSch: 0
+  F#: 9; Cadence: True; Seed: 425; TrX: 0; TrY: 0; TrZ: -0.500; StrSch: 0.620; SubSStrSch: 0
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Classic-Stop-Motion-2-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.500; StrSch: 0.700; SubSStrSch: 0.750
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 421; TrX: 0; TrY: 0; TrZ: 0.433; StrSch: 0.700; SubSStrSch: 0.748
@@ -313,16 +317,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 429; TrX: 0; TrY: 0; TrZ: -0.000; StrSch: 0.700; SubSStrSch: 0.627
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 430; TrX: 0; TrY: 0; TrZ: 0.250; StrSch: 0.700; SubSStrSch: 0.602
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Classic-Stop-Motion-2.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.500; StrSch: 0.700; SubSStrSch: 0.750
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 421; TrX: 0; TrY: 0; TrZ: 0.433; StrSch: 0.700; SubSStrSch: 0.748
@@ -359,15 +363,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 429; TrX: 0; TrY: 0; TrZ: -0.000; StrSch: 0.700; SubSStrSch: 0.627
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 430; TrX: 0; TrY: 0; TrZ: 0.250; StrSch: 0.700; SubSStrSch: 0.602
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Classic-Stop-Motion-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 1; TrY: 0; TrZ: 0.500; StrSch: 0.700; SubSStrSch: 0.750
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 421; TrX: 0.999; TrY: 0; TrZ: 0.496; StrSch: 0.700; SubSStrSch: 0.748
@@ -403,16 +407,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 429; TrX: 0.957; TrY: 0; TrZ: 0.191; StrSch: 0.700; SubSStrSch: 0.627
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 430; TrX: 0.947; TrY: 0; TrZ: 0.130; StrSch: 0.700; SubSStrSch: 0.602
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Classic-Stop-Motion.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 1; TrY: 0; TrZ: 0.500; StrSch: 0.700; SubSStrSch: 0.750
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 421; TrX: 0.999; TrY: 0; TrZ: 0.496; StrSch: 0.700; SubSStrSch: 0.748
@@ -449,15 +453,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 429; TrX: 0.957; TrY: 0; TrZ: 0.191; StrSch: 0.700; SubSStrSch: 0.627
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 430; TrX: 0.947; TrY: 0; TrZ: 0.130; StrSch: 0.700; SubSStrSch: 0.602
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Classic-Zoom-In-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 1.500; StrSch: 0.600; SubSStrSch: 0.750
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 421; TrX: 0; TrY: 0; TrZ: 1.500; StrSch: 0.600; SubSStrSch: 0.748
@@ -494,15 +498,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 429; TrX: 0; TrY: 0; TrZ: 1.500; StrSch: 0.600; SubSStrSch: 0.627
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 430; TrX: 0; TrY: 0; TrZ: 1.500; StrSch: 0.600; SubSStrSch: 0.602
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Classic-Zoom-In.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 2; StrSch: 0.600; SubSStrSch: 0.750
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 421; TrX: 0; TrY: 0; TrZ: 2; StrSch: 0.600; SubSStrSch: 0.748
@@ -539,15 +543,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 429; TrX: 0; TrY: 0; TrZ: 2; StrSch: 0.600; SubSStrSch: 0.627
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 430; TrX: 0; TrY: 0; TrZ: 2; StrSch: 0.600; SubSStrSch: 0.602
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Classic-Zoom-Out-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0.050; TrZ: -1; StrSch: 0.600; SubSStrSch: 0.750
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 421; TrX: 0; TrY: 0.050; TrZ: -1; StrSch: 0.600; SubSStrSch: 0.748
@@ -583,16 +587,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 429; TrX: 0; TrY: 0.045; TrZ: -1; StrSch: 0.600; SubSStrSch: 0.627
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 430; TrX: 0; TrY: 0.043; TrZ: -1; StrSch: 0.600; SubSStrSch: 0.602
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Classic-Zoom-Out.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0.050; TrZ: -1; StrSch: 0.600; SubSStrSch: 0.750
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 421; TrX: 0; TrY: 0.050; TrZ: -1; StrSch: 0.600; SubSStrSch: 0.748
@@ -629,15 +633,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 429; TrX: 0; TrY: 0.045; TrZ: -1; StrSch: 0.600; SubSStrSch: 0.627
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 430; TrX: 0; TrY: 0.043; TrZ: -1; StrSch: 0.600; SubSStrSch: 0.602
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Classic.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.220; StrSch: 0.600; SubSStrSch: 0.750
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 421; TrX: 0; TrY: 0; TrZ: 0.220; StrSch: 0.600; SubSStrSch: 0.748
@@ -674,15 +678,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 429; TrX: 0; TrY: 0; TrZ: 0.182; StrSch: 0.600; SubSStrSch: 0.627
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 430; TrX: 0; TrY: 0; TrZ: 0.173; StrSch: 0.600; SubSStrSch: 0.602
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Dolly-Zoom-Out-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: -8; StrSch: 0.420; SubSStrSch: 0.500
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: -8; StrSch: 0.420; SubSStrSch: 0.542
@@ -718,16 +722,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: -8; StrSch: 0.420; SubSStrSch: 0.627
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: -8; StrSch: 0.420; SubSStrSch: 0.602
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Dolly-Zoom-Out.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: -8; StrSch: 0.420; SubSStrSch: 0.500
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: -8; StrSch: 0.420; SubSStrSch: 0.542
@@ -764,15 +768,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: -8; StrSch: 0.420; SubSStrSch: 0.627
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: -8; StrSch: 0.420; SubSStrSch: 0.602
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Elastic-Vision-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.900; StrSch: 0.480; SubSStrSch: 0.350
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.900; StrSch: 0.480; SubSStrSch: 0.350
@@ -809,15 +813,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.900; StrSch: 0.480; SubSStrSch: 0.350
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.900; StrSch: 0.480; SubSStrSch: 0.350
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Elastic-Vision.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.480; SubSStrSch: 0.350
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.480; SubSStrSch: 0.350
@@ -854,15 +858,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.480; SubSStrSch: 0.350
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.480; SubSStrSch: 0.350
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Evolve-Fast-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.425; SubSStrSch: 0.750
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.425; SubSStrSch: 0.748
@@ -898,16 +902,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.425; SubSStrSch: 0.627
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.425; SubSStrSch: 0.602
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Evolve-Fast.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.425; SubSStrSch: 0.750
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.425; SubSStrSch: 0.748
@@ -943,10 +947,6 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.425; SubSStrSch: 0.627
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.425; SubSStrSch: 0.602
   
   
   '''
@@ -1403,6 +1403,10 @@
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Evolve-Slow-2-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.500; StrSch: 0.420; SubSStrSch: 0.550
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.496; StrSch: 0.420; SubSStrSch: 0.566
@@ -1438,16 +1442,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.191; StrSch: 0.420; SubSStrSch: 0.689
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.130; StrSch: 0.420; SubSStrSch: 0.702
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Evolve-Slow-2.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.500; StrSch: 0.420; SubSStrSch: 0.550
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.496; StrSch: 0.420; SubSStrSch: 0.566
@@ -1484,15 +1488,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.191; StrSch: 0.420; SubSStrSch: 0.689
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.130; StrSch: 0.420; SubSStrSch: 0.702
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Evolve-Slow-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.200; StrSch: 0.400; SubSStrSch: 0.550
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.200; StrSch: 0.400; SubSStrSch: 0.566
@@ -1528,16 +1532,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.166; StrSch: 0.400; SubSStrSch: 0.689
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.159; StrSch: 0.400; SubSStrSch: 0.702
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Evolve-Slow.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.200; StrSch: 0.400; SubSStrSch: 0.550
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.200; StrSch: 0.400; SubSStrSch: 0.566
@@ -1574,15 +1578,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.166; StrSch: 0.400; SubSStrSch: 0.689
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.159; StrSch: 0.400; SubSStrSch: 0.702
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Evolve-Zoom-Slow-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: -0.030; TrY: -0.150; TrZ: 1.800; StrSch: 0.420; SubSStrSch: 0.300
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: -0.030; TrY: -0.150; TrZ: 1.800; StrSch: 0.420; SubSStrSch: 0.300
@@ -1619,15 +1623,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: -0.030; TrY: -0.150; TrZ: 1.800; StrSch: 0.420; SubSStrSch: 0.300
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: -0.030; TrY: -0.150; TrZ: 1.800; StrSch: 0.420; SubSStrSch: 0.300
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Evolve-Zoom-Slow.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: -0.030; TrY: -0.100; TrZ: 1.800; StrSch: 0.440; SubSStrSch: 0.300
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: -0.030; TrY: -0.100; TrZ: 1.800; StrSch: 0.440; SubSStrSch: 0.300
@@ -1664,15 +1668,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: -0.030; TrY: -0.100; TrZ: 1.800; StrSch: 0.440; SubSStrSch: 0.300
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: -0.030; TrY: -0.100; TrZ: 1.800; StrSch: 0.440; SubSStrSch: 0.300
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Flashbacks-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.400; StrSch: 0.380; SubSStrSch: 0.750
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.400; StrSch: 0.380; SubSStrSch: 0.748
@@ -1708,16 +1712,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.400; StrSch: 0.380; SubSStrSch: 0.627
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.400; StrSch: 0.380; SubSStrSch: 0.602
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Flashbacks.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.400; StrSch: 0.380; SubSStrSch: 0.750
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.400; StrSch: 0.380; SubSStrSch: 0.748
@@ -1754,15 +1758,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.400; StrSch: 0.380; SubSStrSch: 0.627
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.400; StrSch: 0.380; SubSStrSch: 0.602
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Fly-Through-2-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 18; StrSch: 0.500; SubSStrSch: 0.550
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 18; StrSch: 0.500; SubSStrSch: 0.573
@@ -1798,16 +1802,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 18; StrSch: 0.500; SubSStrSch: 0.744
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 18; StrSch: 0.500; SubSStrSch: 0.763
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Fly-Through-2.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 18; StrSch: 0.500; SubSStrSch: 0.550
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 18; StrSch: 0.500; SubSStrSch: 0.573
@@ -1844,15 +1848,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 18; StrSch: 0.500; SubSStrSch: 0.744
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 18; StrSch: 0.500; SubSStrSch: 0.763
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Fly-Through-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: -0.600; TrZ: 20; StrSch: 0.500; SubSStrSch: 0.550
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: -0.600; TrZ: 20; StrSch: 0.500; SubSStrSch: 0.573
@@ -1889,15 +1893,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: -0.600; TrZ: 20; StrSch: 0.500; SubSStrSch: 0.744
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: -0.600; TrZ: 20; StrSch: 0.500; SubSStrSch: 0.763
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Fly-Through-Spin-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: -0.600; TrZ: 18; StrSch: 0.500; SubSStrSch: 0.550
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: -0.600; TrZ: 18; StrSch: 0.500; SubSStrSch: 0.573
@@ -1934,15 +1938,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: -0.600; TrZ: 18; StrSch: 0.500; SubSStrSch: 0.744
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: -0.600; TrZ: 18; StrSch: 0.500; SubSStrSch: 0.763
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Fly-Through-Spin.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: -0.600; TrZ: 20; StrSch: 0.500; SubSStrSch: 0.550
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: -0.600; TrZ: 20; StrSch: 0.500; SubSStrSch: 0.573
@@ -1978,16 +1982,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: -0.600; TrZ: 20; StrSch: 0.500; SubSStrSch: 0.744
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: -0.600; TrZ: 20; StrSch: 0.500; SubSStrSch: 0.763
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Fly-Through.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: -0.600; TrZ: 20; StrSch: 0.500; SubSStrSch: 0.550
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: -0.600; TrZ: 20; StrSch: 0.500; SubSStrSch: 0.573
@@ -2024,15 +2028,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: -0.600; TrZ: 20; StrSch: 0.500; SubSStrSch: 0.744
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: -0.600; TrZ: 20; StrSch: 0.500; SubSStrSch: 0.763
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Grids-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.435; SubSStrSch: 0.700
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.435; SubSStrSch: 0.700
@@ -2068,16 +2072,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.435; SubSStrSch: 0.697
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.435; SubSStrSch: 0.697
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Grids.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.435; SubSStrSch: 0.700
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.435; SubSStrSch: 0.700
@@ -2113,10 +2117,6 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.435; SubSStrSch: 0.697
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.435; SubSStrSch: 0.697
   
   
   '''
@@ -2213,6 +2213,10 @@
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Move-Around-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0.100; TrZ: 0; StrSch: 0.420; SubSStrSch: 0.550
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0.100; TrZ: -0.131; StrSch: 0.420; SubSStrSch: 0.573
@@ -2248,16 +2252,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0.089; TrZ: -1.135; StrSch: 0.420; SubSStrSch: 0.744
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0.087; TrZ: -1.250; StrSch: 0.420; SubSStrSch: 0.763
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Move-Around.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0.100; TrZ: 0; StrSch: 0.420; SubSStrSch: 0.550
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0.100; TrZ: -0.131; StrSch: 0.420; SubSStrSch: 0.573
@@ -2294,15 +2298,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0.089; TrZ: -1.135; StrSch: 0.420; SubSStrSch: 0.744
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0.087; TrZ: -1.250; StrSch: 0.420; SubSStrSch: 0.763
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Move-Down-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.700
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.700
@@ -2338,16 +2342,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.697
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.697
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Move-Down.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.700
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.700
@@ -2383,16 +2387,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.697
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.697
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Move-Float-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 3; TrZ: 1.500; StrSch: 0.380; SubSStrSch: 0.750
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0.518; TrY: 2.898; TrZ: 1.500; StrSch: 0.380; SubSStrSch: 0.748
@@ -2428,16 +2432,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 1.415; TrY: -2.120; TrZ: 1.500; StrSch: 0.380; SubSStrSch: 0.627
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 1.001; TrY: -2.597; TrZ: 1.500; StrSch: 0.380; SubSStrSch: 0.602
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Move-Float.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 3; TrZ: 1.500; StrSch: 0.380; SubSStrSch: 0.750
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0.518; TrY: 2.898; TrZ: 1.500; StrSch: 0.380; SubSStrSch: 0.748
@@ -2474,15 +2478,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 1.415; TrY: -2.120; TrZ: 1.500; StrSch: 0.380; SubSStrSch: 0.627
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 1.001; TrY: -2.597; TrZ: 1.500; StrSch: 0.380; SubSStrSch: 0.602
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Move-In-out-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.350; SubSStrSch: 0.500
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.350; SubSStrSch: 0.523
@@ -2518,16 +2522,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.350; SubSStrSch: 0.694
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.350; SubSStrSch: 0.713
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Move-In-out.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.350; SubSStrSch: 0.500
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.350; SubSStrSch: 0.523
@@ -2564,15 +2568,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.350; SubSStrSch: 0.694
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.350; SubSStrSch: 0.713
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Move-Left-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.440; SubSStrSch: 0.700
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.440; SubSStrSch: 0.700
@@ -2608,16 +2612,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.440; SubSStrSch: 0.697
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.440; SubSStrSch: 0.697
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Move-Left.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.700
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.700
@@ -2654,15 +2658,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.697
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.697
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Move-Right-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.440; SubSStrSch: 0.700
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.440; SubSStrSch: 0.700
@@ -2699,15 +2703,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.440; SubSStrSch: 0.697
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.440; SubSStrSch: 0.697
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Move-Right.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.700
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.700
@@ -2743,16 +2747,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.697
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.697
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Move-Up-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.700
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.700
@@ -2788,16 +2792,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.697
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.697
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Move-Up.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.700
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.700
@@ -2834,15 +2838,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.697
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.697
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Move-Warp-2-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.500; SubSStrSch: 0.700
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: -0.409; StrSch: 0.500; SubSStrSch: 0.700
@@ -2878,16 +2882,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: -3.678; StrSch: 0.500; SubSStrSch: 0.697
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: -4.085; StrSch: 0.500; SubSStrSch: 0.697
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Move-Warp-2.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.500; SubSStrSch: 0.700
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: -0.409; StrSch: 0.500; SubSStrSch: 0.700
@@ -2924,15 +2928,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: -3.678; StrSch: 0.500; SubSStrSch: 0.697
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: -4.085; StrSch: 0.500; SubSStrSch: 0.697
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Move-Warp-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.500; SubSStrSch: 0.700
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.500; SubSStrSch: 0.700
@@ -2968,16 +2972,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.500; SubSStrSch: 0.697
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.500; SubSStrSch: 0.697
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Move-Warp.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.500; SubSStrSch: 0.700
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.500; SubSStrSch: 0.700
@@ -3014,15 +3018,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.500; SubSStrSch: 0.697
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.500; SubSStrSch: 0.697
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Quick-Change-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.840; StrSch: 0.350; SubSStrSch: 0.750
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.727; StrSch: 0.350; SubSStrSch: 0.748
@@ -3059,15 +3063,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: -0.001; StrSch: 0.350; SubSStrSch: 0.627
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.408; StrSch: 0.350; SubSStrSch: 0.602
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Quick-Change.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.840; StrSch: 0.420; SubSStrSch: 0.750
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.727; StrSch: 0.420; SubSStrSch: 0.748
@@ -3104,15 +3108,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: -0.001; StrSch: 0.420; SubSStrSch: 0.627
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.408; StrSch: 0.420; SubSStrSch: 0.602
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Revolve-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 1; TrY: 0; TrZ: 0; StrSch: 0.440; SubSStrSch: 0.700
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 1; TrY: 0; TrZ: 0; StrSch: 0.440; SubSStrSch: 0.700
@@ -3149,15 +3153,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 1; TrY: 0; TrZ: 0; StrSch: 0.440; SubSStrSch: 0.697
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 1; TrY: 0; TrZ: 0; StrSch: 0.440; SubSStrSch: 0.697
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Revolve.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 1; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.700
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 1; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.700
@@ -3194,15 +3198,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 1; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.697
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 1; TrY: 0; TrZ: 0; StrSch: 0.450; SubSStrSch: 0.697
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Scene-Change-2-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0.300; TrY: 0; TrZ: -6; StrSch: 0.420; SubSStrSch: 0.700
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0.285; TrY: 0; TrZ: -5.997; StrSch: 0.420; SubSStrSch: 0.700
@@ -3238,16 +3242,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: -0.285; TrY: 0; TrZ: -5.742; StrSch: 0.420; SubSStrSch: 0.697
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: -0.300; TrY: 0; TrZ: -5.682; StrSch: 0.420; SubSStrSch: 0.697
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Scene-Change-2.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0.300; TrY: 0; TrZ: -6; StrSch: 0.420; SubSStrSch: 0.700
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0.285; TrY: 0; TrZ: -5.997; StrSch: 0.420; SubSStrSch: 0.700
@@ -3284,15 +3288,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: -0.285; TrY: 0; TrZ: -5.742; StrSch: 0.420; SubSStrSch: 0.697
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: -0.300; TrY: 0; TrZ: -5.682; StrSch: 0.420; SubSStrSch: 0.697
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Scene-Change-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0.500; TrY: 0.350; TrZ: 0.600; StrSch: 0.420; SubSStrSch: 4
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0.476; TrY: 0.333; TrZ: 0.600; StrSch: 0.420; SubSStrSch: 3.280
@@ -3328,16 +3332,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: -0.475; TrY: -0.333; TrZ: 0.600; StrSch: 0.420; SubSStrSch: 0.400
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: -0.500; TrY: -0.350; TrZ: 0.600; StrSch: 0.420; SubSStrSch: 0.400
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Scene-Change.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0.500; TrY: 0.350; TrZ: 0.600; StrSch: 0.420; SubSStrSch: 4
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0.476; TrY: 0.333; TrZ: 0.600; StrSch: 0.420; SubSStrSch: 3.280
@@ -3374,15 +3378,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: -0.475; TrY: -0.333; TrZ: 0.600; StrSch: 0.420; SubSStrSch: 0.400
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: -0.500; TrY: -0.350; TrZ: 0.600; StrSch: 0.420; SubSStrSch: 0.400
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Shapes-Circles-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.500; StrSch: 0.450; SubSStrSch: 0.500
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.500; StrSch: 0.450; SubSStrSch: 0.523
@@ -3418,16 +3422,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.500; StrSch: 0.450; SubSStrSch: 0.694
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.500; StrSch: 0.450; SubSStrSch: 0.713
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Shapes-Circles.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.500; StrSch: 0.450; SubSStrSch: 0.500
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.500; StrSch: 0.450; SubSStrSch: 0.523
@@ -3464,15 +3468,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.500; StrSch: 0.450; SubSStrSch: 0.694
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.500; StrSch: 0.450; SubSStrSch: 0.713
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Shapes-Hexagons-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.430; SubSStrSch: 0.550
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.430; SubSStrSch: 0.573
@@ -3508,16 +3512,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.430; SubSStrSch: 0.744
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.430; SubSStrSch: 0.763
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Shapes-Hexagons.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.430; SubSStrSch: 0.550
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.430; SubSStrSch: 0.573
@@ -3554,15 +3558,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.430; SubSStrSch: 0.744
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.430; SubSStrSch: 0.763
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Shapes-Kaleidoscope-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.800; StrSch: 0.430; SubSStrSch: 0.550
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.800; StrSch: 0.430; SubSStrSch: 0.573
@@ -3598,16 +3602,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.800; StrSch: 0.430; SubSStrSch: 0.744
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.800; StrSch: 0.430; SubSStrSch: 0.763
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Shapes-Kaleidoscope.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.800; StrSch: 0.430; SubSStrSch: 0.550
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.800; StrSch: 0.430; SubSStrSch: 0.573
@@ -3644,15 +3648,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.800; StrSch: 0.430; SubSStrSch: 0.744
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.800; StrSch: 0.430; SubSStrSch: 0.763
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Shapes-Squares-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.450; SubSStrSch: 0.550
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.450; SubSStrSch: 0.573
@@ -3688,16 +3692,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.450; SubSStrSch: 0.744
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.450; SubSStrSch: 0.763
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Shapes-Squares.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.450; SubSStrSch: 0.550
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.450; SubSStrSch: 0.573
@@ -3734,15 +3738,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.450; SubSStrSch: 0.744
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.450; SubSStrSch: 0.763
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Shapes-Stars-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.470; SubSStrSch: 0.550
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.470; SubSStrSch: 0.573
@@ -3778,16 +3782,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.470; SubSStrSch: 0.744
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.470; SubSStrSch: 0.763
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Shapes-Stars.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.470; SubSStrSch: 0.550
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.470; SubSStrSch: 0.573
@@ -3824,15 +3828,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.470; SubSStrSch: 0.744
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.470; SubSStrSch: 0.763
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Spacewalk-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.470; SubSStrSch: 0.750
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.500; StrSch: 0.470; SubSStrSch: 0.748
@@ -3868,16 +3872,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.500; StrSch: 0.470; SubSStrSch: 0.627
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.500; StrSch: 0.470; SubSStrSch: 0.602
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Spacewalk.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0; StrSch: 0.470; SubSStrSch: 0.750
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.500; StrSch: 0.470; SubSStrSch: 0.748
@@ -3914,15 +3918,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.500; StrSch: 0.470; SubSStrSch: 0.627
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.500; StrSch: 0.470; SubSStrSch: 0.602
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Transitions.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 2; StrSch: 0.450; SubSStrSch: 0.700
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 2; StrSch: 0.450; SubSStrSch: 0.700
@@ -3959,15 +3963,15 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 2; StrSch: 0.450; SubSStrSch: 0.697
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 2; StrSch: 0.450; SubSStrSch: 0.697
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Zoom-In-Out-30s.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.350; SubSStrSch: 0.500
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.350; SubSStrSch: 0.523
@@ -4003,16 +4007,16 @@
   10
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.350; SubSStrSch: 0.694
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.350; SubSStrSch: 0.713
   
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Zoom-In-Out.txt]
   '''
+  1
+  00:00:00,000 --> 00:00:00,083
+  F#: 0; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.350; SubSStrSch: 0.500
+  
   2
   00:00:00,083 --> 00:00:00,166
   F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.350; SubSStrSch: 0.523
@@ -4049,59 +4053,10 @@
   00:00:00,750 --> 00:00:00,833
   F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.350; SubSStrSch: 0.694
   
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 0.600; StrSch: 0.350; SubSStrSch: 0.713
-  
   
   '''
 # ---
 # name: TestSettingsFilesShort.test_settings_file_short[Zoom-To-New-30s.txt]
-  '''
-  2
-  00:00:00,083 --> 00:00:00,166
-  F#: 1; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 5.000; StrSch: 0.366; SubSStrSch: 0.700
-  
-  3
-  00:00:00,166 --> 00:00:00,250
-  F#: 2; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 5; StrSch: 0.347; SubSStrSch: 0.700
-  
-  4
-  00:00:00,250 --> 00:00:00,333
-  F#: 3; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 5.000; StrSch: 0.332; SubSStrSch: 0.700
-  
-  5
-  00:00:00,333 --> 00:00:00,416
-  F#: 4; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 5.000; StrSch: 0.323; SubSStrSch: 0.699
-  
-  6
-  00:00:00,416 --> 00:00:00,500
-  F#: 5; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 5.001; StrSch: 0.320; SubSStrSch: 0.699
-  
-  7
-  00:00:00,500 --> 00:00:00,583
-  F#: 6; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 5.017; StrSch: 0.323; SubSStrSch: 0.699
-  
-  8
-  00:00:00,583 --> 00:00:00,666
-  F#: 7; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 5.125; StrSch: 0.332; SubSStrSch: 0.698
-  
-  9
-  00:00:00,666 --> 00:00:00,750
-  F#: 8; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 5.560; StrSch: 0.347; SubSStrSch: 0.698
-  
-  10
-  00:00:00,750 --> 00:00:00,833
-  F#: 9; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 6.772; StrSch: 0.366; SubSStrSch: 0.697
-  
-  11
-  00:00:00,833 --> 00:00:00,916
-  F#: 10; Cadence: False; Seed: 420; TrX: 0; TrY: 0; TrZ: 9.259; StrSch: 0.390; SubSStrSch: 0.697
-  
-  
-  '''
-# ---
-# name: TestSettingsFilesShort.test_settings_file_short[Zoom-To-New.txt]
   '''
   2
   00:00:00,083 --> 00:00:00,166

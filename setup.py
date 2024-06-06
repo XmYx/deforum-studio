@@ -110,7 +110,9 @@ _deps = [
     'pylint>=3.2.1',
     'syrupy>=4.6.1',
     'pytest-cov>=5.0.0',
-    'coverage>=7.5.2'
+    'coverage>=7.5.2',
+    'librosa>=0.10.0.post2',
+    'contexttimer>=0.3.3'
 
 ]
 
@@ -229,7 +231,9 @@ install_requires = deps_list('torch',
                              'qtpy',
                              'pyqt6',
                              'pyqt6-qt6',
-                             'pyqtgraph'
+                             'pyqtgraph',
+                             'librosa',
+                             'contexttimer'
                              )
 
 extras['dev'] = deps_list('pytest', 'ruff', 'pylint', 'syrupy', 'pytest-cov', 'coverage')

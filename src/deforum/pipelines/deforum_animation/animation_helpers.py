@@ -18,6 +18,7 @@ from skimage.exposure import match_histograms
 
 from deforum.utils.blocking_file_list import BlockingFileList
 from deforum.utils.logging_config import logger
+from deforum.utils.rhythm_artithmetic import beat_to_sec, frame_to_beat, frame_to_sec, frames_per_beat, beat_to_frame, sec_to_frame
 
 from ... import FILMInterpolator
 from ...generators.deforum_flow_generator import (
@@ -1170,7 +1171,7 @@ class DeforumAnimKeys():
     def __init__(self, anim_args, seed=-1, *args, **kwargs):
 
 
-        self.fi = FrameInterpolator(anim_args.max_frames, seed)
+        self.fi = FrameInterpolator(anim_args, seed)
         self.angle_series = self.fi.get_inbetweens(self.fi.parse_key_frames(anim_args.angle))
         self.transform_center_x_series = self.fi.get_inbetweens(self.fi.parse_key_frames(anim_args.transform_center_x))
         self.transform_center_y_series = self.fi.get_inbetweens(self.fi.parse_key_frames(anim_args.transform_center_y))
@@ -1245,7 +1246,7 @@ class DeforumAnimKeys():
 
 class ControlNetKeys:
     def __init__(self, anim_args, controlnet_args):
-        self.fi = FrameInterpolator(max_frames=anim_args.max_frames)
+        self.fi = FrameInterpolator(anim_args)
         self.schedules = {}
         for i in range(1, 6):  # 5 CN models in total
             for suffix in ['weight', 'guidance_start', 'guidance_end']:
@@ -1258,7 +1259,7 @@ class ControlNetKeys:
 
 class LooperAnimKeys:
     def __init__(self, loop_args, anim_args, seed):
-        self.fi = FrameInterpolator(anim_args.max_frames, seed)
+        self.fi = FrameInterpolator(anim_args, seed)
         self.use_looper = loop_args.use_looper
         self.imagesToKeyframe = loop_args.init_images
         self.image_strength_schedule_series = self.fi.get_inbetweens(
@@ -1272,8 +1273,9 @@ class LooperAnimKeys:
 
 
 class FrameInterpolator:
-    def __init__(self, max_frames=0, seed=-1) -> None:
-        self.max_frames = max_frames
+    def __init__(self, settings, seed=-1) -> None:
+        self.settings = settings
+        self.max_frames = settings.max_frames
         self.seed = seed
 
     def sanitize_value(self, value):
@@ -1282,27 +1284,40 @@ class FrameInterpolator:
     def get_inbetweens(self, key_frames, integer=False, interp_method='Linear', is_single_string=False):
         key_frame_series = pd.Series([np.nan for a in range(self.max_frames)])
         # get our ui variables set for numexpr.evaluate
-        global max_f
-        global s
-        max_f = self.max_frames - 1
-        s = self.seed
+        bpm = self.settings.get("bpm", 120)
+        fps = self.settings.fps
+        beat_offset = self.settings.get("beat_offset", 0)
+
+        unsorted_events = self.settings.get("schedule_events", [])
+        events = sorted(unsorted_events, key=lambda event: event['time'])
+
+        local_constants = {
+            "max_f": self.max_frames - 1,
+            "s": self.seed,
+            "bpm": bpm,
+            "beat_offset_s": beat_offset,
+            "beat_offset_f": int(round(beat_offset*fps)),
+            "pi": np.pi,
+            "fps": fps,
+            "unique": random.randint(0,99999999)
+        }
+
+        for e in events:
+            e["frame"] = sec_to_frame(e["time"], fps)
+
         value_is_number = None
         value = None
         for i in range(0, self.max_frames):
             if i in key_frames:
                 value = key_frames[i]
-
-
-
                 value_is_number = check_is_number(self.sanitize_value(value))
                 if value_is_number:  # if it's only a number, leave the rest for the default interpolation
                     key_frame_series[i] = self.sanitize_value(value)
             if not value_is_number and value is not None:
-                global t
-                t = i
-                # workaround for values formatted like 0:("I am test") //used for sampler schedules
-                key_frame_series[i] = numexpr.evaluate(str(value), casting='unsafe') if not is_single_string else self.sanitize_value(value)
-            elif is_single_string:  # take previous string value and replicate it
+                local_variables = self.prepare_local_variables(current_frame=i, bpm=bpm, fps=fps, beat_offset=beat_offset, local_constants=local_constants, events=events)
+                key_frame_series[i] = numexpr.evaluate(str(value), casting='unsafe', local_dict=local_variables) if not is_single_string else self.sanitize_value(value)
+            elif is_single_string:  
+                # for values formatted like 0:("I am test") as used by sampler schedules, just take previous string value and replicate it
                 key_frame_series[i] = key_frame_series[i - 1]
         key_frame_series = key_frame_series.astype(float) if not is_single_string else key_frame_series  # as string
 
@@ -1318,6 +1333,49 @@ class FrameInterpolator:
             return key_frame_series.astype(int)
         return key_frame_series
 
+    def prepare_local_variables(self, current_frame, bpm, fps, beat_offset, local_constants, events):
+        
+        local_variables = copy.deepcopy(local_constants)
+
+        local_variables["t"] = current_frame
+        local_variables["f"] = current_frame
+        local_variables["sec"] = frame_to_sec(current_frame, fps)
+
+        current_beat = frame_to_beat(current_frame, fps, bpm) - beat_offset
+ 
+        local_variables["beat"] = current_beat
+        local_variables["whole_beat"] = math.floor(current_beat)
+        local_variables["progress_until_beat"] = current_beat % 1
+        local_variables["frames_until_beat"] = beat_to_frame(1 - (current_beat % 1), fps, bpm)  
+        local_variables["frames_since_beat"] = beat_to_frame((current_beat % 1), fps, bpm)
+        local_variables["second_until_beat"] = beat_to_sec(1 - (current_beat % 1), bpm)  
+        local_variables["seconds_since_beat"] = beat_to_sec((current_beat % 1), bpm)
+        local_variables["frames_to_go"] = self.max_frames - 1 - current_frame
+        local_variables["beats_to_go"] = frame_to_beat(self.max_frames - 1 - current_frame, fps, bpm)
+        local_variables["seconds_to_go"] = frame_to_sec(self.max_frames - 1 - current_frame, fps)
+                
+        prev_event = next((event for event in reversed(events) if event["frame"]<current_frame), None)
+        next_event = next((event for event in events if event["frame"]>=current_frame), None)
+        prev_event_frame = prev_event["frame"] if prev_event else 0
+        next_event_frame = next_event["frame"] if next_event else self.max_frames-1
+
+        local_variables["events_passed"] = len([event for event in events if event["frame"]<current_frame])
+        local_variables["events_to_go"] = len(events) - local_variables["events_passed"]
+        local_variables["events_total"] = len(events)
+
+        event_gap = (next_event_frame - prev_event_frame)
+        local_variables["progress_until_next_event"] = 0 if (event_gap == 0) else ((current_frame - prev_event_frame) / event_gap)
+        local_variables["frames_until_next_event"] = next_event_frame - current_frame
+        local_variables["beats_until_next_event"] = frame_to_beat(next_event_frame - current_frame, fps, bpm)
+        local_variables["seconds_until_next_event"] = frame_to_sec(next_event_frame - current_frame, fps)
+
+        local_variables["frames_since_prev_event"] = current_frame - prev_event_frame
+        local_variables["beats_since_prev_event"] = frame_to_beat(next_event_frame - current_frame, fps, bpm)
+        local_variables["seconds_since_prev_event"] = frame_to_sec(next_event_frame - current_frame, fps)
+
+        return local_variables
+
+
     def parse_key_frames(self, string):
         # because math functions (i.e. sin(t)) can utilize brackets
         # it extracts the value in form of some stuff
@@ -1327,16 +1385,34 @@ class FrameInterpolator:
         frames = dict()
         if string is None:
             string = ""
-        for match_object in string.split(","):
+        for match_object in split_on_commas_outside_parentheses(string):
             frameParam = match_object.split(":")
             max_f = self.max_frames - 1
             s = self.seed
-            frame = int(self.sanitize_value(frameParam[0])) if check_is_number(
-                self.sanitize_value(frameParam[0].strip())) else int(numexpr.evaluate(
-                frameParam[0].strip().replace("'", "", 1).replace('"', "", 1)[::-1].replace("'", "", 1).replace('"', "",
-                                                                                                                1)[
-                ::-1]))
+            frame = int(self.sanitize_value(frameParam[0])) if check_is_number(self.sanitize_value(frameParam[0].strip())) else int(numexpr.evaluate(frameParam[0].strip().replace("'", "", 1).replace('"', "", 1)[::-1].replace("'", "", 1).replace('"', "", 1)[::-1]))
             frames[frame] = frameParam[1].strip()
         if frames == {} and len(string) != 0:
             raise RuntimeError('Key Frame string not correctly formatted')
         return frames
+
+
+# This is hideous but necessary to be able to use expressions with functions with commas.
+# This should really be a proper lexer/parser.
+def split_on_commas_outside_parentheses(s):
+    parts = []
+    current = []
+    paren_depth = 0
+
+    for char in s:
+        if char == ',' and paren_depth == 0:
+            parts.append(''.join(current).strip())
+            current = []
+        else:
+            current.append(char)
+            if char == '(':
+                paren_depth += 1
+            elif char == ')':
+                paren_depth -= 1
+
+    parts.append(''.join(current).strip()) 
+    return parts
