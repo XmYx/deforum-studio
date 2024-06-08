@@ -3,6 +3,7 @@ import gc
 import math
 import os
 import random
+import subprocess
 
 # from multiprocessing import Process
 from typing import Any, Optional, Tuple, Union
@@ -1166,6 +1167,30 @@ def cls_subtitle_handler(cls):
             is_diffused =  (cls.gen.frame_idx % max(1, cls.gen.turbo_steps) == 0)
             write_frame_subtitle(cls.gen.srt_filename, cls.gen.frame_idx, cls.gen.srt_frame_duration,
                                  f"F#: {cls.gen.frame_idx}; Cadence: {not is_diffused}; Seed: {cls.gen.seed}; {params_string}")
+
+def preview_video_generation_cls(cls: Any) -> None:
+    """
+    Generates a preview video of the generated frames at specified intervals.
+
+    Args:
+        cls: The class instance containing generation parameters, image paths, and other attributes.
+
+    Returns:
+        None: Starts a non-blocking subprocess to create a preview video using ffmpeg.
+    """
+    if cls.gen.frame_idx % cls.gen.preview_per_n_frames == 0 and cls.gen.frame_idx > 0:
+        preview_path = os.path.join(cls.gen.outdir, f"preview_{cls.gen.frame_idx:09}.mp4")
+        ffmpeg_command = [
+            "ffmpeg",
+            "-y",
+            "-framerate", str(cls.gen.fps),
+            "-i", os.path.join(cls.gen.outdir, f"{cls.gen.timestring}_%09d.png"),
+            "-c:v", "libx264",
+            "-pix_fmt", "yuv420p",
+            "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
+            preview_path
+        ]
+        subprocess.Popen(ffmpeg_command)
 
 class DeforumAnimKeys():
     def __init__(self, anim_args, seed=-1, *args, **kwargs):
