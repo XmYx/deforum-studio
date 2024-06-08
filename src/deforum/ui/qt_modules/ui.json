@@ -495,5 +495,48 @@
       "label": "Overlay Mask",
       "accessible_name": "Overlay Mask Over the Image"
     }
+  },
+  "AnimateDiff Settings": {
+    "enable_ad_pass": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Enable AnimateDiff pass"
+    },
+    "ad_max_frames": {
+      "widget_type": "number",
+      "default": 0,
+      "min": 0,
+      "max": 65536000,
+      "label": "Limit AnimateDiff Frmaes"
+    },
+    "ad_use_every_nth": {
+      "widget_type": "number",
+      "default": 1,
+      "min": 1,
+      "max": 65536000,
+      "label": "Use every nth input frame"
+    },
+    "ad_closed_loop": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Closed Loop"
+    },
+    "ad_prompt": {
+      "widget_type": "text input",
+      "default": "",
+      "label": "Prompt"
+    },
+    "ad_negative_prompt": {
+      "widget_type": "text input",
+      "default": "",
+      "label": "Negative Prompt"
+    },
+    "ad_hires_steps": {
+      "widget_type": "number",
+      "default": 0,
+      "min": 0,
+      "max": 256,
+      "label": "ADiff Hires Steps"
+    }
   }
 }

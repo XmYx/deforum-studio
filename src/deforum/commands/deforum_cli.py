@@ -314,7 +314,6 @@ def start_deforum_cli() -> None:
             current_file_path = os.path.abspath(__file__)
             parent_directory = os.path.dirname(current_file_path)
             deforum_directory = os.path.dirname(parent_directory)
-
             config_path = os.path.join(deforum_directory, "commands", "configs", "adiff_v2v.yml")
             from deforum.utils.constants import config
             main_script_path = os.path.join(deforum_directory, "commands", "setup_comfy_api.py")

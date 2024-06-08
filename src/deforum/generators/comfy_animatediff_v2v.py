@@ -11,7 +11,44 @@ import cv2
 import requests
 import torch
 
+from pydub import AudioSegment
+import io
 
+def lazy_eval(func):
+    class Cache:
+        def __init__(self, func):
+            self.res = None
+            self.func = func
+        def get(self):
+            if self.res is None:
+                self.res = self.func()
+            return self.res
+    cache = Cache(func)
+    return lambda : cache.get()
+def get_audio(file, start_time=0, duration=0):
+    try:
+        # Load the audio file
+        audio = AudioSegment.from_file(file)
+
+        # Convert start_time and duration from seconds to milliseconds
+        start_time_ms = start_time * 1000
+        duration_ms = duration * 1000
+
+        # Slice the audio segment if start_time or duration is specified
+        if start_time > 0 or duration > 0:
+            end_time_ms = start_time_ms + duration_ms if duration > 0 else None
+            audio = audio[start_time_ms:end_time_ms]
+
+        # Export the audio segment to a byte stream
+        audio_bytes = io.BytesIO()
+        audio.export(audio_bytes, format="wav")
+        audio_bytes.seek(0)
+
+        # Return the byte content
+        return audio_bytes.read()
+    except Exception as e:
+        logger.warning(f"Failed to extract audio from: {file}")
+        return False
 def get_value_at_index(obj: Union[Sequence, Mapping], index: int) -> Any:
     """Returns the value at the given index of a sequence or mapping.
 
@@ -115,6 +152,20 @@ class AnimateRad:
     @torch.inference_mode()
     def __init__(self):
         import_custom_nodes()
+
+        from nodes import (
+            CLIPVisionLoader,
+            CLIPTextEncode,
+            CheckpointLoaderSimple,
+            ImageScale,
+            ControlNetApplyAdvanced,
+            VAELoader,
+            VAEEncode,
+            LoadImage,
+            NODE_CLASS_MAPPINGS,
+            LoraLoaderModelOnly,
+        )
+
         self.vae_loader = VAELoader()
         self.video_loader = NODE_CLASS_MAPPINGS["VHS_LoadVideoPath"]()
         self.image_rescaler = ImageScale()
@@ -171,6 +222,7 @@ class AnimateRad:
 
         Args:
             video_path (str): Path to the input video file. If a URL is provided, the video will be downloaded.
+            audio_path (str): Path to the input audio file. If a URL is provided, the video will be downloaded.
             ip_image (str, optional): Path or URL to the input image. If not provided, the first frame of the video will be used.
             max_frames (int, optional): Maximum number of frames to load from the video. Defaults to 0 (no limit).
             use_every_nth (int, optional): Use every nth frame from the video. Defaults to 1.
@@ -203,6 +255,7 @@ class AnimateRad:
         """
 
         video_path = kwargs.get('video_path')
+        audio_path = kwargs.get('audio_path')
         ip_image = kwargs.get('ip_image')
 
         assert video_path is not None, "Video path must be provided"
@@ -218,7 +271,7 @@ class AnimateRad:
 
         # loaded_ip_image = self.image_loader.load_image(image="input.png")
         loaded_video = self.video_loader.load_video(
-            video='/home/mix/Documents/GitHub/ComfyUI/input/-14b7-4829-b41a-e6f393f0f719.mp4',
+            video=video_path,
             frame_load_cap=kwargs.get('max_frames', 0),
             force_rate=0,
             force_size='Disabled',
@@ -385,6 +438,10 @@ class AnimateRad:
 
         if seed == -1:
             seed = random.randint(1, 2 ** 64)
+        if kwargs.get('hires_steps', 0) > 0:
+            hires = get_value_at_index(hiresfix_script, 0)
+        else:
+            hires = None
         result_samples = self.ksampler_adv.sample_adv(
             add_noise="enable",
             noise_seed=seed,
@@ -402,7 +459,7 @@ class AnimateRad:
             negative=get_value_at_index(applied_controlnet, 1),
             latent_image=get_value_at_index(encoded_video, 0),
             optional_vae=get_value_at_index(self.vae, 0),
-            script=get_value_at_index(hiresfix_script, 0),
+            script=hires,
         )
 
         interpolated_samples = self.rife_vfi.vfi(
@@ -414,16 +471,21 @@ class AnimateRad:
             scale_factor=1,
             frames=get_value_at_index(result_samples, 5),
         )
+        if audio_path is not None:
+            a_func = lambda : get_audio(audio_path)
+            a = lazy_eval(a_func)
+        else:
+            a = get_value_at_index(loaded_video, 2)
 
         saved_video = self.video_save.combine_video(
-            frame_rate=kwargs.get('fps', 24),
+            frame_rate=kwargs.get('fps', 24) * 2,
             loop_count=0,
             filename_prefix="deforumDiff",
             format="video/h264-mp4",
             pingpong=False,
             save_output=True,
             images=get_value_at_index(interpolated_samples, 0),
-            audio=get_value_at_index(loaded_video, 2),
+            audio=a,
             unique_id=14314448330963208959,
         )
         return saved_video
@@ -463,18 +525,7 @@ if __name__ == "__main__":
     add_comfyui_directory_to_sys_path(args.comfy_path)
     add_extra_model_paths()
     comfy_path = args.comfy_path
-    from nodes import (
-        CLIPVisionLoader,
-        CLIPTextEncode,
-        CheckpointLoaderSimple,
-        ImageScale,
-        ControlNetApplyAdvanced,
-        VAELoader,
-        VAEEncode,
-        LoadImage,
-        NODE_CLASS_MAPPINGS,
-        LoraLoaderModelOnly,
-    )
+
 
     pipeline = AnimateRad()
     result = run_pipeline_with_config(args.config_path)

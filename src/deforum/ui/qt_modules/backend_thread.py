@@ -123,7 +123,34 @@ class BackendThread(QThread):
             process = subprocess.run(ffmpeg_command, text=True)
             self.finished.emit({'video_path': self.output_path})
 
-
+        if self.params['enable_ad_pass']:
+            self.params['adiff_pass_params'] = {
+                "max_frames": self.params['ad_max_frames'],
+                "use_every_nth": self.params['ad_use_every_nth'],
+                "width": self.params['width'],
+                "height": self.params['height'],
+                "closed_loop": self.params['ad_closed_loop'],
+                "prompt": self.params['ad_prompt'],
+                "negative_prompt": self.params['ad_negative_prompt'],
+                "hires_steps": self.params['ad_hires_steps'],
+                "hires_pass_denoise": 0.56,
+                "controlnet_strength": 1.0,
+                "controlnet_start": 0.0,
+                "controlnet_end": 0.5,
+                "ip_adapter_video_strength": 0.85,
+                "ip_adapter_video_start": 0.0,
+                "ip_adapter_video_end": 0.8,
+                "ip_adapter_image_strength": 0.85,
+                "ip_adapter_image_start": 0.0,
+                "ip_adapter_image_end": 0.5,
+                "seed": -1,
+                "steps": 6,
+                "cfg": 1.3,
+                "sampler": "lcm",
+                "scheduler": "sgm_uniform",
+                "start_at_step": 2,
+                "fps": self.params['fps']
+            }
         animation = models['deforum_pipe'](callback=datacallback, **self.params)
         result = {"status":"Ready",
                   "timestring":animation.timestring,

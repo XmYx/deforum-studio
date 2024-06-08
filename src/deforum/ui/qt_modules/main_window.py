@@ -406,7 +406,7 @@ class MainWindow(DeforumCore):
         self.timelineDock.hide()
         self.newProject()
         self.initAnimEngine()
-        self.loadWindowState()
+        # self.loadWindowState()
 
         preset_path = os.path.join(self.presets_folder, 'default.txt')
         if os.path.exists(preset_path):
@@ -660,6 +660,7 @@ class MainWindow(DeforumCore):
             config = json.load(file)
 
         for category, settings in config.items():
+            print("parsing", category)
             tab = QWidget()  # This is the actual tab that will hold the layout
             layout = QVBoxLayout()
             tab.setLayout(layout)

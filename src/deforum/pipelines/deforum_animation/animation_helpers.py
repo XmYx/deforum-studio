@@ -3,6 +3,7 @@ import gc
 import math
 import os
 import random
+import shutil
 import subprocess
 
 # from multiprocessing import Process
@@ -1115,11 +1116,11 @@ def save_video_cls(cls):
     else:
         name = f'{cls.gen.batch_name}'
     output_filename_base = os.path.join(dir_path, name)
-
-    if cls.gen.frame_interpolation_engine and cls.gen.frame_interpolation_engine != "None":
-        cls.gen.fps = float(cls.gen.fps) * int(cls.gen.frame_interpolation_x_amount)
-        if cls.gen.frame_interpolation_slow_mo_enabled:
-            cls.gen.fps /= int(cls.gen.frame_interpolation_slow_mo_amount)
+    if not cls.gen.enable_ad_pass:
+        if cls.gen.frame_interpolation_engine and cls.gen.frame_interpolation_engine != "None":
+            cls.gen.fps = float(cls.gen.fps) * int(cls.gen.frame_interpolation_x_amount)
+            if cls.gen.frame_interpolation_slow_mo_enabled:
+                cls.gen.fps /= int(cls.gen.frame_interpolation_slow_mo_amount)
 
     audio_path = None
     if getattr(cls.gen, 'add_soundtrack') == 'Init Video':
@@ -1215,12 +1216,37 @@ def run_adiff_cls(cls):
 
     # Add the video path to the settings parameters
     settings_params['video_path'] = video_path
-
+    print(settings_params)
     # Run the pipeline with the provided parameters
-    result = pipeline(**settings_params)
 
-    # Update the cls.gen.video_path with the result
-    cls.gen.video_path = result
+    settings_params['audio_path'] = None
+    if getattr(cls.gen, 'add_soundtrack') == 'Init Video':
+        settings_params['audio_path'] = getattr(cls.gen, 'video_init_path')
+    elif getattr(cls.gen, 'audio_path'):
+        # prioritise new audio_path attribute (not supported in a1111 extension)
+        settings_params['audio_path'] = getattr(cls.gen, 'audio_path')
+    elif getattr(cls.gen, 'add_soundtrack') == 'File':
+        # compatibility with a1111 extension, which expects "soundtrack_path"
+        # and only honours it if add_soundtrack == 'File'.
+        settings_params['audio_path'] = getattr(cls.gen, 'soundtrack_path')
+
+    result = pipeline(**settings_params)['result'][0]
+    print(result)
+    if len(result[1]) > 2:
+        new_video_path = result[1][2]
+    else:
+        new_video_path = result[1][1]
+
+    # Create the new path with _adiff appended to the original file name
+    base, ext = os.path.splitext(cls.gen.video_path)
+    new_path = f"{base}_adiff{ext}"
+
+    # Copy the result to the new path
+    shutil.copy(new_video_path, new_path)
+    cls.gen.video_path = new_path
+    del pipeline
+    torch.cuda.empty_cache()
+    print('result:', cls.gen.video_path)
 
 class DeforumAnimKeys():
     def __init__(self, anim_args, seed=-1, *args, **kwargs):
