@@ -1191,6 +1191,36 @@ def preview_video_generation_cls(cls: Any) -> None:
             preview_path
         ]
         subprocess.Popen(ffmpeg_command)
+def run_adiff_cls(cls):
+    """
+    Uses the cls object for the parameters, namely cls.gen.video_path for the input video and cls.gen.adiff_pass_params dict as the settings parameters.
+    It instantiates the AnimateRad class and runs it with the video path, then sets cls.gen.video_path to the result we are returning.
+
+    Args:
+        cls: The object containing the parameters.
+
+    Returns:
+        None
+    """
+    # Instantiate the AnimateRad class
+    from deforum.generators.comfy_animatediff_v2v import AnimateRad
+    pipeline = AnimateRad()
+
+    # Get the video path and settings parameters from the cls object
+    video_path = cls.gen.video_path
+    settings_params = cls.gen.adiff_pass_params
+
+    # Ensure the video path is provided
+    assert video_path is not None, "Video path must be provided"
+
+    # Add the video path to the settings parameters
+    settings_params['video_path'] = video_path
+
+    # Run the pipeline with the provided parameters
+    result = pipeline(**settings_params)
+
+    # Update the cls.gen.video_path with the result
+    cls.gen.video_path = result
 
 class DeforumAnimKeys():
     def __init__(self, anim_args, seed=-1, *args, **kwargs):

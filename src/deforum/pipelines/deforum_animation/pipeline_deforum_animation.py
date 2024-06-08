@@ -63,7 +63,7 @@ from .animation_helpers import (
     post_hybrid_composite_cls,
     rife_interpolate_cls,
     save_video_cls,
-    set_contrast_image,
+    set_contrast_image, run_adiff_cls,
 )
 from .animation_params import auto_to_comfy
 from .parseq_adapter import ParseqAdapter
@@ -376,18 +376,22 @@ class DeforumAnimationPipeline(DeforumBase):
         if hasattr(self.gen, 'enable_temporal_flow'):
             if self.gen.enable_temporal_flow and self.gen.turbo_steps < 2:
                 self.shoot_fns.append(apply_temporal_flow_cls)
-
-        if getattr(self.gen, "frame_interpolation_engine", None) and self.gen.frame_interpolation_engine != "None":
-            if self.gen.max_frames > 3:
-                if self.gen.frame_interpolation_engine == "FILM":
-                    self.post_fns.append(film_interpolate_cls)
-                elif 'rife' in self.gen.frame_interpolation_engine.lower():
-                    self.post_fns.append(rife_interpolate_cls)
-                else:
-                    raise ValueError(f"Unknown frame interpolation engine: {self.gen.frame_interpolation_engine}")
+        if not self.gen.enable_ad_pass:
+            if getattr(self.gen, "frame_interpolation_engine", None) and self.gen.frame_interpolation_engine != "None":
+                if self.gen.max_frames > 3:
+                    if self.gen.frame_interpolation_engine == "FILM":
+                        self.post_fns.append(film_interpolate_cls)
+                    elif 'rife' in self.gen.frame_interpolation_engine.lower():
+                        self.post_fns.append(rife_interpolate_cls)
+                    else:
+                        raise ValueError(f"Unknown frame interpolation engine: {self.gen.frame_interpolation_engine}")
 
         if self.gen.max_frames > 1 and not self.gen.skip_video_creation:
             self.post_fns.append(save_video_cls)
+
+        if self.gen.enable_ad_pass:
+            self.post_fns.append(run_adiff_cls)
+
 
         os.makedirs(config.settings_path, exist_ok=True)
         settings_file_name = os.path.join(config.settings_path, f"{self.gen.timestring}_settings.txt")

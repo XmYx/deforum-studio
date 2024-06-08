@@ -448,7 +448,7 @@ def run_pipeline_with_config(config_path: str):
     # Run the pipeline with the loaded configuration
     result = pipeline(**config)
 
-    return result
+    return result['result'][0]
 comfy_path = ""
 
 # Example usage with argparse
