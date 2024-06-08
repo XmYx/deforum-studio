@@ -277,7 +277,7 @@ class DeforumGenerationObject(DeforumDataObject):
         self.animation_prompts_negative = ""
         self.audio_path = ""
         self.enable_ad_pass = False
-        self.ad_pass_params = {}
+        self.adiff_pass_params = {}
 
         # Set all provided keyword arguments as attributes
         for key, value in kwargs.items():
