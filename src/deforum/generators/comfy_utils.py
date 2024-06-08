@@ -133,9 +133,33 @@ def ensure_comfy(custom_path=None):
     global comfy_initialized
     if not comfy_initialized:
         comfy_initialized = True
-        # comfyui_path = find_path("ComfyUI")
-        comfy_path = custom_path or config.comfy_path
 
+        curr_folder = os.getcwd()
+        comfy_submodules = [
+            ('https://github.com/ltdrdata/ComfyUI-Impact-Pack', '48d9ce7528f83074b6db7a7b15ef7e88c7134aa5'),
+            ('https://github.com/XmYx/ComfyUI-Inspire-Pack', 'd40389f93d6f42b44e0e2f02190a216762d028d8'),
+            ('https://github.com/shiimizu/ComfyUI_smZNodes', 'a1627ce2ade31822694d82aa9600a4eff0f99d69'),
+            ('https://github.com/gameltb/ComfyUI_stable_fast', 'c0327e6f076bd8a36e3c29f3594025c76cf9beae'),
+            ('https://github.com/cubiq/ComfyUI_IPAdapter_plus', '20125bf9394b1bc98ef3228277a31a3a52c72fc2')
+        ]
+        comfy_path = custom_path or config.comfy_path
+        comfy_submodule_folder = os.path.join(comfy_path, 'custom_nodes')
+
+        # if not os.path.exists(config.comfy_path):
+        try:
+            print("Initializing and updating git submodules...")
+            subprocess.check_call(['git', 'submodule', 'update', '--init', '--recursive'])
+            print("Submodules initialized and updated.")
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to initialize submodules: {e}")
+
+        with change_dir(comfy_submodule_folder):
+            for module, commit_id in comfy_submodules:
+                if not os.path.exists(os.path.join(os.getcwd(), module.split("/")[-1])):
+                    clone_repo(module, commit_id)
+
+        os.chdir(curr_folder)
+        download_models(ip_adapter_model_dict)
         if comfy_path is not None and os.path.isdir(comfy_path):
             sys.path.append(comfy_path)
             print(f"'{comfy_path}' added to sys.path")
@@ -193,74 +217,6 @@ def ensure_comfy(custom_path=None):
         # Replace the function
         replace_function(module_path, 'globals_cleanup', new_globals_cleanup)
 
-
-def ensure_comfy_(custom_path=None):
-    """
-    Ensure that ComfyUI is initialized and configured properly.
-
-    Args:
-        custom_path (str, optional): A custom path for ComfyUI. Defaults to None.
-    """
-    global comfy_initialized
-    if not comfy_initialized:
-        comfy_initialized = True
-        curr_folder = os.getcwd()
-        comfy_submodules = [
-            ('https://github.com/ltdrdata/ComfyUI-Impact-Pack', '48d9ce7528f83074b6db7a7b15ef7e88c7134aa5'),
-            ('https://github.com/XmYx/ComfyUI-Inspire-Pack', 'd40389f93d6f42b44e0e2f02190a216762d028d8'),
-            ('https://github.com/shiimizu/ComfyUI_smZNodes', 'a1627ce2ade31822694d82aa9600a4eff0f99d69'),
-            ('https://github.com/gameltb/ComfyUI_stable_fast', 'c0327e6f076bd8a36e3c29f3594025c76cf9beae'),
-            ('https://github.com/cubiq/ComfyUI_IPAdapter_plus', '20125bf9394b1bc98ef3228277a31a3a52c72fc2')
-        ]
-        comfy_path = custom_path or config.comfy_path
-        comfy_submodule_folder = os.path.join(comfy_path, 'custom_nodes')
-
-        # if not os.path.exists(config.comfy_path):
-        try:
-            print("Initializing and updating git submodules...")
-            subprocess.check_call(['git', 'submodule', 'update', '--init', '--recursive'])
-            print("Submodules initialized and updated.")
-        except subprocess.CalledProcessError as e:
-            print(f"Failed to initialize submodules: {e}")
-
-        with change_dir(comfy_submodule_folder):
-            for module, commit_id in comfy_submodules:
-                if not os.path.exists(os.path.join(os.getcwd(), module.split("/")[-1])):
-                    clone_repo(module, commit_id)
-
-        os.chdir(curr_folder)
-        # Add paths to sys.path
-        add_to_sys_path(comfy_path)
-        #Download IP Adapter models
-        download_models(ip_adapter_model_dict)
-        # Create and add the mock module to sys.modules
-        # from comfy.cli_args import LatentPreviewMethod as lp
-        import enum
-        class LatentPreviewMethodEnum(enum.Enum):
-            NoPreviews = "none"
-            Auto = "none"
-            Latent2RGB = "latent2rgb"
-            TAESD = "taesd"
-        class MockCLIArgsModule:
-            args = mock_args
-            LatentPreviewMethod = LatentPreviewMethodEnum
-
-        sys.modules["comfy.cli_args"] = MockCLIArgsModule()
-        import asyncio
-        import execution
-        from nodes import init_custom_nodes
-        import server
-        import comfy.samplers
-        comfy.samplers.CFGGuider = HIJackCFGGuider
-        comfy.samplers.sample = sampleDeforum
-        # # Creating a new event loop and setting it as the default loop
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        # # Creating an instance of PromptServer with the loop
-        server_instance = server.PromptServer(loop)
-        execution.PromptQueue(server_instance)
-        init_custom_nodes()
-        loop.stop()
 class CLIArgs:
     def __init__(self):
         self.cpu = False
@@ -314,114 +270,6 @@ class CLIArgs:
         self.max_upload_size = 1024
 
 mock_args = CLIArgs()
-# # Define the namedtuple structure based on the properties identified
-# CLIArgs = namedtuple(
-#     "CLIArgs",
-#     [
-#         "cpu",
-#         "normalvram",
-#         "lowvram",
-#         "novram",
-#         "highvram",
-#         "gpu_only",
-#         "disable_xformers",
-#         "use_pytorch_cross_attention",
-#         "use_split_cross_attention",
-#         "use_quad_cross_attention",
-#         "fp16_unet",
-#         "fp8_e4m3fn_unet",
-#         "fp8_e5m2_unet",
-#         "fp8_e4m3fn_text_enc",
-#         "fp8_e5m2_text_enc",
-#         "fp16_text_enc",
-#         "fp32_text_enc",
-#         "fp16_vae",
-#         "bf16_vae",
-#         "fp32_vae",
-#         "force_fp32",
-#         "force_fp16",
-#         "cpu_vae",
-#         "disable_smart_memory",
-#         "disable_ipex_optimize",
-#         "listen",
-#         "port",
-#         "enable_cors_header",
-#         "extra_model_paths_config",
-#         "output_directory",
-#         "temp_directory",
-#         "input_directory",
-#         "auto_launch",
-#         "disable_auto_launch",
-#         "cuda_device",
-#         "cuda_malloc",
-#         "disable_cuda_malloc",
-#         "force_upcast_attention",
-#         "dont_upcast_attention",
-#         "bf16_unet",
-#         "directml",
-#         "preview_method",
-#         "dont_print_server",
-#         "quick_test_for_ci",
-#         "windows_standalone_build",
-#         "disable_metadata",
-#         "deterministic",
-#         "multi_user",
-#         "max_upload_size",
-#     ],
-# )
-#
-# # Update the mock args object with default values for the new properties
-# mock_args = CLIArgs(
-#     cpu=False,
-#     normalvram=False,
-#     lowvram=False,
-#     novram=False,
-#     highvram=True,
-#     gpu_only=True,
-#     disable_xformers=False,
-#     use_pytorch_cross_attention=True,
-#     use_split_cross_attention=False,
-#     use_quad_cross_attention=False,
-#     bf16_unet=False,
-#     fp16_unet=True,
-#     fp8_e4m3fn_unet=False,
-#     fp8_e5m2_unet=False,
-#     fp8_e4m3fn_text_enc=False,
-#     fp8_e5m2_text_enc=False,
-#     fp16_text_enc=True,
-#     fp32_text_enc=False,
-#     fp16_vae=True,
-#     bf16_vae=False,
-#     fp32_vae=False,
-#     force_fp32=False,
-#     force_fp16=False,
-#     cpu_vae=False,
-#     disable_smart_memory=True,
-#     disable_ipex_optimize=False,
-#     listen="127.0.0.1",
-#     port=8188,
-#     enable_cors_header=None,
-#     extra_model_paths_config="config/comfy_paths.yaml",
-#     output_directory=config.output_dir,
-#     temp_directory=None,
-#     input_directory=None,
-#     auto_launch=False,
-#     disable_auto_launch=True,
-#     cuda_device=0,
-#     cuda_malloc=False,
-#     disable_cuda_malloc=True,
-#     force_upcast_attention=False,
-#     dont_upcast_attention=False,
-#     directml=None,
-#     preview_method="none",
-#     dont_print_server=True,
-#     quick_test_for_ci=False,
-#     windows_standalone_build=False,
-#     disable_metadata=False,
-#     deterministic=False,
-#     multi_user=True,
-#     max_upload_size=1024,
-# )
 class HIJackCFGGuider:
     def __init__(self, model_patcher):
         # print("BIG HOOOORAAAAY\n\n\n\n\n")
