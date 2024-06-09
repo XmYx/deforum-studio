@@ -160,7 +160,7 @@ class DeforumAnimationPipeline(DeforumBase):
 
 
         # MAIN LOOP.
-        while self.gen.frame_idx < self.gen.max_frames + (self.gen.turbo_steps - 1):
+        while self.gen.frame_idx < self.gen.max_frames:
             frame_start = time.time()
             self.run_shoot_fn_list()
 
@@ -307,21 +307,6 @@ class DeforumAnimationPipeline(DeforumBase):
             except:
                 self.gen.use_areas = False
 
-    def set_max_frames(self):
-        import math
-
-        # Get the current max_frames and turbo_steps
-        max_frames = self.gen.max_frames
-        turbo_steps = self.gen.turbo_steps
-
-        # Check if max_frames is evenly divisible by turbo_steps
-        if max_frames % turbo_steps != 0:
-            # Find the next value for max_frames that is evenly divisible by turbo_steps
-            next_max_frames = (math.ceil(max_frames / turbo_steps)) * turbo_steps
-            self.gen.max_frames = next_max_frames
-        else:
-            # If it's already evenly divisible, no change needed
-            self.gen.max_frames = max_frames
     @deforumdoc
     def setup(self, *args, **kwargs) -> None:
         """
@@ -336,7 +321,6 @@ class DeforumAnimationPipeline(DeforumBase):
         self.shoot_fns.append(get_generation_params)
 
         self.gen.turbo_steps = self.gen.get('diffusion_cadence', 1)
-        self.set_max_frames()
         if self.gen.turbo_steps > 1:
             self.shoot_fns.append(generate_interpolated_frames)
         if self.gen.color_coherence == 'Video Input' and hybrid_available:
