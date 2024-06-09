@@ -14,6 +14,9 @@ import torch
 from pydub import AudioSegment
 import io
 
+from deforum import logger
+
+
 def lazy_eval(func):
     class Cache:
         def __init__(self, func):
@@ -150,7 +153,7 @@ def import_custom_nodes() -> None:
 
 class AnimateRad:
     @torch.inference_mode()
-    def __init__(self):
+    def __init__(self, **kwargs):
         import_custom_nodes()
 
         from nodes import (
@@ -193,27 +196,27 @@ class AnimateRad:
         self.ksampler_adv = NODE_CLASS_MAPPINGS["KSampler Adv. (Efficient)"]()
         self.rife_vfi = NODE_CLASS_MAPPINGS["RIFE VFI"]()
         self.video_save = NODE_CLASS_MAPPINGS["VHS_VideoCombine"]()
-        self.load_models()
+        self.load_models(sd=kwargs.get("sd_model", "epicrealism_naturalSin.safetensors"),
+                         lora=kwargs.get("lora", "AnimateLCM_sd15_t2v_lora.safetensors"))
 
-    def load_models(self):
+    def load_models(self, sd, lora):
         self.vae = self.vae_loader.load_vae(vae_name="vae-ft-mse-840000-ema-pruned.safetensors")
         self.controlnet_depth = self.controlnet_loader.load_controlnet(
             control_net_name="control_v11f1p_sd15_depth.pth"
         )
         self.loaded_sd = self.chekpoint_loader.load_checkpoint(
-            ckpt_name="epicrealism_naturalSin.safetensors"
+            ckpt_name=sd
         )
         self.loaded_clipvision = self.clipvision_loader.load_clip(
             clip_name="CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
         )
         self.loaded_sd_animatelcm = self.lora_loader_model_only.load_lora_model_only(
-            lora_name="AnimateLCM_sd15_t2v_lora.safetensors",
+            lora_name=lora,
             strength_model=1,
             model=get_value_at_index(self.loaded_sd, 0),
         )
         self.loaded_ipadapter = self.ipadapter_loader.load_ipadapter_model(
-            ipadapter_file="ip-adapter-plus_sd15.safetensors"
-        )
+            ipadapter_file="ip-adapter-plus_sd15.safetensors")
 
     @torch.inference_mode()
     def __call__(self, *args, **kwargs):
@@ -257,7 +260,10 @@ class AnimateRad:
         video_path = kwargs.get('video_path')
         audio_path = kwargs.get('audio_path')
         ip_image = kwargs.get('ip_image')
+        seed = kwargs.get('seed', -1)
 
+        if seed == -1:
+            seed = random.randint(1, 2 ** 64)
         assert video_path is not None, "Video path must be provided"
 
         # Check if video_path is a URL and download if necessary
@@ -339,7 +345,7 @@ class AnimateRad:
             pixel_upscaler="4x-UltraSharp.pth",
             upscale_by=1.25,
             use_same_seed=True,
-            seed=random.randint(1, 2 ** 64),
+            seed=seed,
             hires_steps=kwargs.get('hires_steps', 6),
             denoise=kwargs.get('hires_pass_denoise', 0.56),
             iterations=1,
@@ -349,23 +355,24 @@ class AnimateRad:
             preprocessor="none",
             preprocessor_imgs=False,
         )
+        if kwargs.get('controlnet_strength', 1.0) > 0.0:
 
-        loaded_video_depth_maps = self.midas_preprocessor.execute(
-            a=6.283185307179586,
-            bg_threshold=0.1,
-            resolution=512,
-            image=get_value_at_index(loaded_video, 0),
-        )
+            loaded_video_depth_maps = self.midas_preprocessor.execute(
+                a=6.283185307179586,
+                bg_threshold=0.1,
+                resolution=512,
+                image=get_value_at_index(loaded_video, 0),
+            )
 
-        applied_controlnet = self.controlnet_apply.apply_controlnet(
-            strength=kwargs.get('controlnet_strength', 1.0),
-            start_percent=kwargs.get('controlnet_start', 0),
-            end_percent=kwargs.get('controlnet_end', 0.5),
-            positive=get_value_at_index(positive_conditioning, 0),
-            negative=get_value_at_index(negative_conditioning, 0),
-            control_net=get_value_at_index(self.controlnet_depth, 0),
-            image=get_value_at_index(loaded_video_depth_maps, 0),
-        )
+            applied_controlnet = self.controlnet_apply.apply_controlnet(
+                strength=kwargs.get('controlnet_strength', 1.0),
+                start_percent=kwargs.get('controlnet_start', 0),
+                end_percent=kwargs.get('controlnet_end', 0.5),
+                positive=get_value_at_index(positive_conditioning, 0),
+                negative=get_value_at_index(negative_conditioning, 0),
+                control_net=get_value_at_index(self.controlnet_depth, 0),
+                image=get_value_at_index(loaded_video_depth_maps, 0),
+            )
 
         loaded_video_for_clipvision = self.prep_image_for_clipvision.prep_image(
             interpolation="LANCZOS",
@@ -424,8 +431,8 @@ class AnimateRad:
 
         sd_with_ip_animatediff_model = (
             self.adiff_loader.load_mm_and_inject_params(
-                model_name="AnimateLCM_sd15_t2v.ckpt",
-                beta_schedule="lcm >> sqrt_linear",
+                model_name=kwargs.get("ad_model", "AnimateLCM_sd15_t2v.ckpt"),
+                beta_schedule=kwargs.get("beta_schedule", "lcm >> sqrt_linear"),
                 motion_scale=1,
                 apply_v2_models_properly=False,
                 model=get_value_at_index(loaded_sd_applied_ipadapter_video_and_image, 0),
@@ -434,14 +441,20 @@ class AnimateRad:
                 ),
             )
         )
-        seed = kwargs.get('seed', -1)
 
-        if seed == -1:
-            seed = random.randint(1, 2 ** 64)
         if kwargs.get('hires_steps', 0) > 0:
             hires = get_value_at_index(hiresfix_script, 0)
         else:
             hires = None
+        if kwargs.get('controlnet_strength', 1.0) > 0.0:
+            positive = get_value_at_index(applied_controlnet, 0)
+            negative = get_value_at_index(applied_controlnet, 1)
+        else:
+            positive = get_value_at_index(positive_conditioning, 0)
+            negative = get_value_at_index(negative_conditioning, 0)
+
+        print("AD SEED", seed)
+
         result_samples = self.ksampler_adv.sample_adv(
             add_noise="enable",
             noise_seed=seed,
@@ -455,8 +468,8 @@ class AnimateRad:
             preview_method="auto",
             vae_decode="true",
             model=get_value_at_index(sd_with_ip_animatediff_model, 0),
-            positive=get_value_at_index(applied_controlnet, 0),
-            negative=get_value_at_index(applied_controlnet, 1),
+            positive=positive,
+            negative=negative,
             latent_image=get_value_at_index(encoded_video, 0),
             optional_vae=get_value_at_index(self.vae, 0),
             script=hires,
@@ -488,6 +501,11 @@ class AnimateRad:
             audio=a,
             unique_id=14314448330963208959,
         )
+
+        from comfy.model_management import cleanup_models, unload_all_models
+        unload_all_models()
+        cleanup_models()
+
         return saved_video
 
 

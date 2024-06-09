@@ -112,7 +112,8 @@ _deps = [
     'pytest-cov>=5.0.0',
     'coverage>=7.5.2',
     'librosa>=0.10.0.post2',
-    'contexttimer>=0.3.3'
+    'contexttimer>=0.3.3',
+    'pydub>=0.23.0'
 ]
 
 # this is a lookup table with items like:
@@ -232,7 +233,8 @@ install_requires = deps_list('torch',
                              'pyqt6-qt6',
                              'pyqtgraph',
                              'librosa',
-                             'contexttimer'
+                             'contexttimer',
+                             'pydub'
                              )
 
 extras['dev'] = deps_list('pytest', 'ruff', 'pylint', 'syrupy', 'pytest-cov', 'coverage')

@@ -294,7 +294,7 @@ class DeforumCore(QMainWindow):
                 key = widget.accessibleName()
                 if key in self.params:
                     value = self.params[key]
-                    if isinstance(widget, QSpinBox):
+                    if isinstance(widget, QSpinBox) or isinstance(widget, QDoubleSpinBox):
                         widget.setValue(value)
                     elif isinstance(widget, QComboBox):
                         index = widget.findText(str(value))

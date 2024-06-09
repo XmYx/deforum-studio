@@ -1205,7 +1205,6 @@ def run_adiff_cls(cls):
     """
     # Instantiate the AnimateRad class
     from deforum.generators.comfy_animatediff_v2v import AnimateRad
-    pipeline = AnimateRad()
 
     # Get the video path and settings parameters from the cls object
     video_path = cls.gen.video_path
@@ -1229,7 +1228,7 @@ def run_adiff_cls(cls):
         # compatibility with a1111 extension, which expects "soundtrack_path"
         # and only honours it if add_soundtrack == 'File'.
         settings_params['audio_path'] = getattr(cls.gen, 'soundtrack_path')
-
+    pipeline = AnimateRad(**settings_params)
     result = pipeline(**settings_params)['result'][0]
     print(result)
     if len(result[1]) > 2:
