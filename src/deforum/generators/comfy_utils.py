@@ -122,16 +122,18 @@ def download_models(model_dict):
                 print(f"Error downloading {url}: {e}")
         else:
             print(f"File {local_path} already exists. Skipping download.")
+loaded_objects = {}
+last_helds = {}
+def globals_cleanup(prompt):
+    pass
 def ensure_comfy(custom_path=None):
     """
-    Ensure that ComfyUI is initialized and configured properly.
-
-    Args:
-        custom_path (str, optional): A custom path for ComfyUI. Defaults to None.
+    Add 'ComfyUI' to the sys.path
     """
     global comfy_initialized
     if not comfy_initialized:
         comfy_initialized = True
+
         curr_folder = os.getcwd()
         comfy_submodules = [
             ('https://github.com/ltdrdata/ComfyUI-Impact-Pack', '48d9ce7528f83074b6db7a7b15ef7e88c7134aa5'),
@@ -157,140 +159,117 @@ def ensure_comfy(custom_path=None):
                     clone_repo(module, commit_id)
 
         os.chdir(curr_folder)
-        # Add paths to sys.path
-        add_to_sys_path(comfy_path)
-        #Download IP Adapter models
         download_models(ip_adapter_model_dict)
-        # Create and add the mock module to sys.modules
-        from comfy.cli_args import LatentPreviewMethod as lp
+        if comfy_path is not None and os.path.isdir(comfy_path):
+            sys.path.append(comfy_path)
+            print(f"'{comfy_path}' added to sys.path")
 
-        class MockCLIArgsModule:
-            args = mock_args
-            LatentPreviewMethod = lp
-
-        sys.modules["comfy.cli_args"] = MockCLIArgsModule()
         import asyncio
         import execution
         from nodes import init_custom_nodes
         import server
-        import comfy.samplers
-        comfy.samplers.CFGGuider = HIJackCFGGuider
-        comfy.samplers.sample = sampleDeforum
-        # # Creating a new event loop and setting it as the default loop
+
+        # Creating a new event loop and setting it as the default loop
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        # # Creating an instance of PromptServer with the loop
+
+        # Creating an instance of PromptServer with the loop
         server_instance = server.PromptServer(loop)
         execution.PromptQueue(server_instance)
+
+        # Initializing custom nodes
         init_custom_nodes()
-        loop.stop()
 
-# Define the namedtuple structure based on the properties identified
-CLIArgs = namedtuple(
-    "CLIArgs",
-    [
-        "cpu",
-        "normalvram",
-        "lowvram",
-        "novram",
-        "highvram",
-        "gpu_only",
-        "disable_xformers",
-        "use_pytorch_cross_attention",
-        "use_split_cross_attention",
-        "use_quad_cross_attention",
-        "fp16_unet",
-        "fp8_e4m3fn_unet",
-        "fp8_e5m2_unet",
-        "fp8_e4m3fn_text_enc",
-        "fp8_e5m2_text_enc",
-        "fp16_text_enc",
-        "fp32_text_enc",
-        "fp16_vae",
-        "bf16_vae",
-        "fp32_vae",
-        "force_fp32",
-        "force_fp16",
-        "cpu_vae",
-        "disable_smart_memory",
-        "disable_ipex_optimize",
-        "listen",
-        "port",
-        "enable_cors_header",
-        "extra_model_paths_config",
-        "output_directory",
-        "temp_directory",
-        "input_directory",
-        "auto_launch",
-        "disable_auto_launch",
-        "cuda_device",
-        "cuda_malloc",
-        "disable_cuda_malloc",
-        "dont_upcast_attention",
-        "bf16_unet",
-        "directml",
-        "preview_method",
-        "dont_print_server",
-        "quick_test_for_ci",
-        "windows_standalone_build",
-        "disable_metadata",
-        "deterministic",
-        "multi_user",
-        "max_upload_size",
-    ],
-)
+        def replace_function(module_path, function_name, new_function):
+            """
+            Replace a function in a given module with a new function.
 
-# Update the mock args object with default values for the new properties
-mock_args = CLIArgs(
-    cpu=False,
-    normalvram=False,
-    lowvram=False,
-    novram=False,
-    highvram=True,
-    gpu_only=True,
-    disable_xformers=False,
-    use_pytorch_cross_attention=True,
-    use_split_cross_attention=False,
-    use_quad_cross_attention=False,
-    bf16_unet=False,
-    fp16_unet=True,
-    fp8_e4m3fn_unet=False,
-    fp8_e5m2_unet=False,
-    fp8_e4m3fn_text_enc=False,
-    fp8_e5m2_text_enc=False,
-    fp16_text_enc=True,
-    fp32_text_enc=False,
-    fp16_vae=True,
-    bf16_vae=False,
-    fp32_vae=False,
-    force_fp32=False,
-    force_fp16=False,
-    cpu_vae=False,
-    disable_smart_memory=True,
-    disable_ipex_optimize=False,
-    listen="127.0.0.1",
-    port=8188,
-    enable_cors_header=None,
-    extra_model_paths_config="config/comfy_paths.yaml",
-    output_directory=config.output_dir,
-    temp_directory=None,
-    input_directory=None,
-    auto_launch=False,
-    disable_auto_launch=True,
-    cuda_device=0,
-    cuda_malloc=False,
-    disable_cuda_malloc=True,
-    dont_upcast_attention=True,
-    directml=None,
-    preview_method="none",
-    dont_print_server=True,
-    quick_test_for_ci=False,
-    windows_standalone_build=False,
-    disable_metadata=False,
-    deterministic=False,
-    multi_user=True,
-    max_upload_size=1024,
-)
+            Args:
+                module_path (str): The file path of the module.
+                function_name (str): The name of the function to replace.
+                new_function (callable): The new function to replace the old one with.
+            """
+            # Load the module dynamically
+            module_name = os.path.splitext(os.path.basename(module_path))[0]
+            spec = importlib.util.spec_from_file_location(module_name, module_path)
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[module_name] = module
+            spec.loader.exec_module(module)
+
+            # Replace the function in the module
+            setattr(module, function_name, new_function)
+            print(f"Function {function_name} in {module_path} replaced successfully.")
+
+            # Ensure the replacement persists in all references
+            for name, mod in sys.modules.items():
+                if hasattr(mod, function_name):
+                    setattr(mod, function_name, new_function)
+                    print(f"Function {function_name} in module {name} replaced successfully.")
+
+        # Define the new implementation of globals_cleanup
+        def new_globals_cleanup(*args, **kwargs):
+            # New implementation of the function
+            print("New globals_cleanup function executed")
+
+        # Path to the module
+        module_path = 'src/ComfyUI/custom_nodes/efficiency-nodes-comfyui/tsc_utils.py'
+
+        # Replace the function
+        replace_function(module_path, 'globals_cleanup', new_globals_cleanup)
+
+class CLIArgs:
+    def __init__(self):
+        self.cpu = False
+        self.normalvram = False
+        self.lowvram = False
+        self.novram = False
+        self.highvram = True
+        self.gpu_only = False
+        self.disable_xformers = False
+        self.use_pytorch_cross_attention = True
+        self.use_split_cross_attention = False
+        self.use_quad_cross_attention = False
+        self.bf16_unet = False
+        self.fp16_unet = True
+        self.fp8_e4m3fn_unet = False
+        self.fp8_e5m2_unet = False
+        self.fp8_e4m3fn_text_enc = False
+        self.fp8_e5m2_text_enc = False
+        self.fp16_text_enc = True
+        self.fp32_text_enc = False
+        self.fp16_vae = True
+        self.bf16_vae = False
+        self.fp32_vae = False
+        self.force_fp32 = False
+        self.force_fp16 = False
+        self.cpu_vae = False
+        self.disable_smart_memory = True
+        self.disable_ipex_optimize = False
+        self.listen = "127.0.0.1"
+        self.port = 8188
+        self.enable_cors_header = None
+        self.extra_model_paths_config = "config/comfy_paths.yaml"
+        self.output_directory = config.output_dir
+        self.temp_directory = None
+        self.input_directory = None
+        self.auto_launch = False
+        self.disable_auto_launch = True
+        self.cuda_device = 0
+        self.cuda_malloc = False
+        self.disable_cuda_malloc = True
+        self.force_upcast_attention = False
+        self.dont_upcast_attention = False
+        self.directml = None
+        self.preview_method = "none"
+        self.dont_print_server = True
+        self.quick_test_for_ci = False
+        self.windows_standalone_build = False
+        self.disable_metadata = False
+        self.deterministic = False
+        self.multi_user = True
+        self.max_upload_size = 1024
+
+mock_args = CLIArgs()
 class HIJackCFGGuider:
     def __init__(self, model_patcher):
         # print("BIG HOOOORAAAAY\n\n\n\n\n")

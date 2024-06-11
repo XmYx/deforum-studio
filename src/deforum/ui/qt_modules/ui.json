@@ -495,5 +495,146 @@
       "label": "Overlay Mask",
       "accessible_name": "Overlay Mask Over the Image"
     }
+  },
+  "AnimateDiff Settings": {
+    "enable_ad_pass": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Enable AnimateDiff pass"
+    },
+    "ad_max_frames": {
+      "widget_type": "number",
+      "default": 0,
+      "min": 0,
+      "max": 65536000,
+      "label": "Limit AnimateDiff Frmaes"
+    },
+    "ad_use_every_nth": {
+      "widget_type": "number",
+      "default": 1,
+      "min": 1,
+      "max": 65536000,
+      "label": "Use every nth input frame"
+    },
+    "ad_closed_loop": {
+      "widget_type": "checkbox",
+      "default": false,
+      "label": "Closed Loop"
+    },
+    "ad_prompt": {
+      "widget_type": "text input",
+      "default": "",
+      "label": "Prompt"
+    },
+    "ad_negative_prompt": {
+      "widget_type": "text input",
+      "default": "",
+      "label": "Negative Prompt"
+    },
+    "ad_cfg": {
+      "widget_type": "float",
+      "default": 1.3,
+      "min": 0.0,
+      "max": 25.0,
+      "label": "ADiff CFG Scale"
+    },
+    "ad_steps": {
+      "widget_type": "number",
+      "default": 6,
+      "min": 0,
+      "max": 256,
+      "label": "ADiff Steps"
+    },
+    "ad_start_step": {
+      "widget_type": "number",
+      "default": 2,
+      "min": 0,
+      "max": 256,
+      "label": "ADiff Start Step"
+    },
+    "ad_hires_steps": {
+      "widget_type": "number",
+      "default": 0,
+      "min": 0,
+      "max": 256,
+      "label": "ADiff Hires Steps"
+    },
+    "ad_sd_model": {
+      "widget_type": "dropdown",
+      "label": "AD SD Model"
+    },
+    "ad_lora": {
+      "widget_type": "dropdown",
+      "label": "AD Lora"
+    },
+    "ad_model": {
+      "widget_type": "dropdown",
+      "label": "AD Model"
+    },
+    "ad_beta_schedule": {
+      "widget_type": "dropdown",
+      "label": "Beta Schedule",
+      "options": [
+        "autoselect",
+        "sqrt_linear (AnimateDiff)",
+        "linear (AnimateDiff-SDXL)",
+        "linear (HotshotXL/default)",
+        "avg(sqrt_linear,linear)",
+        "lcm avg(sqrt_linear,linear)",
+        "lcm",
+        "lcm[100_ots]",
+        "lcm[25_ots]",
+        "lcm >> sqrt_linear",
+        "use existing",
+        "sqrt",
+        "cosine",
+        "squaredcos_cap_v2",
+        "linear",
+        "sqrt_linear"]
+    },
+    "ad_sampler_name": {
+      "widget_type": "dropdown",
+      "options": ["euler", "euler_ancestral", "heun", "heunpp2","dpm_2", "dpm_2_ancestral",
+                   "lms", "dpm_fast", "dpm_adaptive", "dpmpp_2s_ancestral", "dpmpp_sde", "dpmpp_sde_gpu",
+                   "dpmpp_2m", "dpmpp_2m_sde", "dpmpp_2m_sde_gpu", "dpmpp_3m_sde", "dpmpp_3m_sde_gpu", "ddpm", "lcm", "ddim", "uni_pc", "uni_pc_bh2"],
+      "default": "DPM++ 2M SDE Karras",
+      "label": "Sampler",
+      "accessible_name": "Sampling Algorithm"
+    },
+    "ad_scheduler": {
+      "widget_type": "dropdown",
+      "options": ["normal", "karras", "exponential", "sgm_uniform", "simple", "ddim_uniform"],
+      "default": "normal",
+      "label": "Scheduler",
+      "accessible_name": "Scheduler Algorithm"
+    },
+    "ad_ip_adapter_video_strength": {
+      "widget_type": "float",
+      "default": 0.85,
+      "min": 0.0,
+      "max": 5.0,
+      "label": "ADiff IP Adapter (Video)"
+    },
+    "ad_ip_adapter_image_strength": {
+      "widget_type": "float",
+      "default": 0.85,
+      "min": 0.0,
+      "max": 5.0,
+      "label": "ADiff IP Adapter (Image)"
+    },
+    "ad_controlnet_strength": {
+      "widget_type": "float",
+      "default": 0.85,
+      "min": 0.0,
+      "max": 5.0,
+      "label": "ADiff ControlNet Strength"
+    },
+    "ad_seed": {
+      "widget_type": "number",
+      "default": -1,
+      "min": -1,
+      "max": 2147483647,
+      "label": "AD Seed"
+    }
   }
 }

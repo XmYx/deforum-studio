@@ -71,7 +71,7 @@ _deps = [
     'gdown==4.7.1',
     'py3d==0.0.87',
     'librosa==0.10.0.post2',
-    'numpy==1.24.2',
+    'numpy==1.26.4',
     'opencv-python-headless',
     'timm==0.6.13',
     'transformers==4.40.2',
@@ -112,8 +112,8 @@ _deps = [
     'pytest-cov>=5.0.0',
     'coverage>=7.5.2',
     'librosa>=0.10.0.post2',
-    'contexttimer>=0.3.3'
-
+    'contexttimer>=0.3.3',
+    'pydub>=0.23.0'
 ]
 
 # this is a lookup table with items like:
@@ -233,7 +233,8 @@ install_requires = deps_list('torch',
                              'pyqt6-qt6',
                              'pyqtgraph',
                              'librosa',
-                             'contexttimer'
+                             'contexttimer',
+                             'pydub'
                              )
 
 extras['dev'] = deps_list('pytest', 'ruff', 'pylint', 'syrupy', 'pytest-cov', 'coverage')

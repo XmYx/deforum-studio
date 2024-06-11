@@ -213,7 +213,7 @@ class ComfyDeforumGenerator:
             dict: Encoded samples.
         """
         latent = latent.movedim(-1, 1)
-        return {"samples": vae.first_stage_model.encode(latent.half().cuda() * 2.0 - 1.0)}
+        return {"samples": vae.first_stage_model.encode(latent.to(torch.bfloat16).cuda() * 2.0 - 1.0)}
 
     def generate_latent(
             self,
@@ -655,7 +655,7 @@ class ComfyDeforumGenerator:
                 variation_seed=subseed,
                 variation_strength=subseed_strength,
             )[0]
-            decoded = self.decode_sample(self.vae, sample["samples"])
+            decoded = self.decode_sample(self.vae, sample["samples"].to(torch.bfloat16).to('cuda'))
             # Convert the decoded tensor to uint8 directly on the GPU
             np_array = torch.clamp(255.0 * decoded, 0, 255).byte().cpu().numpy()[0]
             # Convert the numpy array to a PIL image

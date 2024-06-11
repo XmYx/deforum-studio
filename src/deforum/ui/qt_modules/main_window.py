@@ -40,12 +40,32 @@ from deforum.ui.qt_modules.viz_thread import VisualGeneratorThread
 
 DEFAULT_MILK = ""
 
-def list_milk_presets(folder):
-    return [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
+# def list_milk_presets(folder):
+#     return [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
+#
+# os.makedirs(os.path.join(config.root_path, 'milks'), exist_ok=True)
+#
+# known_dropdowns = {"milk_path":list_milk_presets(os.path.join(config.root_path, 'milks'))}
 
+def list_presets(folder, known_extensions):
+    return [f for f in os.listdir(folder)
+            if os.path.isfile(os.path.join(folder, f)) and f.split('.')[-1] in known_extensions]
+
+# Create necessary directories
 os.makedirs(os.path.join(config.root_path, 'milks'), exist_ok=True)
 
-known_dropdowns = {"milk_path":list_milk_presets(os.path.join(config.root_path, 'milks'))}
+
+# Define known extensions
+known_extensions = ['pth', 'bin', 'ckpt', 'safetensors']  # Replace with actual extensions
+
+# Populate known_dropdowns
+known_dropdowns = {
+    "milk_path": list_presets(os.path.join(config.root_path, 'milks'), ['txt']),
+    "ad_sd_model": list_presets(os.path.join(config.comfy_path, 'models', 'checkpoints'), known_extensions),
+    "ad_lora": list_presets(os.path.join(config.comfy_path, 'models', 'loras'), known_extensions),
+    "ad_model": list_presets(os.path.join(config.comfy_path, 'models', 'animatediff_models'), known_extensions)
+}
+
 try:
     import pygame
 
@@ -406,7 +426,7 @@ class MainWindow(DeforumCore):
         self.timelineDock.hide()
         self.newProject()
         self.initAnimEngine()
-        self.loadWindowState()
+        # self.loadWindowState()
 
         preset_path = os.path.join(self.presets_folder, 'default.txt')
         if os.path.exists(preset_path):
@@ -660,6 +680,7 @@ class MainWindow(DeforumCore):
             config = json.load(file)
 
         for category, settings in config.items():
+            print("parsing", category)
             tab = QWidget()  # This is the actual tab that will hold the layout
             layout = QVBoxLayout()
             tab.setLayout(layout)
