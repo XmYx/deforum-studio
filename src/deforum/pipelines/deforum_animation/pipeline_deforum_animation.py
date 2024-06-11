@@ -578,6 +578,10 @@ class DeforumAnimationPipeline(DeforumBase):
             else:
                 self.gen.frame_idx = self.gen.max_frames
     def run_post_fn_list(self):
+
+        # if self.gen.enable_ad_pass:
+        self.cleanup()
+
         # POST LOOP
         for fn in self.post_fns:
             start_time = time.time()
@@ -678,7 +682,7 @@ class DeforumAnimationPipeline(DeforumBase):
             "prompt_blend": blend_value,
             "scheduler": self.gen.scheduler,
             "sampler_name": self.gen.sampler_name,
-            "reset_noise": False if self.gen.strength < 1.0 else True
+            "reset_noise": False if self.gen.strength < 1.0 else True,
         }
         if self.gen.frame_idx == 0 and not self.gen.use_init:
             gen_args["reset_noise"] = True
@@ -758,6 +762,9 @@ class DeforumAnimationPipeline(DeforumBase):
 
     def cleanup(self):
         # Iterate over all attributes of the class instance
+        if hasattr(self.generator, 'cleanup'):
+            self.generator.cleanup()
+
         for attr_name in dir(self):
             attr = getattr(self, attr_name)
 
@@ -780,6 +787,11 @@ class DeforumAnimationPipeline(DeforumBase):
                 elif callable(cpu_method):
                     attr.cpu()
                     delattr(self, attr_name)  # Delete attribute
+        self.depth_model = None
+        self.raft_model = None
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
+        gc.collect()
 
 
 def interpolate_areas(areas, max_frames):
