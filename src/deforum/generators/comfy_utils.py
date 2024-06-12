@@ -212,7 +212,7 @@ def ensure_comfy(custom_path=None):
             print("New globals_cleanup function executed")
 
         # Path to the module
-        module_path = 'src/ComfyUI/custom_nodes/efficiency-nodes-comfyui/tsc_utils.py'
+        module_path = os.path.join(config.comfy_path, '/custom_nodes/efficiency-nodes-comfyui/tsc_utils.py')
 
         # Replace the function
         replace_function(module_path, 'globals_cleanup', new_globals_cleanup)
