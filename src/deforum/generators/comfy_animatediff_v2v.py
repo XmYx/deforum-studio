@@ -15,6 +15,7 @@ from pydub import AudioSegment
 import io
 
 from deforum import logger
+from deforum.utils.constants import config
 
 
 def lazy_eval(func):
@@ -287,8 +288,8 @@ class AnimateRad:
             custom_height=None)
 
         # Process ip_image: download if URL, copy if local file
-        ip_image_path = os.path.join(comfy_path, "input/ip_image.png")
-        os.makedirs("input", exist_ok=True)
+        ip_image_path = os.path.join(config.comfy_path, "input/ip_image.png")
+        os.makedirs(os.path.join(config.comfy_path, "input"), exist_ok=True)
 
         if ip_image is None:
             # If ip_image is None, extract the first frame of the video and save it to input/ip_image.png
