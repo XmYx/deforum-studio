@@ -201,8 +201,10 @@ def ensure_comfy(custom_path=None):
             print(f"Function {function_name} in {module_path} replaced successfully.")
 
             # Ensure the replacement persists in all references
-            for name, mod in sys.modules.items():
-                if hasattr(mod, function_name):
+            module_names = list(sys.modules.keys()) # Avoid modifyin sys.modules dictionary while iterating over it
+            for name in module_names:
+                mod = sys.modules.get(name)
+                if mod and hasattr(mod, function_name):
                     setattr(mod, function_name, new_function)
                     print(f"Function {function_name} in module {name} replaced successfully.")
 
@@ -212,7 +214,7 @@ def ensure_comfy(custom_path=None):
             print("New globals_cleanup function executed")
 
         # Path to the module
-        module_path = os.path.join(config.comfy_path, '/custom_nodes/efficiency-nodes-comfyui/tsc_utils.py')
+        module_path = os.path.join(comfy_submodule_folder, 'efficiency-nodes-comfyui/tsc_utils.py')
 
         # Replace the function
         replace_function(module_path, 'globals_cleanup', new_globals_cleanup)
