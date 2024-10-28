@@ -8,7 +8,7 @@ import subprocess
 
 # from multiprocessing import Process
 from typing import Any, Optional, Tuple, Union
-
+from types import SimpleNamespace
 import cv2
 import numexpr
 import numpy as np
@@ -20,7 +20,8 @@ from skimage.exposure import match_histograms
 
 from deforum.utils.blocking_file_list import BlockingFileList
 from deforum.utils.logging_config import logger
-from deforum.utils.rhythm_artithmetic import beat_to_sec, frame_to_beat, frame_to_sec, frames_per_beat, beat_to_frame, sec_to_frame
+from deforum.utils.rhythm_artithmetic import beat_to_sec, frame_to_beat, frame_to_sec, frames_per_beat, beat_to_frame, \
+    sec_to_frame
 
 from ... import FILMInterpolator
 from ...generators.deforum_flow_generator import (
@@ -186,7 +187,7 @@ def anim_frame_warp_3d_cls(cls: Any, image: Union[None, Any]) -> Tuple[Any, Any]
             image = flip_3d_perspective(cls.gen, image, cls.gen.keys, cls.gen.frame_idx)
         rot_mat = p3d.euler_angles_to_matrix(torch.tensor(rotate_xyz, device="cuda"), "XYZ").unsqueeze(0)
         result = transform_image_3d_new(torch.device('cuda'), image, cls.gen.depth, rot_mat, translate_xyz,
-                                              cls.gen, cls.gen.keys, cls.gen.frame_idx)
+                                        cls.gen, cls.gen.keys, cls.gen.frame_idx)
         return result, None
     except Exception as e:
         print(repr(e))
@@ -212,6 +213,7 @@ def anim_frame_warp_3d_direct(cls, image, x, y, z, rx, ry, rz):
                                           cls.gen, cls.gen.keys, cls.gen.frame_idx)
     return result, mask
 
+
 def hybrid_composite_cls(cls: Any) -> None:
     """
     Creates a hybrid composite frame for the given class instance based on various conditions and transformation
@@ -228,14 +230,15 @@ def hybrid_composite_cls(cls: Any) -> None:
         prev_img = copy.deepcopy(cls.gen.prev_img)
 
         video_frame_path = os.path.join(cls.gen.outdir, 'inputframes')
-        frame_name = get_frame_name(cls.gen.video_init_path or "") 
+        frame_name = get_frame_name(cls.gen.video_init_path or "")
 
         if config.allow_blocking_input_frame_lists:
             inputfiles = BlockingFileList(video_frame_path, cls.gen.max_frames, optional_prefix=frame_name)
             video_frame = inputfiles[cls.gen.frame_idx]
-        else: 
+        else:
             video_frame = cls.gen.inputfiles[cls.gen.frame_idx]
-        video_depth_frame = os.path.join(cls.gen.outdir, 'hybridframes', f"{frame_name}_vid_depth{cls.gen.frame_idx:09}.jpg")
+        video_depth_frame = os.path.join(cls.gen.outdir, 'hybridframes',
+                                         f"{frame_name}_vid_depth{cls.gen.frame_idx:09}.jpg")
         depth_frame = os.path.join(cls.gen.outdir, f"{cls.gen.timestring}_depth_{cls.gen.frame_idx - 1:09}.png")
         mask_frame = os.path.join(cls.gen.outdir, 'hybridframes', f"{frame_name}_mask{cls.gen.frame_idx:09}.jpg")
         comp_frame = os.path.join(cls.gen.outdir, 'hybridframes', f"{frame_name}_comp{cls.gen.frame_idx:09}.jpg")
@@ -319,11 +322,13 @@ def affine_persp_motion(cls: Any) -> None:
         logger.info("Skipping optical flow motion for first frame.")
         return
     if cls.gen.hybrid_motion_use_prev_img and cls.gen.prev_img is not None:
-        matrix = get_matrix_for_hybrid_motion_prev(cls.gen.frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
+        matrix = get_matrix_for_hybrid_motion_prev(cls.gen.frame_idx - 1, (cls.gen.width, cls.gen.height),
+                                                   cls.gen.inputfiles,
                                                    cls.gen.prev_img,
                                                    cls.gen.hybrid_motion)
     else:
-        matrix = get_matrix_for_hybrid_motion(cls.gen.frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
+        matrix = get_matrix_for_hybrid_motion(cls.gen.frame_idx - 1, (cls.gen.width, cls.gen.height),
+                                              cls.gen.inputfiles,
                                               cls.gen.hybrid_motion)
     cls.gen.prev_img = image_transform_ransac(cls.gen.prev_img, matrix, cls.gen.hybrid_motion)
     return
@@ -356,7 +361,8 @@ def optical_flow_motion(cls: Any) -> None:
 
 
         else:
-            cls.gen.flow = get_flow_for_hybrid_motion(cls.gen.frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
+            cls.gen.flow = get_flow_for_hybrid_motion(cls.gen.frame_idx - 1, (cls.gen.width, cls.gen.height),
+                                                      cls.gen.inputfiles,
                                                       cls.gen.hybrid_frame_path,
                                                       cls.gen.prev_flow, cls.gen.hybrid_flow_method, cls.raft_model,
                                                       cls.gen.hybrid_flow_consistency,
@@ -368,8 +374,8 @@ def optical_flow_motion(cls: Any) -> None:
 
     return
 
-def apply_temporal_flow_cls(cls):
 
+def apply_temporal_flow_cls(cls):
     # def apply_flow(self, image, flow_image, flow_method, flow_factor, deforum_frame_data={}):
     # global deforum_models
 
@@ -381,6 +387,7 @@ def apply_temporal_flow_cls(cls):
         flow = get_flow_from_images(np.array(cls.gen.image), np.array(cls.gen.prev_img), 'RAFT', cls.raft_model)
         cls.gen.prev_img = image_transform_optical_flow(np.array(cls.gen.prev_img), flow, cls.gen.cadence_flow_factor)
     return
+
 
 def color_match_cls(cls: Any) -> None:
     """
@@ -396,7 +403,6 @@ def color_match_cls(cls: Any) -> None:
         cls.gen.color_match_sample = cv2.cvtColor(copy.deepcopy(cls.gen.opencv_image), cv2.COLOR_BGR2RGB)
     if cls.gen.prev_img is not None:
         cls.gen.prev_img = maintain_colors(cls.gen.prev_img, cls.gen.color_match_sample, cls.gen.color_coherence)
-
 
     return
 
@@ -459,9 +465,6 @@ def post_color_match_with_cls(cls: Any) -> None:
         None: Modifies the class instance attributes in place.
     """
 
-
-
-
     if cls.gen.color_match_sample is not None and 'post' in cls.gen.color_match_at:
         # if cls.gen.frame_idx == 0 and (cls.gen.color_coherence == 'Image' or (
         #         cls.gen.color_coherence == 'Video Input' and cls.gen.hybrid_available)):
@@ -469,6 +472,8 @@ def post_color_match_with_cls(cls: Any) -> None:
         if cls.gen.color_coherence != 'None':
             subtle_color_correction_with_cls(cls)
     return
+
+
 def set_contrast_image(cls: Any) -> None:
     """
     Adjusts the contrast of the previous image in the given class instance.
@@ -497,6 +502,7 @@ def set_contrast_image(cls: Any) -> None:
                 cls.gen.prev_img = cls.gen.contrast_image
 
     return
+
 
 def handle_noise_mask(cls: Any) -> None:
     """
@@ -812,7 +818,7 @@ def post_gen_cls(cls: Any) -> None:
             # We're not using an init video, so the input image for the next frame is the one we've just generated.
             cls.gen.prev_img = cls.gen.opencv_image
 
-        is_gen_frame =  cls.gen.turbo_steps <= 1 or (cls.gen.frame_idx % cls.gen.turbo_steps == 0)
+        is_gen_frame = cls.gen.turbo_steps <= 1 or (cls.gen.frame_idx % cls.gen.turbo_steps == 0)
 
         if is_gen_frame:
             # If we're on a generated frame, save it.
@@ -824,20 +830,23 @@ def post_gen_cls(cls: Any) -> None:
                 image_full_path = os.path.join(cls.gen.outdir, filename)
                 save_image(cls.gen.image, "PIL", filename, cls.gen, cls.gen, cls.gen, cls)
                 cls.gen.image_paths.append(image_full_path)
-            cls.datacallback({"image": cls.gen.image, "operation_id": cls.gen.operation_id, "frame_idx": cls.gen.frame_idx, "image_path": image_full_path, "is_interpolated": False})
+            cls.datacallback(
+                {"image": cls.gen.image, "operation_id": cls.gen.operation_id, "frame_idx": cls.gen.frame_idx,
+                 "image_path": image_full_path, "is_interpolated": False})
 
             # Save depth maps if required
             if cls.gen.save_depth_maps:
-                cls.gen.depth = cls.depth_model.predict(cls.gen.opencv_image, cls.gen.midas_weight, cls.gen.half_precision)
+                cls.gen.depth = cls.depth_model.predict(cls.gen.opencv_image, cls.gen.midas_weight,
+                                                        cls.gen.half_precision)
                 depth_filename = os.path.join(cls.gen.outdir, f"{cls.gen.timestring}_depth_{cls.gen.frame_idx:09}.png")
                 cls.depth_model.save(depth_filename, cls.gen.depth)
 
-    if cls.gen.turbo_steps > 1 and cls.gen.frame_idx < cls.gen.max_frames-1:
+    if cls.gen.turbo_steps > 1 and cls.gen.frame_idx < cls.gen.max_frames - 1:
         # If cadence is enabled and we didn't just produce the final frame,
         # jump ahead by the cadence steps, clamping to the final frame if we would go beyond it.
         cls.gen.turbo_prev_image, cls.gen.turbo_prev_frame_idx = cls.gen.turbo_next_image, cls.gen.turbo_next_frame_idx
         cls.gen.turbo_next_image, cls.gen.turbo_next_frame_idx = cls.gen.opencv_image, cls.gen.frame_idx
-        cls.gen.frame_idx = min(cls.gen.frame_idx + cls.gen.turbo_steps, cls.gen.max_frames-1)
+        cls.gen.frame_idx = min(cls.gen.frame_idx + cls.gen.turbo_steps, cls.gen.max_frames - 1)
     else:
         cls.gen.frame_idx += 1
 
@@ -846,7 +855,6 @@ def post_gen_cls(cls: Any) -> None:
 
 
 def generate_interpolated_frames(cls):
-
     if not hasattr(cls.gen, 'turbo_history'):
         cls.gen.turbo_history = {}
     if cls.gen.frame_idx == 0:
@@ -861,14 +869,15 @@ def generate_interpolated_frames(cls):
     if cls.gen.turbo_steps > 1 and cls.gen.frame_idx > 0:
 
         if cls.gen.last_diffused_frame is None:
-            raise ValueError("last_diffused_frame is not set. Cannot generate interpolated frames if there have been no diffused frames yet.")
+            raise ValueError(
+                "last_diffused_frame is not set. Cannot generate interpolated frames if there have been no diffused frames yet.")
 
         tween_frame_start_idx = cls.gen.last_diffused_frame
         tween_frame_end_idx = cls.gen.next_frame_to_diffuse
 
         cadence_flow = None
         # iterate over the cadence frames, excluding the boundaries which are gen frames.
-        for tween_frame_idx in range(tween_frame_start_idx+1, tween_frame_end_idx):
+        for tween_frame_idx in range(tween_frame_start_idx + 1, tween_frame_end_idx):
             if tween_frame_idx > cls.gen.max_frames - 1:
                 # This happens if we are generating the final block of interpolated frames
                 # at the end of the animation. We break rather than clamping tween_frame_end_idx
@@ -898,26 +907,30 @@ def generate_interpolated_frames(cls):
                     depth = cls.depth_model.predict(turbo_next_image, cls.gen.midas_weight, cls.gen.half_precision)
             if cls.gen.animation_mode in ["3D", "2D"]:
                 if advance_prev:
-                    turbo_prev_image, _, _ = anim_frame_warp(turbo_prev_image, cls.gen, cls.gen, cls.gen.keys, tween_frame_idx,
-                                                          cls.depth_model, depth=depth, device=cls.gen.device,
-                                                          half_precision=cls.gen.half_precision)
+                    turbo_prev_image, _, _ = anim_frame_warp(turbo_prev_image, cls.gen, cls.gen, cls.gen.keys,
+                                                             tween_frame_idx,
+                                                             cls.depth_model, depth=depth, device=cls.gen.device,
+                                                             half_precision=cls.gen.half_precision)
                 if advance_next:
-                    turbo_next_image, _, _ = anim_frame_warp(turbo_next_image, cls.gen, cls.gen, cls.gen.keys, tween_frame_idx,
-                                                          cls.depth_model, depth=depth, device=cls.gen.device,
-                                                          half_precision=cls.gen.half_precision)
+                    turbo_next_image, _, _ = anim_frame_warp(turbo_next_image, cls.gen, cls.gen, cls.gen.keys,
+                                                             tween_frame_idx,
+                                                             cls.depth_model, depth=depth, device=cls.gen.device,
+                                                             half_precision=cls.gen.half_precision)
 
             # hybrid video motion - warps turbo_prev_image or turbo_next_image to match motion
             if tween_frame_idx > 0:
                 if cls.gen.hybrid_motion in ['Affine', 'Perspective']:
                     if cls.gen.hybrid_motion_use_prev_img:
-                        matrix = get_matrix_for_hybrid_motion_prev(tween_frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
+                        matrix = get_matrix_for_hybrid_motion_prev(tween_frame_idx - 1, (cls.gen.width, cls.gen.height),
+                                                                   cls.gen.inputfiles,
                                                                    cls.gen.prev_img, cls.gen.hybrid_motion)
                         if advance_prev:
                             turbo_prev_image = image_transform_ransac(turbo_prev_image, matrix, cls.gen.hybrid_motion)
                         if advance_next:
                             turbo_next_image = image_transform_ransac(turbo_next_image, matrix, cls.gen.hybrid_motion)
                     else:
-                        matrix = get_matrix_for_hybrid_motion(tween_frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
+                        matrix = get_matrix_for_hybrid_motion(tween_frame_idx - 1, (cls.gen.width, cls.gen.height),
+                                                              cls.gen.inputfiles,
                                                               cls.gen.hybrid_motion)
                         if advance_prev:
                             turbo_prev_image = image_transform_ransac(turbo_prev_image, matrix, cls.gen.hybrid_motion)
@@ -925,41 +938,51 @@ def generate_interpolated_frames(cls):
                             turbo_next_image = image_transform_ransac(turbo_next_image, matrix, cls.gen.hybrid_motion)
                 if cls.gen.hybrid_motion in ['Optical Flow']:
                     if cls.gen.hybrid_motion_use_prev_img:
-                        hybrid_flow = get_flow_for_hybrid_motion_prev(tween_frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
-                                                               cls.gen.hybrid_frame_path, cls.gen.prev_flow, cls.gen.prev_img,
-                                                               cls.gen.hybrid_flow_method, cls.raft_model,
-                                                               cls.gen.hybrid_flow_consistency,
-                                                               cls.gen.hybrid_consistency_blur,
-                                                               cls.gen.hybrid_comp_save_extra_frames)
+                        hybrid_flow = get_flow_for_hybrid_motion_prev(tween_frame_idx - 1,
+                                                                      (cls.gen.width, cls.gen.height),
+                                                                      cls.gen.inputfiles,
+                                                                      cls.gen.hybrid_frame_path, cls.gen.prev_flow,
+                                                                      cls.gen.prev_img,
+                                                                      cls.gen.hybrid_flow_method, cls.raft_model,
+                                                                      cls.gen.hybrid_flow_consistency,
+                                                                      cls.gen.hybrid_consistency_blur,
+                                                                      cls.gen.hybrid_comp_save_extra_frames)
                         if advance_prev:
                             turbo_prev_image = image_transform_optical_flow(turbo_prev_image, hybrid_flow,
-                                                                            cls.gen.hybrid_comp_schedules['flow_factor'])
+                                                                            cls.gen.hybrid_comp_schedules[
+                                                                                'flow_factor'])
                         if advance_next:
                             turbo_next_image = image_transform_optical_flow(turbo_next_image, hybrid_flow,
-                                                                            cls.gen.hybrid_comp_schedules['flow_factor'])
+                                                                            cls.gen.hybrid_comp_schedules[
+                                                                                'flow_factor'])
                         cls.gen.prev_hybrid_flow = hybrid_flow
                     else:
-                        hybrid_flow = get_flow_for_hybrid_motion(tween_frame_idx - 1, (cls.gen.width, cls.gen.height), cls.gen.inputfiles,
-                                                          cls.gen.hybrid_frame_path, cls.gen.prev_flow, cls.gen.hybrid_flow_method,
-                                                          cls.raft_model,
-                                                          cls.gen.hybrid_flow_consistency,
-                                                          cls.gen.hybrid_consistency_blur,
-                                                          cls.gen.hybrid_comp_save_extra_frames)
-
+                        hybrid_flow = get_flow_for_hybrid_motion(tween_frame_idx - 1, (cls.gen.width, cls.gen.height),
+                                                                 cls.gen.inputfiles,
+                                                                 cls.gen.hybrid_frame_path, cls.gen.prev_flow,
+                                                                 cls.gen.hybrid_flow_method,
+                                                                 cls.raft_model,
+                                                                 cls.gen.hybrid_flow_consistency,
+                                                                 cls.gen.hybrid_consistency_blur,
+                                                                 cls.gen.hybrid_comp_save_extra_frames)
 
                         if advance_prev:
                             turbo_prev_image = image_transform_optical_flow(turbo_prev_image, hybrid_flow,
-                                                                            cls.gen.hybrid_comp_schedules['flow_factor'])
+                                                                            cls.gen.hybrid_comp_schedules[
+                                                                                'flow_factor'])
                         if advance_next:
                             turbo_next_image = image_transform_optical_flow(turbo_next_image, hybrid_flow,
-                                                                            cls.gen.hybrid_comp_schedules['flow_factor'])
+                                                                            cls.gen.hybrid_comp_schedules[
+                                                                                'flow_factor'])
                         cls.gen.prev_hybrid_flow = hybrid_flow
 
             # do optical flow cadence after animation warping
             if cadence_flow is not None:
                 cadence_flow = abs_flow_to_rel_flow(cadence_flow, cls.gen.width, cls.gen.height)
-                cadence_flow, _, _ = anim_frame_warp(cadence_flow, cls.gen, cls.gen, cls.gen.keys, tween_frame_idx, cls.depth_model,
-                                                  depth=depth, device=cls.gen.device, half_precision=cls.gen.half_precision)
+                cadence_flow, _, _ = anim_frame_warp(cadence_flow, cls.gen, cls.gen, cls.gen.keys, tween_frame_idx,
+                                                     cls.depth_model,
+                                                     depth=depth, device=cls.gen.device,
+                                                     half_precision=cls.gen.half_precision)
                 cadence_flow_inc = rel_flow_to_abs_flow(cadence_flow, cls.gen.width, cls.gen.height) * tween
                 cls.gen.turbo_history[str(cls.gen.frame_idx + tween_frame_idx)] = copy.deepcopy(cadence_flow_inc)
                 # Blend current flow with previous flow for stability
@@ -1001,12 +1024,14 @@ def generate_interpolated_frames(cls):
 
             opencv_image = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB)
             pil_img = Image.fromarray(opencv_image)
-            cls.datacallback({"image":pil_img, "operation_id":cls.gen.operation_id, "frame_idx":tween_frame_idx, "image_path": image_full_path, "is_interpolated": tween<1.0})
+            cls.datacallback({"image": pil_img, "operation_id": cls.gen.operation_id, "frame_idx": tween_frame_idx,
+                              "image_path": image_full_path, "is_interpolated": tween < 1.0})
 
             cls.images.append(np.array(opencv_image))
 
             if cls.gen.save_depth_maps:
-                cls.depth_model.save(os.path.join(cls.gen.outdir, f"{cls.gen.timestring}_depth_{tween_frame_idx:09}.png"), depth)
+                cls.depth_model.save(
+                    os.path.join(cls.gen.outdir, f"{cls.gen.timestring}_depth_{tween_frame_idx:09}.png"), depth)
 
             cls.gen.turbo_prev_image = copy.deepcopy(turbo_prev_image)
             cls.gen.turbo_next_image = copy.deepcopy(turbo_next_image)
@@ -1014,7 +1039,6 @@ def generate_interpolated_frames(cls):
         # carry the last generated cadence frame forwards as the input for the next generation step.
         # Generation expects a cv2 image.
         cls.gen.prev_img = np.array(img).astype(np.uint8)
-
 
 
 def color_match_video_input(cls: Any) -> None:
@@ -1063,6 +1087,7 @@ def film_interpolate_cls(cls: Any) -> None:
     cls.gen.image_paths = []
     return
 
+
 rife_interpolator = None
 
 
@@ -1086,6 +1111,7 @@ def rife_interpolate_cls(cls):
 
     def pil2tensor(image):
         return torch.from_numpy(np.array(image).astype(np.float32) / 255.0).half()  # CHW format for PyTorch
+
     new_images = []
     input_tensor = torch.stack([pil2tensor(i) for i in cls.images], dim=0)
     # Process all frames in one go
@@ -1107,6 +1133,7 @@ def rife_interpolate_cls(cls):
     logger.info(f"Interpolated frame count: {len(new_images)}")
     if hasattr(cls, 'gen') and hasattr(cls.gen, 'image_paths'):
         cls.gen.image_paths = []
+
 
 def save_video_cls(cls):
     dir_path = config.video_dir
@@ -1135,7 +1162,6 @@ def save_video_cls(cls):
 
     fps = getattr(cls.gen, "fps", 24)
 
-
     try:
         logger.info(f"saving to {output_filename_base}.mp4")
         cls.gen.video_path = save_as_h264(cls.images, output_filename_base + ".mp4", audio_path=audio_path, fps=fps)
@@ -1157,6 +1183,7 @@ def calculate_frames_to_add(total_frames: int, interp_x: float) -> int:
     frames_to_add = (total_frames * interp_x - total_frames) / (total_frames - 1)
     return int(round(frames_to_add))
 
+
 def cls_subtitle_handler(cls):
     if hasattr(cls.gen, "deforum_save_gen_info_as_srt"):
         if cls.gen.deforum_save_gen_info_as_srt:
@@ -1164,10 +1191,12 @@ def cls_subtitle_handler(cls):
                 cls.gen.srt_filename = os.path.join(cls.gen.outdir, f"{cls.gen.timestring}.srt")
                 cls.gen.srt_frame_duration = init_srt_file(cls.gen.srt_filename, cls.gen.fps)
             params_to_print = ["Trans X", "Trans Y", "Trans Z", "Str Sch", "Subseed Str Sch"]
-            params_string = format_animation_params(cls.gen.keys, cls.gen.prompt_series, cls.gen.frame_idx, params_to_print)
-            is_diffused =  (cls.gen.frame_idx % max(1, cls.gen.turbo_steps) == 0)
+            params_string = format_animation_params(cls.gen.keys, cls.gen.prompt_series, cls.gen.frame_idx,
+                                                    params_to_print)
+            is_diffused = (cls.gen.frame_idx % max(1, cls.gen.turbo_steps) == 0)
             write_frame_subtitle(cls.gen.srt_filename, cls.gen.frame_idx, cls.gen.srt_frame_duration,
                                  f"F#: {cls.gen.frame_idx}; Cadence: {not is_diffused}; Seed: {cls.gen.seed}; {params_string}")
+
 
 def preview_video_generation_cls(cls: Any) -> None:
     """
@@ -1192,6 +1221,8 @@ def preview_video_generation_cls(cls: Any) -> None:
             preview_path
         ]
         subprocess.Popen(ffmpeg_command)
+
+
 def run_adiff_cls(cls):
     """
     Uses the cls object for the parameters, namely cls.gen.video_path for the input video and cls.gen.adiff_pass_params dict as the settings parameters.
@@ -1247,10 +1278,9 @@ def run_adiff_cls(cls):
     torch.cuda.empty_cache()
     print('result:', cls.gen.video_path)
 
+
 class DeforumAnimKeys():
     def __init__(self, anim_args, seed=-1, *args, **kwargs):
-
-
         self.fi = FrameInterpolator(anim_args, seed)
         self.angle_series = self.fi.get_inbetweens(self.fi.parse_key_frames(anim_args.angle))
         self.transform_center_x_series = self.fi.get_inbetweens(self.fi.parse_key_frames(anim_args.transform_center_x))
@@ -1285,8 +1315,6 @@ class DeforumAnimKeys():
         self.checkpoint_schedule_series = self.fi.get_inbetweens(
             self.fi.parse_key_frames(anim_args.checkpoint_schedule), is_single_string=True)
         self.steps_schedule_series = self.fi.get_inbetweens(self.fi.parse_key_frames(anim_args.steps_schedule))
-
-
 
         self.seed_schedule_series = self.fi.get_inbetweens(self.fi.parse_key_frames(anim_args.seed_schedule))
         self.sampler_schedule_series = self.fi.get_inbetweens(self.fi.parse_key_frames(anim_args.sampler_schedule),
@@ -1354,7 +1382,12 @@ class LooperAnimKeys:
 
 class FrameInterpolator:
     def __init__(self, settings, seed=-1) -> None:
-        self.settings = settings
+        if isinstance(settings, dict):
+            self.settings = settings
+        elif isinstance(settings, SimpleNamespace):
+            self.settings = vars(settings)
+        else:
+            raise TypeError("settings must be a dict or SimpleNamespace")
         self.max_frames = settings.max_frames
         self.seed = seed
 
@@ -1365,7 +1398,7 @@ class FrameInterpolator:
         key_frame_series = pd.Series([np.nan for a in range(self.max_frames)])
         # get our ui variables set for numexpr.evaluate
         bpm = self.settings.get("bpm", 120)
-        fps = self.settings.fps
+        fps = self.settings.get("fps", 24)
         beat_offset = self.settings.get("beat_offset", 0)
 
         unsorted_events = self.settings.get("schedule_events", [])
@@ -1376,10 +1409,10 @@ class FrameInterpolator:
             "s": self.seed,
             "bpm": bpm,
             "beat_offset_s": beat_offset,
-            "beat_offset_f": int(round(beat_offset*fps)),
+            "beat_offset_f": int(round(beat_offset * fps)),
             "pi": np.pi,
             "fps": fps,
-            "unique": random.randint(0,99999999)
+            "unique": random.randint(0, 99999999)
         }
 
         for e in events:
@@ -1394,9 +1427,13 @@ class FrameInterpolator:
                 if value_is_number:  # if it's only a number, leave the rest for the default interpolation
                     key_frame_series[i] = self.sanitize_value(value)
             if not value_is_number and value is not None:
-                local_variables = self.prepare_local_variables(current_frame=i, bpm=bpm, fps=fps, beat_offset=beat_offset, local_constants=local_constants, events=events)
-                key_frame_series[i] = numexpr.evaluate(str(value), casting='unsafe', local_dict=local_variables) if not is_single_string else self.sanitize_value(value)
-            elif is_single_string:  
+                local_variables = self.prepare_local_variables(current_frame=i, bpm=bpm, fps=fps,
+                                                               beat_offset=beat_offset, local_constants=local_constants,
+                                                               events=events)
+                key_frame_series[i] = numexpr.evaluate(str(value), casting='unsafe',
+                                                       local_dict=local_variables) if not is_single_string else self.sanitize_value(
+                    value)
+            elif is_single_string:
                 # for values formatted like 0:("I am test") as used by sampler schedules, just take previous string value and replicate it
                 key_frame_series[i] = key_frame_series[i - 1]
         key_frame_series = key_frame_series.astype(float) if not is_single_string else key_frame_series  # as string
@@ -1414,7 +1451,7 @@ class FrameInterpolator:
         return key_frame_series
 
     def prepare_local_variables(self, current_frame, bpm, fps, beat_offset, local_constants, events):
-        
+
         local_variables = copy.deepcopy(local_constants)
 
         local_variables["t"] = current_frame
@@ -1422,29 +1459,30 @@ class FrameInterpolator:
         local_variables["sec"] = frame_to_sec(current_frame, fps)
 
         current_beat = frame_to_beat(current_frame, fps, bpm) - beat_offset
- 
+
         local_variables["beat"] = current_beat
         local_variables["whole_beat"] = math.floor(current_beat)
         local_variables["progress_until_beat"] = current_beat % 1
-        local_variables["frames_until_beat"] = beat_to_frame(1 - (current_beat % 1), fps, bpm)  
+        local_variables["frames_until_beat"] = beat_to_frame(1 - (current_beat % 1), fps, bpm)
         local_variables["frames_since_beat"] = beat_to_frame((current_beat % 1), fps, bpm)
-        local_variables["second_until_beat"] = beat_to_sec(1 - (current_beat % 1), bpm)  
+        local_variables["second_until_beat"] = beat_to_sec(1 - (current_beat % 1), bpm)
         local_variables["seconds_since_beat"] = beat_to_sec((current_beat % 1), bpm)
         local_variables["frames_to_go"] = self.max_frames - 1 - current_frame
         local_variables["beats_to_go"] = frame_to_beat(self.max_frames - 1 - current_frame, fps, bpm)
         local_variables["seconds_to_go"] = frame_to_sec(self.max_frames - 1 - current_frame, fps)
-                
-        prev_event = next((event for event in reversed(events) if event["frame"]<current_frame), None)
-        next_event = next((event for event in events if event["frame"]>=current_frame), None)
-        prev_event_frame = prev_event["frame"] if prev_event else 0
-        next_event_frame = next_event["frame"] if next_event else self.max_frames-1
 
-        local_variables["events_passed"] = len([event for event in events if event["frame"]<current_frame])
+        prev_event = next((event for event in reversed(events) if event["frame"] < current_frame), None)
+        next_event = next((event for event in events if event["frame"] >= current_frame), None)
+        prev_event_frame = prev_event["frame"] if prev_event else 0
+        next_event_frame = next_event["frame"] if next_event else self.max_frames - 1
+
+        local_variables["events_passed"] = len([event for event in events if event["frame"] < current_frame])
         local_variables["events_to_go"] = len(events) - local_variables["events_passed"]
         local_variables["events_total"] = len(events)
 
         event_gap = (next_event_frame - prev_event_frame)
-        local_variables["progress_until_next_event"] = 0 if (event_gap == 0) else ((current_frame - prev_event_frame) / event_gap)
+        local_variables["progress_until_next_event"] = 0 if (event_gap == 0) else (
+                    (current_frame - prev_event_frame) / event_gap)
         local_variables["frames_until_next_event"] = next_event_frame - current_frame
         local_variables["beats_until_next_event"] = frame_to_beat(next_event_frame - current_frame, fps, bpm)
         local_variables["seconds_until_next_event"] = frame_to_sec(next_event_frame - current_frame, fps)
@@ -1454,7 +1492,6 @@ class FrameInterpolator:
         local_variables["seconds_since_prev_event"] = frame_to_sec(next_event_frame - current_frame, fps)
 
         return local_variables
-
 
     def parse_key_frames(self, string):
         # because math functions (i.e. sin(t)) can utilize brackets
@@ -1469,7 +1506,11 @@ class FrameInterpolator:
             frameParam = match_object.split(":")
             max_f = self.max_frames - 1
             s = self.seed
-            frame = int(self.sanitize_value(frameParam[0])) if check_is_number(self.sanitize_value(frameParam[0].strip())) else int(numexpr.evaluate(frameParam[0].strip().replace("'", "", 1).replace('"', "", 1)[::-1].replace("'", "", 1).replace('"', "", 1)[::-1]))
+            frame = int(self.sanitize_value(frameParam[0])) if check_is_number(
+                self.sanitize_value(frameParam[0].strip())) else int(numexpr.evaluate(
+                frameParam[0].strip().replace("'", "", 1).replace('"', "", 1)[::-1].replace("'", "", 1).replace('"', "",
+                                                                                                                1)[
+                ::-1]))
             frames[frame] = frameParam[1].strip()
         if frames == {} and len(string) != 0:
             raise RuntimeError('Key Frame string not correctly formatted')
@@ -1494,5 +1535,5 @@ def split_on_commas_outside_parentheses(s):
             elif char == ')':
                 paren_depth -= 1
 
-    parts.append(''.join(current).strip()) 
+    parts.append(''.join(current).strip())
     return parts
