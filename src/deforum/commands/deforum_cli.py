@@ -34,7 +34,7 @@ import sys
 import os
 import traceback
 
-from deforum.commands.deforum_e2e_test_helpers import run_e2e_test
+#from deforum.commands.deforum_e2e_test_helpers import run_e2e_test
 from deforum.docutils.decorator import deforumdoc
 from deforum.utils.constants import config
 from deforum.utils.logging_config import logger
