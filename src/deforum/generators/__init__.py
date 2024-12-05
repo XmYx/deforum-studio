@@ -1,4 +1,4 @@
 from .comfy_sd_generator import ComfyDeforumGenerator
-from .deforum_diffusers_generator import DeforumDiffusersGenerator
+#from .deforum_diffusers_generator import DeforumDiffusersGenerator
 from .film_interp_generator import FILMInterpolator
 from .rng_noise_generator import ImageRNGNoise
