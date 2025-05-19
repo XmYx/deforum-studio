@@ -1384,10 +1384,12 @@ class FrameInterpolator:
     def __init__(self, settings, seed=-1) -> None:
         if isinstance(settings, dict):
             self.settings = settings
-        elif isinstance(settings, SimpleNamespace):
+        elif hasattr(settings, "__dict__"):
+            # turns any object with attributes into a dict
             self.settings = vars(settings)
         else:
-            raise TypeError("settings must be a dict or SimpleNamespace")
+            raise TypeError("settings must be a dict or an object with attributes")
+
         self.max_frames = settings.max_frames
         self.seed = seed
 

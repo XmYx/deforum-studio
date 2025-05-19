@@ -213,11 +213,11 @@ def ensure_comfy(custom_path=None):
             # New implementation of the function
             print("New globals_cleanup function executed")
 
-        # Path to the module
-        module_path = os.path.join(comfy_submodule_folder, 'efficiency-nodes-comfyui/tsc_utils.py')
-
-        # Replace the function
-        replace_function(module_path, 'globals_cleanup', new_globals_cleanup)
+        # # Path to the module
+        # module_path = os.path.join(comfy_submodule_folder, 'efficiency-nodes-comfyui/tsc_utils.py')
+        #
+        # # Replace the function
+        # replace_function(module_path, 'globals_cleanup', new_globals_cleanup)
 
 class CLIArgs:
     def __init__(self):

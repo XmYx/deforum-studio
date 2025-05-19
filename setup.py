@@ -255,7 +255,7 @@ extras['comfy'] = deps_list(
 
 setup(
     name="deforum",
-    version="0.01.8.dev1",  # expected format is one of x.y.z.dev0, or x.y.z.rc1 or x.y.z (no to dashes, yes to dots)
+    version="0.1.9.dev1",  # expected format is one of x.y.z.dev0, or x.y.z.rc1 or x.y.z (no to dashes, yes to dots)
     description="State-of-the-art Animation Diffusion in PyTorch and TRT.",
     long_description=open("README.md", "r", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
