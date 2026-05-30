@@ -1,148 +1,159 @@
+import os
 import platform
 import re
 import sys
 from distutils.core import Command
 from setuptools import find_packages, setup
 
-python_version = '.'.join(map(str, sys.version_info[:2]))
+python_version = ".".join(map(str, sys.version_info[:2]))
+python_tag = f"cp{sys.version_info.major}{sys.version_info.minor}"
 os_name = platform.system().lower()
+machine = platform.machine().lower()
 
-torch_package_urls = {
-    '3.10': {
-        'linux': 'torch-2.8.0%2Bcu128-cp310-cp310-manylinux_2_28_x86_64.whl',
-        'windows': 'torch-2.8.0%2Bcu128-cp310-cp310-win_amd64.whl'
-    },
-    '3.11': {
-        'linux': 'torch-2.8.0%2Bcu128-cp311-cp311-manylinux_2_28_x86_64.whl',
-        'windows': 'torch-2.8.0%2Bcu128-cp311-cp311-win_amd64.whl'
-    },
-    '3.8': {
-        'linux': 'torch-2.8.0%2Bcu128-cp38-cp38-manylinux_2_28_x86_64.whl',
-        'windows': 'torch-2.8.0%2Bcu128-cp38-cp38-win_amd64.whl'
-    },
-    '3.9': {
-        'linux': 'torch-2.8.0%2Bcu128-cp39-cp39-manylinux_2_28_x86_64.whl',
-        'windows': 'torch-2.8.0%2Bcu128-cp39-cp39-win_amd64.whl'
-    }
+TORCH_VERSION = "2.12.0"
+TORCHVISION_VERSION = "0.27.0"
+
+# Supported values:
+#   cu132, cu13.2, cuda13.2, cuda
+#   cu130, cu13.0, cuda13.0
+#   cu128, cu12.8, cuda12.8
+#   rocm72, rocm7.2, rocm, amd
+#   cpu
+torch_backend = (
+    os.environ.get("DEFORUM_TORCH_BACKEND", "cu132")
+    .lower()
+    .replace("-", "")
+    .replace("_", "")
+    .replace(".", "")
+)
+
+backend_aliases = {
+    "cuda": "cu132",
+    "cuda132": "cu132",
+    "cu132": "cu132",
+    "cuda130": "cu130",
+    "cu130": "cu130",
+    "cuda128": "cu128",
+    "cu128": "cu128",
+    "rocm": "rocm72",
+    "rocm72": "rocm72",
+    "amd": "rocm72",
+    "cpu": "cpu",
 }
 
-torchvision_package_urls = {
-    '3.10': {
-        'linux': 'torchvision-0.23.0%2Bcu128-cp310-cp310-manylinux_2_28_x86_64.whl',
-        'windows': 'torchvision-0.23.0%2Bcu128-cp310-cp310-win_amd64.whl'
-    },
-    '3.11': {
-        'linux': 'torchvision-0.23.0%2Bcu128-cp311-cp311-manylinux_2_28_x86_64.whl',
-        'windows': 'torchvision-0.23.0%2Bcu128-cp311-cp311-win_amd64.whl'
-    },
-    '3.8': {
-        'linux': 'torchvision-0.23.0%2Bcu128-cp38-cp38-manylinux_2_28_x86_64.whl',
-        'windows': 'torchvision-0.23.0%2Bcu128-cp38-cp38-win_amd64.whl'
-    },
-    '3.9': {
-        'linux': 'torchvision-0.23.0%2Bcu128-cp39-cp39-manylinux_2_28_x86_64.whl',
-        'windows': 'torchvision-0.23.0%2Bcu128-cp39-cp39-win_amd64.whl'
-    }
-}
+torch_backend = backend_aliases.get(torch_backend, torch_backend)
 
-if python_version in torch_package_urls:
-    torch_url = torch_package_urls[python_version][os_name]
-    torchvision_url = torchvision_package_urls[python_version][os_name]
+supported_python_versions = {"3.10", "3.11", "3.12", "3.13", "3.14"}
+
+if python_version not in supported_python_versions:
+    sys.exit(
+        f"Unsupported Python version: {python_version}. "
+        f"Supported: {', '.join(sorted(supported_python_versions))}"
+    )
+
+if os_name == "linux":
+    platform_tag = "manylinux_2_28_aarch64" if machine in {"aarch64", "arm64"} else "manylinux_2_28_x86_64"
+elif os_name == "windows":
+    platform_tag = "win_amd64"
+elif os_name == "darwin":
+    platform_tag = None
 else:
-    sys.exit(f"Unsupported Python version: {python_version}")
+    sys.exit(f"Unsupported OS: {os_name}")
 
-torch_path = f"https://download.pytorch.org/whl/cu128/{torch_url}"
-torchvision_path = f"https://download.pytorch.org/whl/cu128/{torchvision_url}"
+torch_wheel_indexes = {
+    "cu132": ("https://download.pytorch.org/whl/cu132", "cu132"),
+    "cu130": ("https://download.pytorch.org/whl/cu130", "cu130"),
+    "cu128": ("https://download.pytorch.org/whl/cu128", "cu128"),
+    "rocm72": ("https://download.pytorch.org/whl/rocm7.2", "rocm7.2"),
+}
+
+if torch_backend == "rocm72" and os_name != "linux":
+    sys.exit("ROCm 7.2 wheels are only supported on Linux. Use DEFORUM_TORCH_BACKEND=cu132 or cpu on this platform.")
+
+if torch_backend.startswith("cu") and os_name not in {"linux", "windows"}:
+    torch_backend = "cpu"
+
+if torch_backend != "cpu" and torch_backend not in torch_wheel_indexes:
+    sys.exit(
+        f"Unsupported DEFORUM_TORCH_BACKEND={torch_backend!r}. "
+        "Use cu132, cu130, cu128, rocm72, amd, or cpu."
+    )
+
+
+def torch_dep(package_name, version):
+    if torch_backend == "cpu" or platform_tag is None:
+        return f"{package_name}=={version}"
+
+    wheel_index, local_version = torch_wheel_indexes[torch_backend]
+    wheel_name = f"{package_name}-{version}%2B{local_version}-{python_tag}-{python_tag}-{platform_tag}.whl"
+    return f"{package_name}@{wheel_index}/{wheel_name}"
+
 
 # IMPORTANT:
 # 1. all dependencies should be listed here with their version requirements if any
 # 2. once modified, run: `make deps_table_update` to update src/deforum/dependency_versions_table.py
 _deps = [
-    f'torch@{torch_path}',
-    f'torchvision@{torchvision_path}',
-    'einops>=0.6.0',
-    'numexpr>=2.8.4',
-    'matplotlib>=3.7.1',
-    'pandas>=1.5.3',
-    'av>=10.0.0',
-    'pims>=0.6.1',
-    'imageio-ffmpeg>=0.4.8',
-    'rich>=13.3.2',
-    'gdown>=4.7.1',
-    'py3d>=0.0.87',
-    'librosa>=0.10.0.post2',
-    'numpy==1.26.4',
-    'opencv-python-headless',
-    'timm>=0.6.13',
-    'transformers>=4.40.2',
-    'omegaconf>=2.3.0',
-    'aiohttp>=3.9.3',
-    'psutil>=5.9.6',
-    'clip-interrogator>=0.6.0',
-    'streamlit>=1.27.2',
-    'torchsde>=0.2.5',
-    'fastapi>=0.100.0',
-    'diffusers==0.30.0',
-    'accelerate>=0.29.3',
-    'python-decouple>=3.8',
-    'mutagen>=1.47.0',
-    'imageio[ffmpeg]>=2.34.1',
-    'xformers>=0.0.26.post1',
-    'tensorrt>=10.0.1',
-    'onnx_graphsurgeon>=0.5.2',
-    'onnx>=1.16.0',
-    'zstandard>=0.22.0',
-    'polygraphy>=0.49.9',
-    'kornia>=0.7.2',
-    'wheel>=0.43.0',
-    'loguru>=0.7.2',
-    'scikit-image>=0.21.0',
-    'scipy>=1.11.4',
-    'segment-anything>=1.0',
-    'piexif>=1.1.3',
-    'GitPython>=3.1.43',
-    'qtpy>=2.4.1',
-    'pyqt6>=6.5.0',
-    'pyqt6-qt6>=6.5.0',
-    'pyqtgraph>=0.13.7',
-    'pytest>=8.2.0',
-    'ruff>=0.4.4',
-    'pylint>=3.2.1',
-    'syrupy>=4.6.1',
-    'pytest-cov>=5.0.0',
-    'coverage>=7.5.2',
-    'librosa>=0.10.0.post2',
-    'contexttimer>=0.3.3',
-    'pydub>=0.23.0'
+    torch_dep("torch", TORCH_VERSION),
+    torch_dep("torchvision", TORCHVISION_VERSION),
+    "einops>=0.6.0",
+    "numexpr>=2.8.4",
+    "matplotlib>=3.7.1",
+    "pandas>=1.5.3",
+    "av>=10.0.0",
+    "pims>=0.6.1",
+    "imageio-ffmpeg>=0.4.8",
+    "rich>=13.3.2",
+    "gdown>=4.7.1",
+    "py3d>=0.0.87",
+    "librosa>=0.10.0.post2",
+    "numpy==1.26.4",
+    "opencv-python-headless",
+    "timm>=0.6.13",
+    "transformers>=4.40.2",
+    "omegaconf>=2.3.0",
+    "aiohttp>=3.9.3",
+    "psutil>=5.9.6",
+    "clip-interrogator>=0.6.0",
+    "streamlit>=1.27.2",
+    "torchsde>=0.2.5",
+    "fastapi>=0.100.0",
+    "diffusers==0.30.0",
+    "accelerate>=0.29.3",
+    "python-decouple>=3.8",
+    "mutagen>=1.47.0",
+    "imageio[ffmpeg]>=2.34.1",
+    "xformers>=0.0.26.post1; python_version < '3.14' and platform_system != 'Darwin'",
+    "tensorrt>=10.0.1; platform_system == 'Linux' and platform_machine == 'x86_64' and python_version < '3.14'",
+    "onnx_graphsurgeon>=0.5.2",
+    "onnx<=1.19.0",
+    "zstandard>=0.22.0",
+    "polygraphy>=0.49.9",
+    "kornia>=0.7.2",
+    "wheel>=0.43.0",
+    "loguru>=0.7.2",
+    "scikit-image>=0.21.0",
+    "scipy>=1.11.4",
+    "segment-anything>=1.0",
+    "piexif>=1.1.3",
+    "GitPython>=3.1.43",
+    "qtpy>=2.4.1",
+    "pyqt6>=6.5.0",
+    "pyqt6-qt6>=6.5.0",
+    "pyqtgraph>=0.13.7",
+    "pytest>=8.2.0",
+    "ruff>=0.4.4",
+    "pylint>=3.2.1",
+    "syrupy>=4.6.1",
+    "pytest-cov>=5.0.0",
+    "coverage>=7.5.2",
+    "contexttimer>=0.3.3",
+    "pydub>=0.23.0",
 ]
 
-# this is a lookup table with items like:
-#
-# tokenizers: "huggingface-hub==0.8.0"
-# packaging: "packaging"
-#
-# some of the values are versioned whereas others aren't.
-pattern = re.compile(r"^([^@!=<>~]+)(?:[@!=<>~].*)?$")
+pattern = re.compile(r"^([^@!=<>~;\[]+(?:\[[^\]]+\])?)(?:[@!=<>~;].*)?$")
 
 deps = {match[0]: x for x in _deps for match in [pattern.findall(x)] if match}
 
-
-# since we save this data in src/deforum/dependency_versions_table.py it can be easily accessed from
-# anywhere. If you need to quickly access the data from this table in a shell, you can do so easily with:
-#
-# python -c 'import sys; from deforum.dependency_versions_table import deps; \
-# print(" ".join([ deps[x] for x in sys.argv[1:]]))' tokenizers datasets
-#
-# Just pass the desired package names to that script as it's shown with 2 packages above.
-#
-# If deforum is not yet installed and the work is done from the cloned repo remember to add `PYTHONPATH=src` to the
-# script above
-#
-# You can then feed this for example to `pip`:
-#
-# pip install -U $(python -c 'import sys; from deforum.dependency_versions_table import deps; \
-# print(" ".join([ deps[x] for x in sys.argv[1:]]))' tokenizers datasets)
-#
 
 def deps_list(*pkgs):
     return [deps[pkg] for pkg in pkgs]
@@ -156,7 +167,6 @@ class DepsTableUpdateCommand(Command):
 
     description = "build runtime dependency table"
     user_options = [
-        # format: (long option, short option, description).
         ("dep-table-update", None, "updates src/deforum/dependency_versions_table.py"),
     ]
 
@@ -171,7 +181,7 @@ class DepsTableUpdateCommand(Command):
         content = [
             "# THIS FILE HAS BEEN AUTOGENERATED. To update:",
             "# 1. modify the `_deps` dict in setup.py",
-            "# 2. run `make deps_table_update``",
+            "# 2. run `make deps_table_update`",
             "deps = {",
             entries,
             "}",
@@ -185,73 +195,73 @@ class DepsTableUpdateCommand(Command):
 
 extras = {}
 
-install_requires = deps_list('torch',
-                             'torchvision',
-                             'einops',
-                             'numexpr',
-                             'matplotlib',
-                             'pandas',
-                             'av',
-                             'pims',
-                             'imageio-ffmpeg',
-                             'rich',
-                             'gdown',
-                             'py3d',
-                             'librosa',
-                             'numpy',
-                             'opencv-python-headless',
-                             'timm',
-                             'transformers',
-                             'omegaconf',
-                             'aiohttp',
-                             'scipy',
-                             'psutil',
-                             'clip-interrogator',
-                             'streamlit',
-                             'torchsde',
-                             'fastapi',
-                             'diffusers',
-                             'accelerate',
-                             'python-decouple',
-                             'imageio[ffmpeg]',
-                             'xformers',
-                             'kornia',
-                             'tensorrt',
-                             'onnx_graphsurgeon',
-                             'zstandard',
-                             'onnx',
-                             'polygraphy',
-                             'wheel',
-                             'loguru',
-                             'mutagen',
-                             'scikit-image',
-                             'segment-anything',
-                             'piexif',
-                             'GitPython',
-                             'librosa',
-                             'contexttimer',
-                             'pydub'
-                             )
+install_requires = deps_list(
+    "torch",
+    "torchvision",
+    "einops",
+    "numexpr",
+    "matplotlib",
+    "pandas",
+    "av",
+    "pims",
+    "imageio-ffmpeg",
+    "rich",
+    "gdown",
+    "py3d",
+    "librosa",
+    "numpy",
+    "opencv-python-headless",
+    "timm",
+    "transformers",
+    "omegaconf",
+    "aiohttp",
+    "scipy",
+    "psutil",
+    "clip-interrogator",
+    "streamlit",
+    "torchsde",
+    "fastapi",
+    "diffusers",
+    "accelerate",
+    "python-decouple",
+    "imageio[ffmpeg]",
+    "xformers",
+    "kornia",
+    "tensorrt",
+    "onnx_graphsurgeon",
+    "zstandard",
+    "onnx",
+    "polygraphy",
+    "wheel",
+    "loguru",
+    "mutagen",
+    "scikit-image",
+    "segment-anything",
+    "piexif",
+    "GitPython",
+    "contexttimer",
+    "pydub",
+)
 
-extras['dev'] = deps_list('pytest', 'ruff', 'pylint', 'syrupy', 'pytest-cov', 'coverage')
+extras["dev"] = deps_list("pytest", "ruff", "pylint", "syrupy", "pytest-cov", "coverage")
 
-extras['comfy'] = deps_list(
-    'einops',
-    'numexpr',
-    'matplotlib',
-    'pandas',
-    'av',
-    'pims',
-    'imageio-ffmpeg',
-    'rich',
-    'gdown',
-    'py3d',
-    'librosa',
+extras["comfy"] = deps_list(
+    "einops",
+    "numexpr",
+    "matplotlib",
+    "pandas",
+    "av",
+    "pims",
+    "imageio-ffmpeg",
+    "rich",
+    "gdown",
+    "py3d",
+    "librosa",
 )
 
 setup(
     name="deforum",
-    version="0.1.9.dev1",  # expected format is one of x.y.z.dev0, or x.y.z.rc1 or x.y.z (no to dashes, yes to dots)
+    version="0.1.9.dev1",
     description="State-of-the-art Animation Diffusion in PyTorch and TRT.",
     long_description=open("README.md", "r", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
@@ -262,15 +272,17 @@ setup(
     url="https://github.com/deforum-studio/deforum",
     package_dir={"": "src"},
     packages=find_packages("src"),
-    # package_data={"deforum": ["py.typed"]},
     include_package_data=True,
-    python_requires=">=3.8.0",
+    python_requires=">=3.10,<3.15",
     install_requires=list(install_requires),
     extras_require=extras,
-    entry_points={"console_scripts": ["deforum=deforum.commands.deforum_cli:start_deforum_cli",
-                                      "deforum-test=deforum.commands.deforum_test:start_deforum_test",
-                                      "deforum-profile=deforum.commands.deforum_profiling:start_deforum_test"
-                                      ]},
+    entry_points={
+        "console_scripts": [
+            "deforum=deforum.commands.deforum_cli:start_deforum_cli",
+            "deforum-test=deforum.commands.deforum_test:start_deforum_test",
+            "deforum-profile=deforum.commands.deforum_profiling:start_deforum_test",
+        ]
+    },
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
@@ -279,29 +291,12 @@ setup(
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
     cmdclass={"deps_table_update": DepsTableUpdateCommand},
 )
-
-# Release checklist
-# 1. Change the version in __init__.py and setup.py.
-# 2. Commit these changes with the message: "Release: Release"
-# 3. Add a tag in git to mark the release: "git tag RELEASE -m 'Adds tag RELEASE for pypi' "
-#    Push the tag to git: git push --tags origin main
-# 4. Run the following commands in the top-level directory:
-#      python setup.py bdist_wheel
-#      python setup.py sdist
-# 5. Upload the package to the pypi test server first:
-#      twine upload dist/* -r pypitest
-#      twine upload dist/* -r pypitest --repository-url=https://test.pypi.org/legacy/
-# 6. Check that you can install it in a virtualenv by running:
-#      pip install -i https://testpypi.python.org/pypi deforum
-#      deforum env
-#      deforum test
-# 7. Upload the final version to actual pypi:
-#      twine upload dist/* -r pypi
-# 8. Add release notes to the tag in GitHub once everything is looking deforumish.
-# 9. Update the version in __init__.py, setup.py to the new version "-dev" and push to master
