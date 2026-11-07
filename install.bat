@@ -1,76 +1,61 @@
 @echo off
-setlocal
+REM Deforum installer for Windows.
+REM   install.bat        interactive
+REM   install.bat -s     silent, defaults
+REM Environment overrides: DEFORUM_PYTHON (3.11-3.14, default 3.12),
+REM   DEFORUM_TORCH_BACKEND (cu132 / cu130 / cu128 / cpu, default: cu132 when nvidia-smi works, else cpu)
+setlocal enabledelayedexpansion
+cd /d "%~dp0"
 
-REM Get current working directory
-set "CURRENT_DIR=%cd%"
-
-REM Default values
 set "VENV_DIR=venv"
 set "ROOT_DIR=%USERPROFILE%\deforum"
 set "COMFY_DIR=src\ComfyUI"
+set "EXTRA_MODELS="
 set "SILENT=0"
+if "%~1"=="-s" set "SILENT=1"
+if "%DEFORUM_PYTHON%"=="" set "DEFORUM_PYTHON=3.12"
 
-REM Parse arguments
-:PARSE_ARGUMENTS
-for %%A in (%*) do (
-    if "%%A"=="-s" (
-        set "SILENT=1"
-    ) else (
-        echo Invalid option: %%A
-        exit /b 1
-    )
-)
-goto :AFTER_PARSE_ARGUMENTS
-
-:AFTER_PARSE_ARGUMENTS
-
-REM Collect VENV_PATH
 if "%SILENT%"=="0" (
-    set /p "VENV_INPUT=Enter virtual environment path (default: %VENV_DIR%): "
-    if not "%VENV_INPUT%"=="" (
-        set "VENV_DIR=%VENV_INPUT%"
-    )
+    set /p "VENV_INPUT=Virtual environment path (default: %VENV_DIR%): "
+    if not "!VENV_INPUT!"=="" set "VENV_DIR=!VENV_INPUT!"
+    set /p "ROOT_INPUT=Deforum data folder (default: %ROOT_DIR%): "
+    if not "!ROOT_INPUT!"=="" set "ROOT_DIR=!ROOT_INPUT!"
+    set /p "EXTRA_INPUT=Existing ComfyUI models folder to reuse (optional): "
+    if not "!EXTRA_INPUT!"=="" set "EXTRA_MODELS=!EXTRA_INPUT!"
 )
 
-REM Collect ROOT_PATH
-if "%SILENT%"=="0" (
-    set /p "ROOT_INPUT=Enter root directory path (default: %ROOT_DIR%): "
-    if not "%ROOT_INPUT%"=="" (
-        set "ROOT_DIR=%ROOT_INPUT%"
-    )
+if "%DEFORUM_TORCH_BACKEND%"=="" (
+    nvidia-smi -L >nul 2>&1 && (set "DEFORUM_TORCH_BACKEND=cu132") || (set "DEFORUM_TORCH_BACKEND=cpu")
+)
+echo Python %DEFORUM_PYTHON%, torch backend: %DEFORUM_TORCH_BACKEND%
+
+for %%D in (checkpoints diffusion_models text_encoders vae loras) do if not exist "%ROOT_DIR%\models\%%D" mkdir "%ROOT_DIR%\models\%%D"
+git submodule update --init src/ComfyUI
+
+where uv >nul 2>&1
+if %errorlevel%==0 (
+    uv venv -p %DEFORUM_PYTHON% "%VENV_DIR%" || exit /b 1
+    set "PIP=uv pip install -p %VENV_DIR%"
+) else (
+    py -%DEFORUM_PYTHON% -m venv "%VENV_DIR%" || exit /b 1
+    "%VENV_DIR%\Scripts\python.exe" -m pip install -U pip
+    set "PIP=%VENV_DIR%\Scripts\python.exe -m pip install"
 )
 
-REM Collect COMFY_PATH
-if "%SILENT%"=="0" (
-    set /p "COMFY_INPUT=Enter ComfyUI directory path (default: %COMFY_DIR%): "
-    if not "%COMFY_INPUT%"=="" (
-        set "COMFY_DIR=%COMFY_INPUT%"
-    )
-)
+!PIP! torch torchvision --index-url https://download.pytorch.org/whl/%DEFORUM_TORCH_BACKEND% || exit /b 1
+!PIP! -r "%COMFY_DIR%\requirements.txt" || exit /b 1
+!PIP! -e . || exit /b 1
 
-REM Convert paths to full paths
-for /f "delims=" %%i in ('powershell -Command "[System.IO.Path]::GetFullPath('%VENV_DIR%')"') do set "VENV_PATH=%%i"
-for /f "delims=" %%i in ('powershell -Command "[System.IO.Path]::GetFullPath('%ROOT_DIR%')"') do set "ROOT_PATH=%%i"
-for /f "delims=" %%i in ('powershell -Command "[System.IO.Path]::GetFullPath('%COMFY_DIR%')"') do set "COMFY_PATH=%%i"
-
-REM Trim trailing spaces from paths
-for /f "tokens=* delims= " %%A in ("%VENV_PATH%") do set "VENV_PATH=%%A"
-for /f "tokens=* delims= " %%A in ("%ROOT_PATH%") do set "ROOT_PATH=%%A"
-for /f "tokens=* delims= " %%A in ("%COMFY_PATH%") do set "COMFY_PATH=%%A"
-
-REM Save to .env file
+for /f "delims=" %%i in ('powershell -NoProfile -Command "[System.IO.Path]::GetFullPath('%VENV_DIR%')"') do set "VENV_PATH=%%i"
+for /f "delims=" %%i in ('powershell -NoProfile -Command "[System.IO.Path]::GetFullPath('%ROOT_DIR%')"') do set "ROOT_PATH=%%i"
+for /f "delims=" %%i in ('powershell -NoProfile -Command "[System.IO.Path]::GetFullPath('%COMFY_DIR%')"') do set "COMFY_PATH=%%i"
 (
     echo VENV_PATH=%VENV_PATH%
     echo ROOT_PATH=%ROOT_PATH%
     echo COMFY_PATH=%COMFY_PATH%
-) > "%CURRENT_DIR%\.env"
+    if not "%EXTRA_MODELS%"=="" echo EXTRA_MODEL_PATHS=%EXTRA_MODELS%
+) > .env
 
-git submodule update --init --recursive
-
-REM Create virtual environment and install dependencies
-pip install virtualenv
-python -m virtualenv "%VENV_PATH%" -p python3.10
-call "%VENV_PATH%\Scripts\activate.bat"
-pip install -e .
-
-echo Installation completed successfully.
+"%VENV_PATH%\Scripts\python.exe" -c "import torch; from deforum.utils.device import get_device; print('torch', torch.__version__, 'device:', get_device())"
+echo.
+echo Done. Put models in %ROOT_PATH%\models\checkpoints (or set EXTRA_MODEL_PATHS in .env), then run start.bat

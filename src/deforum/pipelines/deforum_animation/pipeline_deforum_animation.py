@@ -36,7 +36,7 @@ from ...utils.deforum_logger_util import Logger
 from ...utils.image_utils import load_image
 from ...utils.resume_vars import get_resume_vars
 from ...utils.sdxl_styles import STYLE_NAMES, apply_style
-from ...utils.string_utils import split_weighted_subprompts
+from ...utils.string_utils import prepare_prompt, split_weighted_subprompts
 from ..deforum_pipeline import DeforumBase
 from .animation_helpers import (
     DeforumAnimKeys,
@@ -67,6 +67,7 @@ from .animation_helpers import (
 )
 from .animation_params import auto_to_comfy
 from .parseq_adapter import ParseqAdapter
+from deforum.utils.device import empty_cache, get_device
 
 
 class DeforumAnimationPipeline(DeforumBase):
@@ -162,9 +163,11 @@ class DeforumAnimationPipeline(DeforumBase):
         # MAIN LOOP.
         while self.gen.frame_idx < self.gen.max_frames:
             frame_start = time.time()
+            frames_before = self.gen.frame_idx
             self.run_shoot_fn_list()
 
-            self.pbar.update(self.gen.turbo_steps)
+            # count frames actually produced (cadence and world-model steps produce several per iteration)
+            self.pbar.update(max(0, min(self.gen.frame_idx, self.gen.max_frames) - frames_before))
             if self.logging:
                 duration = (time.time() - frame_start) * 1000
                 self.logger.log(f"----------------------------- Frame {self.gen.frame_idx + 1} took {duration:.2f} ms")
@@ -207,6 +210,7 @@ class DeforumAnimationPipeline(DeforumBase):
 
             setup_start = time.time()
         self.setup()
+        self.precache_prompt_embeddings()
 
     def pre_setup(self):
         frame_warp_modes = ['2D', '3D']
@@ -238,7 +242,7 @@ class DeforumAnimationPipeline(DeforumBase):
             self.gen.seed = secrets.randbelow(18446744073709551615)
         self.gen.keys = DeforumAnimKeys(self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.anim_keys
         self.gen.loopSchedulesAndData = LooperAnimKeys(self.gen, self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.looper_keys
-        prompt_series = pd.Series([np.nan for a in range(self.gen.max_frames)])
+        prompt_series = pd.Series([np.nan for a in range(self.gen.max_frames)], dtype=object)
 
         if self.gen.prompts is not None:
             if isinstance(self.gen.prompts, dict):
@@ -257,9 +261,12 @@ class DeforumAnimationPipeline(DeforumBase):
 
         # check for video inits
         self.gen.using_vid_init = self.gen.animation_mode == 'Video Input'
+        # settings files carry "device": "cuda"; always run on the device this machine actually has
+        self.gen.device = get_device()
 
         # load depth model for 3D
-        self.gen.predict_depths = self.gen.use_depth_warping or self.gen.save_depth_maps
+        self.gen.predict_depths = (self.gen.use_depth_warping or self.gen.save_depth_maps) and \
+            self.gen.animation_mode != 'World Model'
         self.gen.predict_depths = self.gen.predict_depths or (
                 self.gen.hybrid_composite and self.gen.hybrid_comp_mask_type in ['Depth', 'Video Depth'])
         if self.gen.predict_depths and (self.depth_model is None or self.loaded_depth_model != self.gen.depth_algorithm.lower()):
@@ -269,7 +276,7 @@ class DeforumAnimationPipeline(DeforumBase):
             self.gen.keep_in_vram = True
             # device = ('cpu' if cmd_opts.lowvram or cmd_opts.medvram else self.root.device)
             # TODO Set device in root in webui
-            device = "cuda"
+            device=get_device()
             self.depth_model = DepthModel(config.other_model_dir, device, self.gen.half_precision,
                                      keep_in_vram=self.gen.keep_in_vram,
                                      depth_algorithm=self.gen.depth_algorithm, Width=self.gen.width,
@@ -288,8 +295,7 @@ class DeforumAnimationPipeline(DeforumBase):
             if self.depth_model is not None:
                 self.depth_model.to('cpu')
                 del self.depth_model
-                torch.cuda.empty_cache()
-                torch.cuda.ipc_collect()
+                empty_cache()
             self.depth_model = None
             self.gen.save_depth_maps = False
 
@@ -376,6 +382,11 @@ class DeforumAnimationPipeline(DeforumBase):
         if hasattr(self.gen, 'enable_temporal_flow'):
             if self.gen.enable_temporal_flow and self.gen.turbo_steps < 2:
                 self.shoot_fns.append(apply_temporal_flow_cls)
+        if self.gen.animation_mode == 'World Model':
+            # FLUX.3 Action predicts whole chunks of frames; it replaces warping and per-frame diffusion
+            from .world_model import world_model_step
+            self.shoot_fns[:] = [get_generation_params, world_model_step]
+
         if not self.gen.enable_ad_pass:
             if getattr(self.gen, "frame_interpolation_engine", None) and self.gen.frame_interpolation_engine != "None":
                 if self.gen.max_frames > 3:
@@ -510,10 +521,10 @@ class DeforumAnimationPipeline(DeforumBase):
         ```
         """
         try:
-            if hasattr(self, 'gen'):
+            if getattr(self, 'gen', None) is not None:  # only while a render is running
                 self.gen.update_from_kwargs(**kwargs)
                 self.gen.keys = DeforumAnimKeys(self.gen, self.gen.seed) if not self.parseq_adapter.use_parseq else self.parseq_adapter.anim_keys
-                prompt_series = pd.Series([np.nan for a in range(self.gen.max_frames + 5)])
+                prompt_series = pd.Series([np.nan for a in range(self.gen.max_frames + 5)], dtype=object)
 
                 if self.gen.prompts is not None:
                     if isinstance(self.gen.prompts, dict):
@@ -527,7 +538,7 @@ class DeforumAnimationPipeline(DeforumBase):
                 prompt_series = prompt_series.ffill().bfill()
                 self.gen.prompt_series = prompt_series
         except Exception as e:
-            pass
+            logger.warning(f"Live parameter update failed: {e}")
 
 
     def log_function_lists(self):
@@ -614,8 +625,7 @@ class DeforumAnimationPipeline(DeforumBase):
         if hasattr(self, 'gen'):
             del self.gen
             self.gen = None
-        torch.cuda.ipc_collect()
-        torch.cuda.empty_cache()
+        empty_cache()
         gc.collect()
 
     def datacallback(self, data) -> None:
@@ -632,8 +642,7 @@ class DeforumAnimationPipeline(DeforumBase):
         Returns:
             processed (Image): The generated image or animation frame.
         """
-        prompt, negative_prompt = split_weighted_subprompts(self.gen.prompt, self.gen.frame_idx, self.gen.max_frames)
-        next_prompt, blend_value = get_next_prompt_and_blend(self.gen.frame_idx, self.gen.prompt_series)
+        prompt, negative_prompt, next_prompt, blend_value = self.frame_prompts(self.gen.frame_idx, self.gen.prompt)
         init_image = None
         cnet_image = None
         # if not self.gen.use_init and self.gen.strength < 1.0 and self.gen.strength_0_no_init:
@@ -686,11 +695,6 @@ class DeforumAnimationPipeline(DeforumBase):
         }
         if self.gen.frame_idx == 0 and not self.gen.use_init:
             gen_args["reset_noise"] = True
-        if hasattr(self.gen, "style"):
-            if self.gen.style != "(No Style)" and self.gen.style in STYLE_NAMES:
-                gen_args["prompt"], gen_args["negative_prompt"] = apply_style(self.gen.style, gen_args["prompt"],
-                                                                              gen_args["negative_prompt"])
-
         if self.gen.use_areas:
             gen_args["areas"] = self.gen.areas[self.gen.frame_idx]
             gen_args["use_areas"] = True
@@ -701,12 +705,6 @@ class DeforumAnimationPipeline(DeforumBase):
             gen_args["subseed_strength"] = self.gen.subseed_strength
             gen_args["seed_resize_from_h"] = self.gen.seed_resize_from_h
             gen_args["seed_resize_from_w"] = self.gen.seed_resize_from_w
-        if hasattr(self.gen, 'animation_prompts_positive'):
-            gen_args["prompt"] = gen_args["prompt"] + self.gen.animation_prompts_positive
-            if next_prompt:
-                gen_args['next_prompt'] = next_prompt + self.gen.animation_prompts_positive
-        if hasattr(self.gen, 'animation_prompts_negative'):
-            gen_args["negative_prompt"] = gen_args["negative_prompt"] + self.gen.animation_prompts_negative
         def calculate_blend_factor(frame_idx, cycle_length=100):
             """Calculate the blending factor for the frame index within a cycle of length `cycle_length`.
             The factor linearly increases from 0 to 1 and then resets."""
@@ -760,9 +758,60 @@ class DeforumAnimationPipeline(DeforumBase):
 
         return processed
 
+    def frame_prompts(self, frame_idx, prepared_prompt=None):
+        """(prompt, negative, next_prompt, blend) exactly as the generator receives them for ``frame_idx``.
+
+        ``prepared_prompt`` is the frame's prompt after prepare_prompt (math evaluated, ``--neg`` kept);
+        it is derived from the prompt series when not given."""
+        gen = self.gen
+        if prepared_prompt is None:
+            raw = gen.prompt_series[frame_idx]
+            if self.parseq_adapter.manages_prompts():
+                raw = self.parseq_adapter.anim_keys.prompts[frame_idx]
+            prepared_prompt = prepare_prompt(str(raw), gen.max_frames, gen.seed, frame_idx)
+        prompt, negative = split_weighted_subprompts(prepared_prompt, frame_idx, gen.max_frames)
+        next_prompt, blend = get_next_prompt_and_blend(frame_idx, gen.prompt_series)
+        if next_prompt:
+            next_prompt = split_weighted_subprompts(
+                prepare_prompt(str(next_prompt), gen.max_frames, gen.seed, frame_idx), frame_idx, gen.max_frames)[0]
+        prompt, negative = prompt.strip(), negative.strip()
+        style = getattr(gen, "style", "(No Style)")
+        if style != "(No Style)" and style in STYLE_NAMES:
+            prompt, negative = apply_style(style, prompt, negative)
+            if next_prompt:
+                next_prompt = apply_style(style, next_prompt, "")[0]
+        positive_suffix = getattr(gen, "animation_prompts_positive", "") or ""
+        negative_suffix = getattr(gen, "animation_prompts_negative", "") or ""
+        prompt = prompt + positive_suffix
+        if next_prompt:
+            next_prompt = next_prompt.strip() + positive_suffix
+        negative = negative + negative_suffix
+        return prompt, negative, next_prompt, blend
+
+    def precache_prompt_embeddings(self):
+        """Encode every prompt the animation will use before the first frame.
+
+        The text encoder then leaves VRAM for good, so frames never wait for a text-encoder <->
+        diffusion-model swap (on big models like FLUX that swap costs seconds per prompt change)."""
+        if self.gen.dry_run or not hasattr(self.generator, "precache_prompts") or self.gen.use_areas:
+            return
+        texts = []
+        for i in range(self.gen.max_frames):
+            try:
+                prompt, negative, next_prompt, _ = self.frame_prompts(i)
+            except Exception as e:
+                logger.debug(f"prompt pre-cache skipped frame {i}: {e}")
+                continue
+            texts += [prompt, negative] + ([next_prompt] if next_prompt else [])
+        self.generator.precache_prompts(texts)
+
     def cleanup(self):
-        # Iterate over all attributes of the class instance
-        if hasattr(self.generator, 'cleanup'):
+        from .world_model import close_world_model
+        close_world_model(self)  # its worker holds several GB of VRAM
+        # Free VRAM but keep the model in RAM, so the next run starts without reloading it
+        if hasattr(self.generator, 'release_vram'):
+            self.generator.release_vram()
+        elif hasattr(self.generator, 'cleanup'):
             self.generator.cleanup()
 
         for attr_name in dir(self):
@@ -789,8 +838,7 @@ class DeforumAnimationPipeline(DeforumBase):
                     delattr(self, attr_name)  # Delete attribute
         self.depth_model = None
         self.raft_model = None
-        torch.cuda.empty_cache()
-        torch.cuda.ipc_collect()
+        empty_cache()
         gc.collect()
 
 

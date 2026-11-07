@@ -14,6 +14,7 @@ import torchvision.transforms.functional as transform
 import numpy as np
 
 from deforum.utils.constants import config
+from deforum.utils.device import empty_cache, get_device
 
 BASE_MODEL_DOWNLOAD_URLS = [
     "https://github.com/styler00dollar/VSGAN-tensorrt-docker/releases/download/models/",
@@ -28,7 +29,7 @@ BASE_MODEL_DOWNLOAD_URLS = [
 #     raise Exception(
 #         "config.yaml file is neccessary, plz recreate the config file by downloading it from https://github.com/Fannovel16/ComfyUI-Frame-Interpolation")
 
-DEVICE = torch.device('cuda')
+DEVICE = get_device()
 
 
 class InterpolationStateList():
@@ -187,7 +188,7 @@ def _generic_frame_loop(
         else:
             return [*first_half, *second_half]
 
-    output_frames = torch.zeros(multiplier * frames.shape[0], *frames.shape[1:], dtype=dtype, device="cuda")
+    output_frames = torch.zeros(multiplier * frames.shape[0], *frames.shape[1:], dtype=dtype, device=get_device())
     out_len = 0
 
     number_of_frames_processed_since_last_cleared_cuda_cache = 0
@@ -228,8 +229,7 @@ def _generic_frame_loop(
 
         number_of_frames_processed_since_last_cleared_cuda_cache += 1
         if number_of_frames_processed_since_last_cleared_cuda_cache >= clear_cache_after_n_frames:
-            torch.cuda.empty_cache()
-            torch.cuda.ipc_collect()
+            empty_cache()
             number_of_frames_processed_since_last_cleared_cuda_cache = 0
     # Append final frame
     output_frames[out_len] = frames[-1:]

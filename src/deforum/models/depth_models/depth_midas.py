@@ -11,6 +11,7 @@ import torchvision.transforms as T
 
 from ... import logger
 from ...utils.file_dl_util import download_file_with_checksum
+from deforum.utils.device import channels_last_ok, empty_cache, get_device
 
 class MidasDepth:
     def __init__(self, models_path, device, half_precision=True, midas_model_type='Midas-3-Hybrid'):
@@ -49,21 +50,19 @@ class MidasDepth:
             backbone=self.backbone,
             non_negative=True,
         )
-        self.midas_model.eval().to(self.device, memory_format=torch.channels_last if self.device == torch.device("cuda") else None)
+        self.midas_model.eval().to(self.device, memory_format=torch.channels_last if channels_last_ok() else torch.preserve_format)
 
     def predict(self, prev_img_cv2, half_precision):
         #img_midas = prev_img_cv2.astype(np.float32) / 255.0
         img_midas_input = self.midas_transform({"image": prev_img_cv2})["image"]
         input_sample = torch.from_numpy(img_midas_input).to(self.device).unsqueeze(0)
 
-        if self.device != "cpu":
+        if channels_last_ok():
             input_sample = input_sample.to(memory_format=torch.channels_last)
         if half_precision:
             input_sample = input_sample.half().detach()
 
         # Mark the beginning of a new step to prevent tensor overwriting
-        if 'linux' in platform.platform().lower():
-            torch.compiler.cudagraph_mark_step_begin()
 
         with torch.no_grad():
             midas_depth = self.midas_model.forward(input_sample / 255.0)
@@ -106,4 +105,4 @@ class MidasDepth:
 
     def to(self, device):
         self.device = device
-        self.midas_model = self.midas_model.to(device, memory_format=torch.channels_last if device == torch.device("cuda") else None)
+        self.midas_model = self.midas_model.to(device, memory_format=torch.channels_last if channels_last_ok() else torch.preserve_format)

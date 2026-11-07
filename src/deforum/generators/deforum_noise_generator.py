@@ -8,10 +8,11 @@ from torch.nn.functional import interpolate
 
 from deforum.utils.deforum_framewarp_utils import sample_to_cv2
 from deforum.utils.logging_config import logger
+from deforum.utils.device import empty_cache, get_device
 
 
 try:
-    deforum_noise_gen = torch.Generator(device='cuda')
+    deforum_noise_gen = torch.Generator(device=get_device())
 except Exception:
     logger.warning("CUDA not available, falling back to CPU.")
     deforum_noise_gen = torch.Generator(device='cpu')
@@ -22,13 +23,13 @@ def rand_perlin_2d(shape, res, fade=lambda t: 6 * t ** 5 - 15 * t ** 4 + 10 * t 
 
     grid = torch.stack(
         torch.meshgrid(torch.arange(0, res[0], delta[0]), torch.arange(0, res[1], delta[1]), indexing='ij'), dim=-1) % 1
-    angles = 2 * math.pi * torch.rand(res[0] + 1, res[1] + 1, generator=deforum_noise_gen, device='cuda')
+    angles = 2 * math.pi * torch.rand(res[0] + 1, res[1] + 1, generator=deforum_noise_gen, device=get_device())
     gradients = torch.stack((torch.cos(angles), torch.sin(angles)), dim=-1)
 
     tile_grads = lambda slice1, slice2: gradients[slice1[0]:slice1[1], slice2[0]:slice2[1]].repeat_interleave(d[0],
                                                                                                               0).repeat_interleave(
         d[1], 1)
-    grid = grid.to('cuda')
+    grid = grid.to(get_device())
     dot = lambda grad, shift: (
             torch.stack((grid[:shape[0], :shape[1], 0] + shift[0], grid[:shape[0], :shape[1], 1] + shift[1]),
                         dim=-1) * grad[:shape[0], :shape[1]]).sum(dim=-1)
@@ -41,7 +42,7 @@ def rand_perlin_2d(shape, res, fade=lambda t: 6 * t ** 5 - 15 * t ** 4 + 10 * t 
     return math.sqrt(2) * torch.lerp(torch.lerp(n00, n10, t[..., 0]), torch.lerp(n01, n11, t[..., 0]), t[..., 1])
 
 
-def rand_perlin_2d_octaves(shape, res, octaves=1, persistence=0.5, device='cuda'):
+def rand_perlin_2d_octaves(shape, res, octaves=1, persistence=0.5, device=get_device()):
     noise = torch.zeros(shape, device=device)
     frequency = 1
     amplitude = 1
@@ -59,7 +60,7 @@ def condition_noise_mask(noise_mask, invert_mask=False):
         noise_mask = ImageOps.invert(noise_mask)
     noise_mask = np.array(noise_mask.convert("L"))
     noise_mask = noise_mask.astype(np.float32) / 255.0
-    noise_mask = torch.from_numpy(noise_mask).to('cuda')
+    noise_mask = torch.from_numpy(noise_mask).to(get_device())
     return noise_mask
 
 
@@ -69,12 +70,12 @@ def add_noise(sample, noise_amt: float, seed: int, noise_type: str, noise_args, 
     perlin_w, perlin_h = map(lambda x: x - x % 64, (sample.shape[0], sample.shape[1]))
     sample2dshape = (perlin_w, perlin_h)
     noise = torch.randn((sample.shape[2], perlin_w, perlin_h), generator=deforum_noise_gen,
-                        device='cuda')  # White noise
+                        device=get_device())  # White noise
 
     if noise_type == 'perlin':
         perlin_noise = rand_perlin_2d_octaves(sample2dshape, (int(noise_args[0]), int(noise_args[1])),
                                               octaves=noise_args[2], persistence=noise_args[3])
-        perlin_noise = (perlin_noise + torch.ones(sample2dshape, device='cuda')) / 2
+        perlin_noise = (perlin_noise + torch.ones(sample2dshape, device=get_device())) / 2
         noise = noise * perlin_noise
         noise = interpolate(noise.unsqueeze(1), size=(sample.shape[0], sample.shape[1])).squeeze(1)
 

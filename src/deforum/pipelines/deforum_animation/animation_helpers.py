@@ -62,6 +62,7 @@ from ...utils.string_utils import check_is_number, prepare_prompt
 from ...utils.subtitle_handler import format_animation_params, init_srt_file, write_frame_subtitle
 from ...utils.video_frame_utils import get_frame_name, get_next_frame
 from ...utils.video_save_util import save_as_h264
+from deforum.utils.device import empty_cache, get_device
 
 
 def anim_frame_warp_cls(cls: Any) -> None:
@@ -82,9 +83,8 @@ def anim_frame_warp_cls(cls: Any) -> None:
         cls.gen.mask = None
         if cls.gen.use_depth_warping:
             if cls.gen.depth is None and cls.depth_model is not None:
-                if cls.depth_model.device != 'cuda':
-                    cls.depth_model.to('cuda')
-                    cls.depth_model.device = 'cuda'
+                if str(cls.depth_model.device) != str(get_device()):
+                    cls.depth_model.to(get_device())
                 with torch.no_grad():
                     cls.gen.depth = cls.depth_model.predict(cls.gen.prev_img, cls.gen.midas_weight, True)
         else:
@@ -185,12 +185,12 @@ def anim_frame_warp_3d_cls(cls: Any, image: Union[None, Any]) -> Tuple[Any, Any]
         ]
         if cls.gen.enable_perspective_flip:
             image = flip_3d_perspective(cls.gen, image, cls.gen.keys, cls.gen.frame_idx)
-        rot_mat = p3d.euler_angles_to_matrix(torch.tensor(rotate_xyz, device="cuda"), "XYZ").unsqueeze(0)
-        result = transform_image_3d_new(torch.device('cuda'), image, cls.gen.depth, rot_mat, translate_xyz,
+        rot_mat = p3d.euler_angles_to_matrix(torch.tensor(rotate_xyz, device=get_device()), "XYZ").unsqueeze(0)
+        result = transform_image_3d_new(get_device(), image, cls.gen.depth, rot_mat, translate_xyz,
                                         cls.gen, cls.gen.keys, cls.gen.frame_idx)
         return result, None
-    except Exception as e:
-        print(repr(e))
+    except Exception:
+        logger.exception("3D warp failed; using the unwarped frame")
         return image, None
 
 
@@ -208,8 +208,8 @@ def anim_frame_warp_3d_direct(cls, image, x, y, z, rx, ry, rz):
     ]
     if cls.gen.enable_perspective_flip:
         image = flip_3d_perspective(cls.gen, image, cls.gen.keys, cls.gen.frame_idx)
-    rot_mat = p3d.euler_angles_to_matrix(torch.tensor(rotate_xyz, device="cuda"), "XYZ").unsqueeze(0)
-    result, mask = transform_image_3d_new(torch.device('cuda'), image, cls.gen.depth, rot_mat, translate_xyz,
+    rot_mat = p3d.euler_angles_to_matrix(torch.tensor(rotate_xyz, device=get_device()), "XYZ").unsqueeze(0)
+    result, mask = transform_image_3d_new(get_device(), image, cls.gen.depth, rot_mat, translate_xyz,
                                           cls.gen, cls.gen.keys, cls.gen.frame_idx)
     return result, mask
 
@@ -609,7 +609,9 @@ def get_generation_params(cls: Any) -> None:
     if cls.gen.use_mask and not cls.gen.use_noise_mask:
         cls.gen.noise_mask_seq = cls.gen.mask_seq
 
-    cls.gen.depth = None
+    # post_gen already predicted depth for the frame that is now prev_img (when depth maps are saved)
+    cls.gen.depth = None if cls.gen.using_vid_init else getattr(cls.gen, "depth_of_prev", None)
+    cls.gen.depth_of_prev = None
 
     # Pix2Pix Image CFG Scale - does *nothing* with non pix2pix checkpoints
     cls.gen.pix2pix_img_cfg_scale = float(cls.gen.keys.pix2pix_img_cfg_scale_series[frame_idx])
@@ -840,6 +842,7 @@ def post_gen_cls(cls: Any) -> None:
                                                         cls.gen.half_precision)
                 depth_filename = os.path.join(cls.gen.outdir, f"{cls.gen.timestring}_depth_{cls.gen.frame_idx:09}.png")
                 cls.depth_model.save(depth_filename, cls.gen.depth)
+                cls.gen.depth_of_prev = cls.gen.depth  # reused by the next frame's 3D warp
 
     if cls.gen.turbo_steps > 1 and cls.gen.frame_idx < cls.gen.max_frames - 1:
         # If cadence is enabled and we didn't just produce the final frame,
@@ -1020,7 +1023,7 @@ def generate_interpolated_frames(cls):
             # saving cadence frames
             filename = f"{cls.gen.timestring}_{tween_frame_idx:09}.png"
             image_full_path = os.path.join(cls.gen.outdir, filename)
-            cv2.imwrite(image_full_path, img)
+            cv2.imwrite(image_full_path, img, [cv2.IMWRITE_PNG_COMPRESSION, 1])
 
             opencv_image = cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2RGB)
             pil_img = Image.fromarray(opencv_image)
@@ -1275,7 +1278,7 @@ def run_adiff_cls(cls):
     shutil.copy(new_video_path, new_path)
     cls.gen.video_path = new_path
     del pipeline
-    torch.cuda.empty_cache()
+    empty_cache()
     print('result:', cls.gen.video_path)
 
 
@@ -1397,7 +1400,7 @@ class FrameInterpolator:
         return value.replace("'", "").replace('"', "").replace('(', "").replace(')', "")
 
     def get_inbetweens(self, key_frames, integer=False, interp_method='Linear', is_single_string=False):
-        key_frame_series = pd.Series([np.nan for a in range(self.max_frames)])
+        key_frame_series = pd.Series([np.nan for a in range(self.max_frames)], dtype=object)
         # get our ui variables set for numexpr.evaluate
         bpm = self.settings.get("bpm", 120)
         fps = self.settings.get("fps", 24)
@@ -1432,8 +1435,8 @@ class FrameInterpolator:
                 local_variables = self.prepare_local_variables(current_frame=i, bpm=bpm, fps=fps,
                                                                beat_offset=beat_offset, local_constants=local_constants,
                                                                events=events)
-                key_frame_series[i] = numexpr.evaluate(str(value), casting='unsafe',
-                                                       local_dict=local_variables) if not is_single_string else self.sanitize_value(
+                key_frame_series[i] = float(numexpr.evaluate(str(value), casting='unsafe',
+                                                             local_dict=local_variables)) if not is_single_string else self.sanitize_value(
                     value)
             elif is_single_string:
                 # for values formatted like 0:("I am test") as used by sampler schedules, just take previous string value and replicate it
@@ -1447,6 +1450,8 @@ class FrameInterpolator:
 
         key_frame_series[0] = key_frame_series[key_frame_series.first_valid_index()]
         key_frame_series[self.max_frames - 1] = key_frame_series[key_frame_series.last_valid_index()]
+        if is_single_string:
+            return key_frame_series.ffill().bfill()
         key_frame_series = key_frame_series.interpolate(method=interp_method.lower(), limit_direction='both')
         if integer:
             return key_frame_series.astype(int)

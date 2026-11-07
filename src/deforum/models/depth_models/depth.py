@@ -17,6 +17,7 @@ from .depth_midas import MidasDepth
 from .depth_zoe import ZoeDepth
 from .depth_leres import LeReSDepth
 from .depth_adabins import AdaBinsModel
+from deforum.utils.device import empty_cache, get_device, supports_half
 
 
 class DepthModel:
@@ -78,11 +79,14 @@ class DepthModel:
             if depth_algo == 'midas+adabins (old)':
                 self.adabins_model = AdaBinsModel(self.models_path, keep_in_vram=self.keep_in_vram)
                 self.adabins_helper = self.adabins_model.adabins_helper
-        elif depth_algo.lower() == 'depth-anything':
-            from transformers import AutoImageProcessor
-            self.image_processor = AutoImageProcessor.from_pretrained("nielsr/depth-anything-small")
-            from transformers import AutoModelForDepthEstimation
-            self.model = AutoModelForDepthEstimation.from_pretrained("nielsr/depth-anything-small").to(self.device)
+        elif depth_algo.startswith('depth-anything'):
+            from transformers import AutoImageProcessor, AutoModelForDepthEstimation
+            repo = "depth-anything/Depth-Anything-V2-Base-hf" if "base" in depth_algo else \
+                "depth-anything/Depth-Anything-V2-Small-hf"
+            self.image_processor = AutoImageProcessor.from_pretrained(repo)
+            self.model = AutoModelForDepthEstimation.from_pretrained(repo).to(self.device).eval()
+            if supports_half():
+                self.model = self.model.half()
         else:
             raise Exception(f"Unknown depth_algorithm: {self.depth_algorithm}")
     @torch.no_grad()
@@ -110,9 +114,9 @@ class DepthModel:
                 use_adabins, adabins_depth = AdaBinsModel._instance.predict(img_pil, prev_img_cv2)
                 if use_adabins:  # if there was no error in getting the adabins depth, align midas with adabins
                     depth_tensor = self.blend_and_align_with_adabins(depth_tensor, adabins_depth, midas_weight)
-        elif self.depth_algorithm.lower() == 'depth-anything':
+        elif self.depth_algorithm.lower().startswith('depth-anything'):
             inputs = self.image_processor(images=img_pil, return_tensors="pt")
-            inputs['pixel_values'] = inputs['pixel_values'].half().to(self.device)
+            inputs['pixel_values'] = inputs['pixel_values'].to(self.device, self.model.dtype)
             with torch.no_grad():
                 outputs = self.model(**inputs)
                 predicted_depth = outputs.predicted_depth
@@ -120,14 +124,17 @@ class DepthModel:
             depth_tensor = torch.nn.functional.interpolate(
                 predicted_depth.unsqueeze(1),
                 size=img_pil.size[::-1],
-                mode="nearest-exact",
-                # align_corners=False,
-            )[0]
+                mode="bicubic",
+                align_corners=False,
+            )[0].float()
             # depth_tensor = -depth_tensor
         else:  # Unknown!
             raise Exception(f"Unknown depth_algorithm passed to depth.predict function: {self.depth_algorithm}")
 
-        return depth_tensor
+        # every algorithm returns [H, W] (they used to mix [H, W], [1, H, W] and [1, 1, H, W])
+        if not isinstance(depth_tensor, torch.Tensor):
+            depth_tensor = torch.as_tensor(np.asarray(depth_tensor))
+        return depth_tensor.reshape(depth_tensor.shape[-2:]).to(self.device)
 
     # def blend_and_align_with_adabins(self, depth_tensor, adabins_depth, midas_weight):
     #     depth_tensor = torch.subtract(50.0,
@@ -165,11 +172,11 @@ class DepthModel:
         if hasattr(self, 'adabins_model'):
             self.adabins_model.to(device)
         gc.collect()
-        torch.cuda.empty_cache()
+        empty_cache()
 
     def to_image(self, depth: torch.Tensor):
-        depth = depth.cpu().numpy()
-        depth = np.expand_dims(depth, axis=0) if len(depth.shape) == 2 else depth
+        depth = depth.float().cpu().numpy()
+        depth = depth.reshape((1,) + depth.shape[-2:])
         self.depth_min, self.depth_max = min(self.depth_min, depth.min()), max(self.depth_max, depth.max())
         denom = max(1e-8, self.depth_max - self.depth_min)
         temp = rearrange((depth - self.depth_min) / denom * 255, 'c h w -> h w c')
@@ -191,5 +198,5 @@ class DepthModel:
             self.adabins_model.delete_model()
 
         gc.collect()
-        torch.cuda.empty_cache()
+        empty_cache()
         # devices.torch_gc()

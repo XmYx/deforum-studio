@@ -10,7 +10,7 @@ import time
 import cv2
 import requests
 from deforum.utils.download_util import load_file_from_url
-from pkg_resources import resource_filename
+from importlib.resources import files as _resource_files
 
 from deforum.utils.file_dl_util import checksum
 from deforum.utils.gradio_utils import clean_gradio_path_strings
@@ -280,7 +280,7 @@ def find_ffmpeg_binary():
         pass
     for package in ['imageio_ffmpeg', 'imageio-ffmpeg']:
         try:
-            package_path = resource_filename(package, 'binaries')
+            package_path = str(_resource_files(package).joinpath("binaries"))
             files = [os.path.join(package_path, f) for f in os.listdir(package_path) if f.startswith("ffmpeg-")]
             files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
             return files[0] if files else 'ffmpeg'

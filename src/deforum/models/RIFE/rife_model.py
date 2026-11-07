@@ -11,12 +11,13 @@ from tqdm import tqdm
 from PIL import Image
 
 from deforum.utils.constants import config
+from deforum.utils.device import empty_cache, get_device
 
 
 class RIFEInterpolator:
     def __init__(self, model_path='rife/flownet-v46.pkl', fp16=False):
         self.model = None
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = get_device()
         self.fp16 = fp16
 
         model_path = os.path.join(config.root_path, model_path)

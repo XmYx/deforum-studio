@@ -3,6 +3,7 @@ import torch.nn as nn
 
 from . import network_auxi as network
 from .net_tools import get_func
+from deforum.utils.device import empty_cache, get_device
 
 class RelDepthModel(nn.Module):
     def __init__(self, backbone='resnet50'):
@@ -15,7 +16,7 @@ class RelDepthModel(nn.Module):
 
     def inference(self, rgb):
         with torch.no_grad():
-            input = rgb.cuda()
+            input = rgb.to(get_device())
             depth = self.depth_model(input)
             pred_depth_out = depth - depth.min() + 0.01
             return pred_depth_out

@@ -1,6 +1,7 @@
 import torch
+from deforum.utils.device import empty_cache, get_device
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = get_device()
 backwarp_tenGrid = {}
 
 

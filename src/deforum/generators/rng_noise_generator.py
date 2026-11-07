@@ -22,6 +22,8 @@ from types import SimpleNamespace
 import numpy as np
 import torch
 
+from deforum.utils.device import get_device
+
 philox_m = [0xD2511F53, 0xCD9E8D57]
 philox_w = [0x9E3779B9, 0xBB67AE85]
 
@@ -108,12 +110,14 @@ class RNGGenerator:
         return box_muller(g[0], g[1]).reshape(shape)  # discard g[2] and g[3]
 
 
-# TODO GET RID OF THESE MOCK CLASSES
 class Devices:
+    """Where generated noise lands; follows deforum.utils.device so CUDA/ROCm/MPS/CPU all work."""
 
-    def __init__(self):
-        self.device = torch.device("cuda")
-        self.cpu = torch.device("cpu")
+    cpu = torch.device("cpu")
+
+    @property
+    def device(self):
+        return get_device()
 
 
 devices = Devices()
@@ -122,8 +126,12 @@ devices = Devices()
 class Shared:
     def __init__(self):
         self.opts = SimpleNamespace()
+        # "NV" reproduces torch.randn(device='cuda') bit-for-bit on any hardware (A1111 compatible seeds)
         self.opts.randn_source = "NV"
-        self.device = devices.device
+
+    @property
+    def device(self):
+        return devices.device
 
 
 shared = Shared()
@@ -225,8 +233,10 @@ def slerp(val, low, high):
 
 
 class ImageRNGNoise:
-    def __init__(self, shape, seeds, subseeds=None, subseed_strength=0.0, seed_resize_from_h=0, seed_resize_from_w=0):
+    def __init__(self, shape, seeds, subseeds=None, subseed_strength=0.0, seed_resize_from_h=0, seed_resize_from_w=0,
+                 downscale=8):
         self.shape = tuple(map(int, shape))
+        self.downscale = downscale
         self.seeds = seeds
         self.subseeds = subseeds
         self.subseed_strength = subseed_strength
@@ -239,7 +249,7 @@ class ImageRNGNoise:
 
     def first(self):
         noise_shape = self.shape if self.seed_resize_from_h <= 0 or self.seed_resize_from_w <= 0 else (
-            self.shape[0], self.seed_resize_from_h // 8, self.seed_resize_from_w // 8)
+            self.shape[0], self.seed_resize_from_h // self.downscale, self.seed_resize_from_w // self.downscale)
 
         xs = []
 

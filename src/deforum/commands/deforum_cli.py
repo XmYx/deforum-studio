@@ -41,49 +41,18 @@ from deforum.utils.logging_config import logger
 @deforumdoc
 def install_qtpy() -> None:
     """
-    Function to install the qtpy package using pip if it is not already installed.
-
-    This function tries to import the qtpy module. If it fails, the function uses subprocess to run pip install
-    commands for the PyQt6-Qt6, pyqt6, and qtpy packages.
+    Check that the Qt bindings (declared in pyproject.toml) are importable.
 
     Raises:
-        subprocess.CalledProcessError: If the pip installation subprocess fails.
+        SystemExit: when PyQt6 / qtpy are missing.
     """
     try:
-        import qtpy
-    except:
-        subprocess.run(
-            [
-                "python3",
-                "-m" "pip",
-                "install",
-                "PyQt6-Qt6==6.5.0",
-            ]
-        )
-        subprocess.run(
-            [
-                "python3",
-                "-m" "pip",
-                "install",
-                "pyqt6==6.5.0",
-            ]
-        )
-        subprocess.run(
-            [
-                "python3",
-                "-m" "pip",
-                "install",
-                "qtpy==2.4.1",
-            ]
-        )
-        subprocess.run(
-            [
-                "python3",
-                "-m" "pip",
-                "install",
-                "pyqtgraph==0.13.7",
-            ]
-        )
+        import qtpy  # noqa: F401
+        from PyQt6 import QtWidgets  # noqa: F401
+    except ImportError as e:
+        raise SystemExit(f"The Qt UI needs PyQt6 and qtpy (`pip install -e .`): {e}")
+
+
 @deforumdoc
 def start_deforum_cli() -> None:
     """
@@ -164,7 +133,9 @@ def start_deforum_cli() -> None:
             from deforum.utils.constants import config
             from deforum.pipeline_utils import load_settings
 
-            deforum = DeforumAnimationPipeline.from_civitai(model_id="125703")
+            from deforum.shared_storage import models
+            from deforum.utils.model_catalog import get_pipeline
+            deforum = get_pipeline(options, models)
 
             settings_dir = os.path.join(config.presets_path, "settings")
             txt_files = [os.path.join(root, file)
@@ -199,9 +170,9 @@ def start_deforum_cli() -> None:
             from fastapi import FastAPI, WebSocket
             import uvicorn
             from deforum import DeforumAnimationPipeline
-            modelid = str(options.get("modelid", "125703"))
-
-            deforum = DeforumAnimationPipeline.from_civitai(model_id=modelid)
+            from deforum.shared_storage import models
+            from deforum.utils.model_catalog import get_pipeline
+            deforum = get_pipeline(options, models)
             app = FastAPI()
 
             async def image_callback(websocket, image):
@@ -238,9 +209,7 @@ def start_deforum_cli() -> None:
             # Start the Uvicorn server
             uvicorn.run(app, host="localhost", port=8000)
         elif args_main.mode == "setup":
-            logger.info("Installing stable-fast and its dependencies...")
-            from deforum.utils.install_sfast import install_sfast
-            install_sfast()
+            logger.info("Stable-Fast / OneDiff are no longer supported; ComfyUI's own optimizations are used.")
         elif args_main.mode == "ui":
             install_qtpy()
 
@@ -329,8 +298,8 @@ def start_deforum_cli() -> None:
             subprocess.run([sys.executable, main_script_path, f"{extra_args['settings_file']}", config.comfy_path])
 
     else:
-        from deforum import DeforumAnimationPipeline
-        deforum = DeforumAnimationPipeline.from_civitai()
-        deforum.generator.optimize = False
+        from deforum.shared_storage import models
+        from deforum.utils.model_catalog import get_pipeline
+        deforum = get_pipeline(options, models)
         gen = deforum(**extra_args, **options)
         logger.info(f"Output video: {gen.video_path} ")

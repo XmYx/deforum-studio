@@ -11,6 +11,7 @@ from tqdm import tqdm
 from . import model_io
 from . import utils
 from .adabins import UnetAdaptiveBins
+from deforum.utils.device import empty_cache, get_device
 
 
 def _is_pil_image(img):
@@ -64,7 +65,7 @@ class ToTensor(object):
 
 
 class InferenceHelper:
-    def __init__(self, models_path, dataset='nyu', device='cuda:0'):
+    def __init__(self, models_path, dataset='nyu', device=get_device()):
         self.toTensor = ToTensor()
         self.device = device
         if dataset == 'nyu':

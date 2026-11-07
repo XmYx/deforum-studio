@@ -127,14 +127,21 @@ class UnetAdaptiveBins(nn.Module):
         basemodel_name = 'tf_efficientnet_b5_ap'
         
         logger.info('Loading AdaBins model...')
-        predicted_torch_model_cache_path = str(Path.home()) + '\\.cache\\torch\\hub\\rwightman_gen-efficientnet-pytorch_master' 
-        predicted_gep_cache_testilfe = Path(predicted_torch_model_cache_path + '\\hubconf.py')
-        #print(f"predicted_gep_cache_testilfe:  {predicted_gep_cache_testilfe}")
-        # try to fetch the models from cache, and only if it can't be find, download from the internet (to enable offline usage)
-        if os.path.isfile(predicted_gep_cache_testilfe):
-            basemodel = torch.hub.load(predicted_torch_model_cache_path, basemodel_name, pretrained=True, source = 'local')        
-        else:
-            basemodel = torch.hub.load('rwightman/gen-efficientnet-pytorch', basemodel_name, pretrained=True)
+        # Same architecture as rwightman/gen-efficientnet-pytorch (torch.hub now needs an interactive trust
+        # prompt). Weights come from the AdaBins checkpoint, so no ImageNet download is needed.
+        import timm
+        from collections import OrderedDict
+        basemodel = timm.create_model('tf_efficientnet_b5.ap_in1k', pretrained=False)
+        # timm folds the activations into bn1/bn2; keep gen-efficientnet's module order (act1, act2)
+        # because the decoder taps encoder features by position.
+        mods = OrderedDict()
+        for k, v in basemodel._modules.items():
+            mods[k] = v
+            if k == 'bn1':
+                mods['act1'] = nn.Identity()
+            elif k == 'bn2':
+                mods['act2'] = nn.Identity()
+        basemodel._modules = mods
         if DEBUG_MODE:
             logger.info('Done.')
 

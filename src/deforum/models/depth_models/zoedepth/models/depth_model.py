@@ -30,12 +30,13 @@ from torchvision import transforms
 import PIL.Image
 from PIL import Image
 from typing import Union
+from deforum.utils.device import empty_cache, get_device
 
 
 class DepthModel(nn.Module):
     def __init__(self):
         super().__init__()
-        self.device = 'cuda'
+        self.device=get_device()
     
     def to(self, device) -> nn.Module:
         self.device = device

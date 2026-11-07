@@ -13,14 +13,8 @@ from deforum import logger
 from deforum.shared_storage import models
 from deforum.utils.audio_utils.deforum_audio import get_audio_duration
 
-from deforum import DeforumAnimationPipeline
-from deforum.shared_storage import models
 from deforum.utils.file_utils.extract_nth_files import extract_nth_files
-
-if 'deforum_pipe' not in models:
-    models['deforum_pipe'] = DeforumAnimationPipeline.from_civitai(model_id="125703")
-
-loaded_model_id = "125703"
+from deforum.utils.model_catalog import get_pipeline
 
 class BackendThread(QThread):
     imageGenerated = Signal(object)  # Signal to emit the image data
@@ -34,8 +28,7 @@ class BackendThread(QThread):
         # self.condition = QWaitCondition()
 
     def run(self):
-        global loaded_model_id
-        models['deforum_pipe'].generator.optimize = self.params.get('optimize', True)
+        pipe = get_pipeline(self.params, models)
         prom = self.params.get('prompts', 'cat sushi')
         key = self.params.get('keyframes', '0')
         if prom == "":
@@ -156,7 +149,7 @@ class BackendThread(QThread):
                 "sampler_name": self.params["ad_sampler_name"],
                 "beta_schedule": self.params["ad_beta_schedule"],
             }
-        animation = models['deforum_pipe'](callback=datacallback, **self.params)
+        animation = pipe(callback=datacallback, **self.params)
         result = {"status":"Ready",
                   "timestring":animation.timestring,
                   "resume_path":animation.outdir,

@@ -174,7 +174,7 @@ class Transform3d:
 
     def __init__(
             self,
-            dtype: torch.dtype = torch.float16,
+            dtype: torch.dtype = torch.float32,
             device: Device = "cpu",
             matrix: Optional[torch.Tensor] = None,
     ) -> None:
@@ -511,16 +511,16 @@ class Translate(Transform3d):
             x,
             y=None,
             z=None,
-            dtype: torch.dtype = torch.float16,
+            dtype: torch.dtype = torch.float32,
             device: Optional[Device] = None,
     ) -> None:
         """
         Create a new Transform3d representing 3D translations.
 
-        Option I: Translate(xyz, dtype=torch.float16, device='cpu')
+        Option I: Translate(xyz, dtype=torch.float32, device='cpu')
             xyz should be a tensor of shape (N, 3)
 
-        Option II: Translate(x, y, z, dtype=torch.float16, device='cpu')
+        Option II: Translate(x, y, z, dtype=torch.float32, device='cpu')
             Here x, y, and z will be broadcast against each other and
             concatenated to form the translation. Each can be:
                 - A python scalar
@@ -550,7 +550,7 @@ class Rotate(Transform3d):
     def __init__(
             self,
             R: torch.Tensor,
-            dtype: torch.dtype = torch.float16,
+            dtype: torch.dtype = torch.float32,
             device: Optional[Device] = None,
             orthogonal_tol: float = 1e-5,
     ) -> None:
@@ -662,7 +662,7 @@ class TensorProperties(nn.Module):
 
     def __init__(
             self,
-            dtype: torch.dtype = torch.float16,
+            dtype: torch.dtype = torch.float32,
             device: Device = "cpu",
             **kwargs,
     ) -> None:
@@ -1046,7 +1046,7 @@ class CamerasBase(TensorProperties):
         input points to the renderer to be in NDC space.
         """
         if self.in_ndc():
-            return Transform3d(device=self.device, dtype=torch.float16)
+            return Transform3d(device=self.device, dtype=torch.float32)
         else:
             # For custom cameras which can be defined in screen space,
             # users might might have to implement the screen to NDC transform based
@@ -1296,8 +1296,8 @@ class FoVPerspectiveCameras(CamerasBase):
         Returns:
             torch.FloatTensor of the calibration matrix with shape (N, 4, 4)
         """
-        K = torch.zeros((self._N, 4, 4), device=self.device, dtype=torch.float16)
-        ones = torch.ones((self._N), dtype=torch.float16, device=self.device)
+        K = torch.zeros((self._N, 4, 4), device=self.device, dtype=torch.float32)
+        ones = torch.ones((self._N), dtype=torch.float32, device=self.device)
         if degrees:
             fov = (np.pi / 180) * fov
 
@@ -1501,7 +1501,6 @@ def _axis_angle_rotation(axis: str, angle: torch.Tensor) -> torch.Tensor:
     Returns:
         Rotation matrices as tensor of shape (..., 3, 3).
     """
-    angle.half().cuda()
     cos = torch.cos(angle)
     sin = torch.sin(angle)
     one = torch.ones_like(angle)
@@ -1549,7 +1548,7 @@ def _axis_angle_rotation(axis: str, angle: torch.Tensor) -> torch.Tensor:
 def euler_angles_to_matrix(euler_angles: torch.Tensor, convention: str) -> torch.Tensor:
     """
     Convert rotations given as Euler angles in radians to rotation matrices,
-    optimized for GPU usage and float16 precision.
+    optimized for GPU usage and float32 precision.
 
     Args:
         euler_angles: Euler angles in radians as tensor of shape (..., 3).
@@ -1568,8 +1567,7 @@ def euler_angles_to_matrix(euler_angles: torch.Tensor, convention: str) -> torch
         if letter not in ("X", "Y", "Z"):
             raise ValueError(f"Invalid letter {letter} in convention string.")
 
-    # Ensure the tensor is on the GPU and cast to float16
-    euler_angles = euler_angles.to(device='cuda', dtype=torch.float16)
+    euler_angles = euler_angles.to(dtype=torch.float32)
 
     # Compute individual rotation matrices
     matrices = [
@@ -1696,7 +1694,7 @@ def _check_valid_rotation_matrix(R, tol: float = 1e-7) -> None:
 
 def format_tensor(
         input,
-        dtype: torch.dtype = torch.float16,
+        dtype: torch.dtype = torch.float32,
         device: Device = "cpu",
 ) -> torch.Tensor:
     """
@@ -1712,9 +1710,9 @@ def format_tensor(
     if not torch.is_tensor(input):
         input = torch.tensor(input, dtype=dtype, device=device_)
     # if not input.device.type.startswith('mps'):
-    #     input = torch.tensor(input.clone().detach(), dtype=torch.float16, device=device_)
+    #     input = torch.tensor(input.clone().detach(), dtype=torch.float32, device=device_)
     else:
-        input = input.to(device=device_, dtype=torch.float16)
+        input = input.to(device=device_, dtype=torch.float32)
 
     if input.dim() == 0:
         input = input.view(1)
@@ -1728,7 +1726,7 @@ def format_tensor(
 
 def convert_to_tensors_and_broadcast(
         *args,
-        dtype: torch.dtype = torch.float16,
+        dtype: torch.dtype = torch.float32,
         device: Device = "cpu",
 ):
     """

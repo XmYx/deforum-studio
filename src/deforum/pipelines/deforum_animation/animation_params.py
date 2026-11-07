@@ -82,7 +82,7 @@ def DeforumAnimArgs():
         "animation_mode": {
             "label": "Animation mode",
             "type": "radio",
-            "choices": ['2D', '3D', 'Video Input', 'Interpolation'],
+            "choices": ['2D', '3D', 'Video Input', 'Interpolation', 'World Model'],
             "value": "3D",
             "info": "control animation mode, will hide non relevant params upon change"
         },
@@ -552,7 +552,7 @@ def DeforumAnimArgs():
         "depth_algorithm": {
             "label": "Depth Algorithm",
             "type": "dropdown",
-            "choices": ['Midas+AdaBins (old)', 'Zoe+AdaBins (old)', 'Midas-3-Hybrid', 'AdaBins', 'Zoe', 'Leres'],
+            "choices": ['Depth-Anything-V2', 'Depth-Anything-V2-Base', 'Midas-3-Hybrid', 'Midas-3.1-BeitLarge', 'Zoe', 'Leres', 'AdaBins', 'Midas+AdaBins (old)', 'Zoe+AdaBins (old)'],
             "value": "Midas-3-Hybrid",
             "info": "choose an algorithm/ method for keeping color coherence across the animation"
         },

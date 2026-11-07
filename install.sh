@@ -1,87 +1,104 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# Deforum installer for Linux and macOS.
+#
+#   bash install.sh            # interactive
+#   bash install.sh -s         # silent, defaults
+#
+# Environment overrides:
+#   DEFORUM_PYTHON=3.12        Python version (3.11 - 3.14)
+#   DEFORUM_TORCH_BACKEND=...  cu132 | cu130 | cu128 | rocm7.14 | cpu | mps   (default: auto-detect)
+#   DEFORUM_TORCH_VERSION=...  torch version (default: latest)
+set -euo pipefail
 
-# ASCII Art
 echo "
-[installer for linux version 0.1.0]
-
 ██████╗ ███████╗███████╗ ██████╗ ██████╗ ██╗   ██╗███╗   ███╗
 ██╔══██╗██╔════╝██╔════╝██╔═══██╗██╔══██╗██║   ██║████╗ ████║
 ██║  ██║█████╗  █████╗  ██║   ██║██████╔╝██║   ██║██╔████╔██║
-██║  ██║██╔══╝  ██╔══╝  ██║   ██║██╔══██╗██║   ██║██║╚██╔╝██║ 
+██║  ██║██╔══╝  ██╔══╝  ██║   ██║██╔══██╗██║   ██║██║╚██╔╝██║
 ██████╔╝███████╗██║     ╚██████╔╝██║  ██║╚██████╔╝██║ ╚═╝ ██║
 ╚═════╝ ╚══════╝╚═╝      ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝     ╚═╝
-
-Welcome to the Deforum Animation Toolkit!
-
-Deforum is a powerful tool for generating videos using AI. 
-It leverages Diffusion checkpoints and various functions
-to create dynamic, evolving visuals.
-
-==============
-INSTALL CONFIG
-==============
 "
 
-# Function to create directory if it does not exist
-create_dir_if_not_exists() {
-    if [ ! -d "$1" ]; then
-        mkdir -p "$1"
-    fi
-}
+cd "$(dirname "$0")"
 
-# Default values
 VENV_DIR="venv"
 ROOT_DIR="$HOME/deforum"
 COMFY_DIR="src/ComfyUI"
+EXTRA_MODELS=""
+PYVER="${DEFORUM_PYTHON:-3.12}"
 SILENT=0
-
-# Parse arguments
 while getopts ":s" opt; do
   case ${opt} in
-    s )
-      SILENT=1
-      ;;
-    \? )
-      echo "Invalid option: $OPTARG" 1>&2
-      exit 1
-      ;;
+    s) SILENT=1 ;;
+    *) echo "usage: $0 [-s]" >&2; exit 1 ;;
   esac
 done
 
-# Collect VENV_PATH
-if [ $SILENT -eq 0 ]; then
-    read -p "Virtual environment path or ENTER to skip (default: $VENV_DIR): " VENV_INPUT
-    VENV_DIR=${VENV_INPUT:-$VENV_DIR}
+ask() {  # ask <prompt> <default> -> echoes the answer
+  local answer=""
+  if [ "$SILENT" -eq 0 ]; then read -r -p "$1 (default: $2): " answer; fi
+  echo "${answer:-$2}"
+}
+
+VENV_DIR=$(ask "Virtual environment path" "$VENV_DIR")
+ROOT_DIR=$(ask "Deforum data folder (models, outputs)" "$ROOT_DIR")
+COMFY_DIR=$(ask "ComfyUI folder (bundled submodule)" "$COMFY_DIR")
+EXTRA_MODELS=$(ask "Existing ComfyUI 'models' folder to reuse, or empty" "$EXTRA_MODELS")
+
+mkdir -p "$ROOT_DIR/models/checkpoints" "$ROOT_DIR/models/diffusion_models" "$ROOT_DIR/models/text_encoders" \
+         "$ROOT_DIR/models/vae" "$ROOT_DIR/models/loras"
+ROOT_PATH=$(cd "$ROOT_DIR" && pwd)
+
+# --- torch backend -------------------------------------------------------------------------
+detect_backend() {
+  if [ "$(uname -s)" = "Darwin" ]; then echo "mps"; return; fi
+  if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then echo "cu132"; return; fi
+  if command -v rocminfo >/dev/null 2>&1 || [ -e /dev/kfd ]; then echo "rocm7.14"; return; fi
+  echo "cpu"
+}
+BACKEND="${DEFORUM_TORCH_BACKEND:-$(detect_backend)}"
+case "$BACKEND" in
+  mps)       TORCH_INDEX="" ;;   # the default PyPI wheels include Apple MPS support
+  cpu)       TORCH_INDEX="https://download.pytorch.org/whl/cpu" ;;
+  cu*|rocm*) TORCH_INDEX="https://download.pytorch.org/whl/$BACKEND" ;;
+  *) echo "Unknown DEFORUM_TORCH_BACKEND=$BACKEND" >&2; exit 1 ;;
+esac
+TORCH_SPEC="torch${DEFORUM_TORCH_VERSION:+==$DEFORUM_TORCH_VERSION}"
+echo "Python $PYVER, torch backend: $BACKEND"
+
+# --- ComfyUI -------------------------------------------------------------------------------
+if [ "$COMFY_DIR" = "src/ComfyUI" ]; then
+  git submodule update --init src/ComfyUI
 fi
-create_dir_if_not_exists "$VENV_DIR"
-VENV_PATH=$(realpath "$VENV_DIR")
+COMFY_PATH=$(cd "$COMFY_DIR" && pwd)
 
-# Collect ROOT_PATH
-if [ $SILENT -eq 0 ]; then
-    read -p "Root directory path or ENTER to skip (default: $ROOT_DIR): " ROOT_INPUT
-    ROOT_DIR=${ROOT_INPUT:-$ROOT_DIR}
+# --- environment ---------------------------------------------------------------------------
+if command -v uv >/dev/null 2>&1; then
+  uv venv -p "$PYVER" "$VENV_DIR"
+  PIP=(uv pip install -p "$VENV_DIR")
+else
+  "python$PYVER" -m venv "$VENV_DIR"
+  "$VENV_DIR/bin/python" -m pip install -U pip
+  PIP=("$VENV_DIR/bin/python" -m pip install)
 fi
-create_dir_if_not_exists "$ROOT_DIR"
-ROOT_PATH=$(realpath "$ROOT_DIR")
+VENV_PATH=$(cd "$VENV_DIR" && pwd)
 
-# Collect COMFY_PATH
-if [ $SILENT -eq 0 ]; then
-    read -p "ComfyUI directory path or ENTER to skip (default: $COMFY_DIR): " COMFY_INPUT
-    COMFY_DIR=${COMFY_INPUT:-$COMFY_DIR}
+if [ -n "$TORCH_INDEX" ]; then
+  "${PIP[@]}" "$TORCH_SPEC" torchvision --index-url "$TORCH_INDEX"
+else
+  "${PIP[@]}" "$TORCH_SPEC" torchvision
 fi
-create_dir_if_not_exists "$COMFY_DIR"
-COMFY_PATH=$(realpath "$COMFY_DIR")
+"${PIP[@]}" -r "$COMFY_PATH/requirements.txt"
+"${PIP[@]}" -e .
 
-# Save to .env file
-echo "VENV_PATH=$VENV_PATH" > .env
-echo "ROOT_PATH=$ROOT_PATH" >> .env
-echo "COMFY_PATH=$COMFY_PATH" >> .env
+{
+  echo "VENV_PATH=$VENV_PATH"
+  echo "ROOT_PATH=$ROOT_PATH"
+  echo "COMFY_PATH=$COMFY_PATH"
+  if [ -n "$EXTRA_MODELS" ]; then echo "EXTRA_MODEL_PATHS=$EXTRA_MODELS"; fi
+} > .env
 
-git submodule update --init --recursive
-
-# Create virtual environment and install dependencies
-python3 -m venv "$VENV_PATH"
-source "$VENV_PATH/bin/activate"
-pip install -e .
-
-echo "Installation completed successfully."
+"$VENV_PATH/bin/python" -c "import torch; from deforum.utils.device import get_device; print('torch', torch.__version__, 'device:', get_device())"
+echo "
+Done. Put models in $ROOT_PATH/models/{checkpoints,diffusion_models,text_encoders,vae}
+(or point EXTRA_MODEL_PATHS in .env at an existing ComfyUI models folder), then run: bash start.sh"

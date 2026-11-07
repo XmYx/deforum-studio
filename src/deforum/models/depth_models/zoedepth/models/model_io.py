@@ -46,6 +46,9 @@ def load_state_dict(model, state_dict):
 
         state[k] = v
 
+    # newer timm rebuilds BEiT's relative_position_index buffers instead of storing them
+    expected = model.state_dict().keys()
+    state = {k: v for k, v in state.items() if k in expected or not k.endswith("relative_position_index")}
     model.load_state_dict(state)
     print("Loaded successfully")
     return model
