@@ -12,12 +12,7 @@ from deforum import logger
 from deforum.shared_storage import models
 from deforum.utils.audio_utils.deforum_audio import get_audio_duration
 from deforum.utils.file_utils.extract_nth_files import extract_nth_files
-from deforum import DeforumAnimationPipeline
-
-if 'deforum_pipe' not in models:
-    models['deforum_pipe'] = DeforumAnimationPipeline.from_civitai(model_id="125703")
-
-loaded_model_id = "125703"
+from deforum.utils.model_catalog import get_pipeline
 
 
 def run_backend(settings_file):
@@ -41,7 +36,7 @@ def run_backend(settings_file):
 
     # Defaults / overrides
     params["settings_file"] = settings_file
-    models['deforum_pipe'].generator.optimize = params.get('optimize', True)
+    pipe = get_pipeline(params, models)
 
     # Parse prompts
     prom = params.get("prompts", "cat sushi")
@@ -139,7 +134,7 @@ def run_backend(settings_file):
         }
 
     # Generate animation
-    animation = models['deforum_pipe'](callback=None, **params)
+    animation = pipe(callback=None, **params)
 
     result = {
         "status": "Ready",

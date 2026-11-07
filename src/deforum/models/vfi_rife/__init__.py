@@ -8,6 +8,7 @@ from comfy.model_management import get_torch_device
 import re
 from functools import cmp_to_key
 from packaging import version
+from deforum.utils.device import empty_cache, get_device
 
 MODEL_TYPE = pathlib.Path(__file__).parent.name
 CKPT_NAME_VER_DICT = {
@@ -96,7 +97,7 @@ class RIFE_VFI:
             arch_ver = CKPT_NAME_VER_DICT[ckpt_name]
             self.model = IFNet(arch_ver=arch_ver)
             self.model.load_state_dict(torch.load(model_path))
-            self.model.eval().half().to('cuda')
+            self.model.eval().half().to(get_device())
         frames = preprocess_frames(frames)
         def return_middle_frame(frame_0, frame_1, timestep, model, scale_list, in_fast_mode, in_ensemble):
             return model(frame_0, frame_1, timestep, scale_list, in_fast_mode, in_ensemble)

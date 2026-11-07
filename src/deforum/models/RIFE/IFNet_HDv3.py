@@ -6,9 +6,10 @@ import torch.nn.functional as F
 
 sys.path.append(os.path.dirname(__file__))
 from warplayer import warp # pylint: disable=wrong-import-position
+from deforum.utils.device import empty_cache, get_device
 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = get_device()
 
 
 def conv(in_planes, out_planes, kernel_size=3, stride=1, padding=1, dilation=1):

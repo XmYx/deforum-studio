@@ -7,6 +7,7 @@ from PIL import Image
 from .leres.leres_lib.multi_depth_model_woauxi import RelDepthModel
 from .leres.leres_lib.net_tools import load_ckpt
 from ...utils.file_dl_util import download_file_with_checksum
+from deforum.utils.device import empty_cache, get_device
 
 
 class LeReSDepth:
@@ -21,7 +22,7 @@ class LeReSDepth:
 
         self.depth_model = RelDepthModel(backbone=self.backbone)
         self.depth_model.eval()
-        self.DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+        self.DEVICE = get_device()
         self.depth_model.to(self.DEVICE)
         load_ckpt(os.path.join(self.models_path, self.checkpoint_name), self.depth_model, None, None)
 

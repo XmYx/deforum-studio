@@ -22,6 +22,7 @@ from .video_frame_utils import get_frame_name
 from ..utils.gradio_utils import clean_gradio_path_strings
 
 from deforum.utils.logging_config import logger
+from deforum.utils.device import empty_cache, get_device
 
 # from ainodes_frontend import singleton as gs
 DEBUG_MODE = True
@@ -276,7 +277,7 @@ def unsharp_mask(img, kernel_size=(5, 5), sigma=1.0, amount=1.0, threshold=0, ma
     if amount == 0:
         return img
 
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = get_device()
 
     img_tensor = torch.from_numpy(img).float().to(device)
     blurred_tensor = cv2.GaussianBlur(img, kernel_size, sigma)
@@ -551,7 +552,7 @@ def save_image_thread(image, path, cls):
     #
     #     image = blended_image.convert('RGB')
 
-    image.save(path, "PNG")
+    image.save(path, "PNG", compress_level=1)  # fast; frames are re-encoded to video anyway
 
 def save_image(image, image_type, filename, args, video_args, root, cls=None):
     if video_args.store_frames_in_ram:

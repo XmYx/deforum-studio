@@ -12,6 +12,7 @@ from deforum.pipeline_utils import DeforumGenerationObject, extract_values
 from deforum.utils.constants import config
 from deforum.utils.video_save_util import save_as_h264
 from deforum.utils.logging_config import logger
+from deforum.utils.device import empty_cache, get_device
 
 def generate_keyframe_sequence(prompts, max_frames):
     keyframe_sequence = {}
@@ -44,7 +45,7 @@ def parse_weight_string(weight_string, max_frames):
         keyframe_dict[key] = value
 
     # Create a series with NaN values
-    series = pd.Series([np.nan] * max_frames)
+    series = pd.Series([np.nan] * max_frames, dtype=object)
 
     # Set the parsed values
     for key, value in keyframe_dict.items():
@@ -270,7 +271,7 @@ class DeforumAnimateDiffPipeline(DeforumBase):
                                                                 clamp_min=0.0,
                                                                 clamp_max=1.0,
                                                                 seed=self.gen.seed,
-                                                                device='cuda')[0]
+                                                                device=get_device())[0]
 
 
     @torch.inference_mode()
@@ -340,7 +341,7 @@ class DeforumAnimateDiffPipeline(DeforumBase):
 
 
         if latent == None and self.latents == None:
-            self.latents = torch.randn([self.gen.max_frames, 4, self.gen.height // 8, self.gen.width // 8]).to("cuda")
+            self.latents = torch.randn([self.gen.max_frames, 4, self.gen.height // 8, self.gen.width // 8]).to(get_device())
             strength = 1.0
         else:
             strength = 0.5

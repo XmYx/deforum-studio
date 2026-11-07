@@ -342,7 +342,10 @@ class MidasCore(nn.Module):
         # midas = torch.hub.load("intel-isl/MiDaS", midas_model_type,
         #                        pretrained=use_pretrained_midas, force_reload=force_reload)
         from deforum.models.depth_models.midas.dpt_depth import DPTDepthModel
-        midas = DPTDepthModel()
+        # local copy of the MiDaS hub models (same module layout, so Zoe checkpoints load into it)
+        backbones = {"DPT_BEiT_L_384": "beitl16_384", "DPT_BEiT_L_512": "beitl16_512",
+                     "DPT_Large": "vitl16_384", "DPT_Hybrid": "vitb_rn50_384"}
+        midas = DPTDepthModel(backbone=backbones.get(midas_model_type, "beitl16_384"), non_negative=True)
         kwargs.update({'keep_aspect_ratio': force_keep_ar})
         midas_core = MidasCore(midas, trainable=train_midas, fetch_features=fetch_features,
                                freeze_bn=freeze_bn, img_size=img_size, **kwargs)

@@ -10,6 +10,7 @@ from einops import rearrange
 from deforum.utils.logging_config import logger
 
 from . import py3d_tools as p3d
+from deforum.utils.device import empty_cache, get_device
 
 
 def sample_from_cv2(sample: np.ndarray) -> torch.Tensor:
@@ -184,7 +185,7 @@ def flip_3d_perspective(anim_args, prev_img_cv2, keys, frame_idx):
     )
 
 
-def anim_frame_warp(prev_img_cv2, args, anim_args, keys, frame_idx, depth_model=None, depth=None, device='cuda',
+def anim_frame_warp(prev_img_cv2, args, anim_args, keys, frame_idx, depth_model=None, depth=None, device=get_device(),
                     half_precision=False):
     mask = None
     if anim_args.use_depth_warping:
@@ -242,7 +243,7 @@ def anim_frame_warp_3d(device, prev_img_cv2, depth, anim_args, keys, frame_idx):
         if anim_args.enable_perspective_flip:
             prev_img_cv2 = flip_3d_perspective(anim_args, prev_img_cv2, keys, frame_idx)
         rot_mat = p3d.euler_angles_to_matrix(torch.tensor(rotate_xyz, device=device), "XYZ").unsqueeze(0)
-        result = transform_image_3d_switcher(torch.device('cuda'), prev_img_cv2, depth, rot_mat, translate_xyz,
+        result = transform_image_3d_switcher(get_device(), prev_img_cv2, depth, rot_mat, translate_xyz,
                                                    anim_args, keys, frame_idx)
         return result, None
     except Exception:
@@ -277,12 +278,12 @@ def transform_image_3d_legacy(device, prev_img_cv2, depth_tensor, rot_mat, trans
                                               T=torch.tensor([translate]), device=device)
 
     # range of [-1,1] is important to torch grid_sample's padding handling
-    y, x = torch.meshgrid(torch.linspace(-1., 1., h, dtype=torch.float16, device=device),
-                          torch.linspace(-1., 1., w, dtype=torch.float16, device=device))
+    y, x = torch.meshgrid(torch.linspace(-1., 1., h, dtype=torch.float32, device=device),
+                          torch.linspace(-1., 1., w, dtype=torch.float32, device=device))
     if depth_tensor is None:
         z = torch.ones_like(x)
     else:
-        z = torch.as_tensor(depth_tensor, dtype=torch.float16, device=device)
+        z = torch.as_tensor(depth_tensor, dtype=torch.float32, device=device)
     xyz_old_world = torch.stack((x.flatten(), y.flatten(), z.flatten()), dim=1)
 
     xyz_old_cam_xy = persp_cam_old.get_full_projection_transform().transform_points(xyz_old_world)[:, 0:2]
@@ -359,8 +360,8 @@ def transform_image_3d_deprecating(device, prev_img_cv2, depth_tensor, rot_mat, 
                                               T=torch.tensor([translate]), device=device)
 
     # make xy meshgrid - range of [-1,1] is important to torch grid_sample's padding handling
-    y, x = torch.meshgrid(torch.linspace(-1., 1., h, dtype=torch.float16, device=device),
-                          torch.linspace(-1., 1., w, dtype=torch.float16, device=device))
+    y, x = torch.meshgrid(torch.linspace(-1., 1., h, dtype=torch.float32, device=device),
+                          torch.linspace(-1., 1., w, dtype=torch.float32, device=device))
 
     # test tensor for validity (some are corrupted for some reason)
     depth_tensor_invalid = depth_tensor is None# or torch.isnan(depth_tensor).any() or torch.isinf(
@@ -393,7 +394,7 @@ def transform_image_3d_deprecating(device, prev_img_cv2, depth_tensor, rot_mat, 
         #print(f"{console_txt} {txt_depth_min}/{txt_depth_max} diff {diff}\033[0m")
 
         # add z from depth
-        z = torch.as_tensor(depth_final, dtype=torch.float16, device=device)
+        z = torch.as_tensor(depth_final, dtype=torch.float32, device=device)
 
     # calculate offset_xy
     xyz_old_world = torch.stack((x.flatten(), y.flatten(), z.flatten()), dim=1)
@@ -440,12 +441,13 @@ def transform_image_3d_new(device, prev_img_cv2, depth_tensor, rot_mat, translat
         "adabins": (1, 1, 1),
         "leres": (1, 1, 1),
         "zoe": (1, 1, 1),
-        "depth-anything": (1, 1, 1)
+        "depth-anything": (1, -1, -2),
     }
 
-    depth, depth_factor, depth_offset = depth_params.get(
-        anim_args.depth_algorithm.lower(), (1, 1, 1)
-    )
+    # MiDaS and Depth-Anything predict inverse depth (near = large), the others metric depth (near = small)
+    algo = anim_args.depth_algorithm.lower()
+    depth, depth_factor, depth_offset = next(
+        (v for k, v in depth_params.items() if algo.startswith(k)), (1, 1, 1))
 
     # Get image dimensions and aspect ratio
     h, w = prev_img_cv2.shape[:2]
@@ -460,7 +462,7 @@ def transform_image_3d_new(device, prev_img_cv2, depth_tensor, rot_mat, translat
     # Define perspective cameras
     persp_cam_old = p3d.FoVPerspectiveCameras(near, far, aspect_ratio, fov=fov_deg, degrees=True, device=device)
     persp_cam_new = p3d.FoVPerspectiveCameras(near, far, aspect_ratio, fov=fov_deg, degrees=True,
-                                              R=rot_mat, T=torch.tensor([translate], device=device, dtype=torch.float32)).cuda()
+                                              R=rot_mat.float(), T=torch.tensor([translate], device=device, dtype=torch.float32), device=device)
 
     # Create xy meshgrid
     y, x = torch.meshgrid(torch.linspace(-1., 1., h, dtype=torch.float32, device=device),
@@ -481,7 +483,7 @@ def transform_image_3d_new(device, prev_img_cv2, depth_tensor, rot_mat, translat
         z = depth_final.to(device, dtype=torch.float32)
 
     # Calculate offset_xy
-    xyz_old_world = torch.stack((x.flatten(), y.flatten(), z.flatten()), dim=1).half().cuda()
+    xyz_old_world = torch.stack((x.flatten(), y.flatten(), z.flatten()), dim=1).float()
     xyz_old_cam_xy = persp_cam_old.get_full_projection_transform().transform_points(xyz_old_world)[:, 0:2]
     xyz_new_cam_xy = persp_cam_new.get_full_projection_transform().transform_points(xyz_old_world)[:, 0:2]
     offset_xy = xyz_new_cam_xy - xyz_old_cam_xy

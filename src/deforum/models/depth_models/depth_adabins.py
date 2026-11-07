@@ -7,6 +7,7 @@ from PIL import Image
 from ...utils.file_dl_util import download_file_with_checksum
 from torchvision import transforms as TF
 import torch.nn.functional as F
+from deforum.utils.device import empty_cache, get_device
 
 
 # from deforum.general_utils import download_file_with_checksum
@@ -22,7 +23,7 @@ class AdaBinsModel:
         return cls._instance
 
     def _initialize(self, models_path, keep_in_vram=False):
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = get_device()
         self.keep_in_vram = keep_in_vram
         self.adabins_helper = None
         
@@ -77,7 +78,7 @@ class AdaBinsModel:
         # except Exception as e:
         #     print("AdaBins exception encountered. Falling back to pure MiDaS/Zoe (only if running in Legacy Midas/Zoe+AdaBins mode)")
         #     use_adabins = False
-        # torch.cuda.empty_cache()
+        # empty_cache()
 
         return use_adabins, adabins_depth
         

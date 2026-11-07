@@ -1,17 +1,30 @@
 {
   "General Settings": {
-    "optimize": {
-      "widget_type": "checkbox",
-      "default": false,
-      "label": "Optimize with StableFast"},
+    "model": {
+      "label": "Model",
+      "widget_type": "dropdown",
+      "options": [],
+      "default": "",
+      "accessible_name": "Image model (checkpoint or diffusion model)"
+    },
+    "vae": {
+      "label": "VAE",
+      "widget_type": "dropdown",
+      "options": [
+        "Auto"
+      ],
+      "default": "Auto"
+    },
     "model_id": {
-      "label": "Model ID",
+      "label": "CivitAI model id (when Model = CivitAI model id)",
       "widget_type": "text input",
-      "default": "125703"
+      "default": ""
     },
     "settings_file": {
       "widget_type": "file_input",
-      "accepted_file_types": [".txt"],
+      "accepted_file_types": [
+        ".txt"
+      ],
       "default": null,
       "label": "Upload Settings File",
       "accessible_name": "Settings File Upload"
@@ -31,19 +44,23 @@
     "dry_run": {
       "widget_type": "checkbox",
       "default": false,
-      "label": "Dry Run"},
+      "label": "Dry Run"
+    },
     "deforum_save_gen_info_as_srt": {
       "widget_type": "checkbox",
       "default": false,
-      "label": "Save SRT Subtitle"},
+      "label": "Save SRT Subtitle"
+    },
     "resume_from_timestring": {
       "widget_type": "checkbox",
       "default": false,
-      "label": "Resume"},
+      "label": "Resume"
+    },
     "resume_from_frame": {
       "widget_type": "checkbox",
       "default": false,
-      "label": "Resume From Frame"},
+      "label": "Resume From Frame"
+    },
     "resume_from": {
       "widget_type": "number",
       "default": 1,
@@ -108,11 +125,14 @@
     "enable_steps_scheduling": {
       "widget_type": "checkbox",
       "default": false,
-      "label": "Steps Scheduling"},
-
+      "label": "Steps Scheduling"
+    },
     "show_info_on_ui": {
       "widget_type": "dropdown",
-      "options": [true, false],
+      "options": [
+        true,
+        false
+      ],
       "default": true,
       "label": "Show Info on UI",
       "accessible_name": "Toggle Information Display on UI"
@@ -128,12 +148,11 @@
     "seed_behavior": {
       "widget_type": "dropdown",
       "options": [
-                  "random",
-                  "fixed",
-                  "ladder",
-                  "iter"
-
-              ],
+        "random",
+        "fixed",
+        "ladder",
+        "iter"
+      ],
       "default": "random",
       "label": "Seed Behavior",
       "accessible_name": "Seed Behavior"
@@ -141,8 +160,8 @@
     "enable_subseed_scheduling": {
       "widget_type": "checkbox",
       "default": false,
-      "label": "Subseed Scheduling"},
-
+      "label": "Subseed Scheduling"
+    },
     "subseed_schedule": {
       "widget_type": "text box",
       "default": "0: (-1)",
@@ -157,16 +176,44 @@
     },
     "sampler_name": {
       "widget_type": "dropdown",
-      "options": ["euler", "euler_ancestral", "heun", "heunpp2","dpm_2", "dpm_2_ancestral",
-                   "lms", "dpm_fast", "dpm_adaptive", "dpmpp_2s_ancestral", "dpmpp_sde", "dpmpp_sde_gpu",
-                   "dpmpp_2m", "dpmpp_2m_sde", "dpmpp_2m_sde_gpu", "dpmpp_3m_sde", "dpmpp_3m_sde_gpu", "ddpm", "lcm", "ddim", "uni_pc", "uni_pc_bh2"],
-      "default": "DPM++ 2M SDE Karras",
+      "options": [
+        "euler",
+        "euler_ancestral",
+        "heun",
+        "heunpp2",
+        "dpm_2",
+        "dpm_2_ancestral",
+        "lms",
+        "dpm_fast",
+        "dpm_adaptive",
+        "dpmpp_2s_ancestral",
+        "dpmpp_sde",
+        "dpmpp_sde_gpu",
+        "dpmpp_2m",
+        "dpmpp_2m_sde",
+        "dpmpp_2m_sde_gpu",
+        "dpmpp_3m_sde",
+        "dpmpp_3m_sde_gpu",
+        "ddpm",
+        "lcm",
+        "ddim",
+        "uni_pc",
+        "uni_pc_bh2"
+      ],
+      "default": "euler_ancestral",
       "label": "Sampler",
       "accessible_name": "Sampling Algorithm"
     },
     "scheduler": {
       "widget_type": "dropdown",
-      "options": ["normal", "karras", "exponential", "sgm_uniform", "simple", "ddim_uniform"],
+      "options": [
+        "normal",
+        "karras",
+        "exponential",
+        "sgm_uniform",
+        "simple",
+        "ddim_uniform"
+      ],
       "default": "normal",
       "label": "Scheduler",
       "accessible_name": "Scheduler Algorithm"
@@ -181,19 +228,36 @@
   "Animation & Motion": {
     "animation_mode": {
       "widget_type": "dropdown",
-      "options": ["2D", "3D", "None"],
+      "options": [
+        "2D",
+        "3D",
+        "Video Input",
+        "Interpolation",
+        "World Model",
+        "None"
+      ],
       "default": "3D",
       "label": "Animation Mode"
     },
     "use_depth_warping": {
       "widget_type": "checkbox",
-      "default": false,
+      "default": true,
       "label": "Use Depth Warping"
     },
     "depth_algorithm": {
       "widget_type": "dropdown",
-      "options": ["Midas+AdaBins (old)", "Zoe+AdaBins (old)", "Midas-3-Hybrid", "AdaBins", "Zoe", "Leres", "Depth-Anything"],
-      "default": "Midas-3-Hybrid",
+      "options": [
+        "Depth-Anything-V2",
+        "Depth-Anything-V2-Base",
+        "Midas-3-Hybrid",
+        "Midas-3.1-BeitLarge",
+        "Zoe",
+        "Leres",
+        "AdaBins",
+        "Midas+AdaBins (old)",
+        "Zoe+AdaBins (old)"
+      ],
+      "default": "Depth-Anything-V2",
       "label": "Depth Algorithm"
     },
     "midas_weight": {
@@ -265,7 +329,6 @@
       "label": "Rotation Z\n(Dutch)",
       "accessible_name": "Z-axis Rotation Formula"
     }
-
   },
   "Diffusion Schedules": {
     "steps_schedule": {
@@ -299,7 +362,6 @@
       "accessible_name": "ParSeq"
     }
   },
-  
   "Cadence": {
     "diffusion_cadence": {
       "widget_type": "number",
@@ -315,7 +377,16 @@
     },
     "optical_flow_cadence": {
       "widget_type": "dropdown",
-      "options": ["None", "RAFT", "DIS Medium", "DIS Fine", "Farneback", "Custom", "DIS Medium Torch", "Farneback Torch"],
+      "options": [
+        "None",
+        "RAFT",
+        "DIS Medium",
+        "DIS Fine",
+        "Farneback",
+        "Custom",
+        "DIS Medium Torch",
+        "Farneback Torch"
+      ],
       "default": "None",
       "label": "Cadence Type"
     },
@@ -327,7 +398,11 @@
     },
     "frame_interpolation_engine": {
       "widget_type": "dropdown",
-      "options": ["None", "RIFE", "FILM"],
+      "options": [
+        "None",
+        "RIFE",
+        "FILM"
+      ],
       "default": "None",
       "label": "Frame Interpolation Engine"
     },
@@ -388,19 +463,43 @@
     },
     "hybrid_motion": {
       "widget_type": "dropdown",
-      "options": ["None", "Optical Flow", "Perspective", "Affine"],
+      "options": [
+        "None",
+        "Optical Flow",
+        "Perspective",
+        "Affine"
+      ],
       "default": "None",
       "label": "Hybrid motion"
     },
     "hybrid_flow_method": {
       "widget_type": "dropdown",
-      "options": ["None", "RAFT", "DIS Medium", "DIS Fine", "Farneback", "DenseRLOF", "SF", "DualTVL1", "DeepFlow", "PCAFlow", "Custom", "DIS Medium Torch", "Farneback Torch"],
+      "options": [
+        "None",
+        "RAFT",
+        "DIS Medium",
+        "DIS Fine",
+        "Farneback",
+        "DenseRLOF",
+        "SF",
+        "DualTVL1",
+        "DeepFlow",
+        "PCAFlow",
+        "Custom",
+        "DIS Medium Torch",
+        "Farneback Torch"
+      ],
       "default": "RAFT",
       "label": "Hybrid motion"
     },
     "hybrid_composite": {
       "widget_type": "dropdown",
-      "options": ["None", "Normal", "Before Motion", "After Generation"],
+      "options": [
+        "None",
+        "Normal",
+        "Before Motion",
+        "After Generation"
+      ],
       "default": "None",
       "label": "Hybrid Composite"
     },
@@ -432,14 +531,19 @@
       "default": false,
       "label": "Generate Viz"
     }
-
-
   },
   "Image & Mask Settings": {
     "color_coherence": {
       "widget_type": "dropdown",
-      "options": ["None", "HSV", "LAB", "RGB", "Video Input", "Image"],
-      "default": "None",
+      "options": [
+        "None",
+        "HSV",
+        "LAB",
+        "RGB",
+        "Video Input",
+        "Image"
+      ],
+      "default": "LAB",
       "label": "Color Coherence"
     },
     "color_correction_factor": {
@@ -449,13 +553,20 @@
     },
     "noise_type": {
       "widget_type": "dropdown",
-      "options": ["uniform", "perlin", "None"],
+      "options": [
+        "uniform",
+        "perlin",
+        "None"
+      ],
       "default": "perlin",
       "label": "Noise Type"
     },
     "use_init": {
       "widget_type": "checkbox",
-      "options": [true, false],
+      "options": [
+        true,
+        false
+      ],
       "default": false,
       "label": "Use Initial Image",
       "accessible_name": "Use an Initial Image for Generation"
@@ -468,7 +579,10 @@
     },
     "use_mask": {
       "widget_type": "checkbox",
-      "options": [true, false],
+      "options": [
+        true,
+        false
+      ],
       "default": false,
       "label": "Use Mask",
       "accessible_name": "Use a Mask for Generation"
@@ -487,10 +601,14 @@
     "use_mask_video": {
       "widget_type": "checkbox",
       "default": false,
-      "label": "Use Mask Video"},
+      "label": "Use Mask Video"
+    },
     "overlay_mask": {
       "widget_type": "checkbox",
-      "options": [true, false],
+      "options": [
+        true,
+        false
+      ],
       "default": false,
       "label": "Overlay Mask",
       "accessible_name": "Overlay Mask Over the Image"
@@ -590,20 +708,49 @@
         "cosine",
         "squaredcos_cap_v2",
         "linear",
-        "sqrt_linear"]
+        "sqrt_linear"
+      ]
     },
     "ad_sampler_name": {
       "widget_type": "dropdown",
-      "options": ["euler", "euler_ancestral", "heun", "heunpp2","dpm_2", "dpm_2_ancestral",
-                   "lms", "dpm_fast", "dpm_adaptive", "dpmpp_2s_ancestral", "dpmpp_sde", "dpmpp_sde_gpu",
-                   "dpmpp_2m", "dpmpp_2m_sde", "dpmpp_2m_sde_gpu", "dpmpp_3m_sde", "dpmpp_3m_sde_gpu", "ddpm", "lcm", "ddim", "uni_pc", "uni_pc_bh2"],
-      "default": "DPM++ 2M SDE Karras",
+      "options": [
+        "euler",
+        "euler_ancestral",
+        "heun",
+        "heunpp2",
+        "dpm_2",
+        "dpm_2_ancestral",
+        "lms",
+        "dpm_fast",
+        "dpm_adaptive",
+        "dpmpp_2s_ancestral",
+        "dpmpp_sde",
+        "dpmpp_sde_gpu",
+        "dpmpp_2m",
+        "dpmpp_2m_sde",
+        "dpmpp_2m_sde_gpu",
+        "dpmpp_3m_sde",
+        "dpmpp_3m_sde_gpu",
+        "ddpm",
+        "lcm",
+        "ddim",
+        "uni_pc",
+        "uni_pc_bh2"
+      ],
+      "default": "dpmpp_2m_sde",
       "label": "Sampler",
       "accessible_name": "Sampling Algorithm"
     },
     "ad_scheduler": {
       "widget_type": "dropdown",
-      "options": ["normal", "karras", "exponential", "sgm_uniform", "simple", "ddim_uniform"],
+      "options": [
+        "normal",
+        "karras",
+        "exponential",
+        "sgm_uniform",
+        "simple",
+        "ddim_uniform"
+      ],
       "default": "normal",
       "label": "Scheduler",
       "accessible_name": "Scheduler Algorithm"
@@ -635,6 +782,30 @@
       "min": -1,
       "max": 2147483647,
       "label": "AD Seed"
+    }
+  },
+  "World Model": {
+    "world_model_policy": {
+      "label": "FLUX.3 Action policy (Hub repo or folder; empty = default DROID)",
+      "widget_type": "text input",
+      "default": ""
+    },
+    "world_model_subfolder": {
+      "label": "Policy variant (e.g. variants/gd-fp8r)",
+      "widget_type": "text input",
+      "default": "variants/gd-fp8r"
+    },
+    "world_model_refine_denoise": {
+      "label": "Refine with image model (denoise, 0 = off)",
+      "widget_type": "float",
+      "min": 0.0,
+      "max": 1.0,
+      "default": 0.35
+    },
+    "world_model_video_guided": {
+      "label": "Re-anchor each chunk on the init video",
+      "widget_type": "checkbox",
+      "default": false
     }
   }
 }

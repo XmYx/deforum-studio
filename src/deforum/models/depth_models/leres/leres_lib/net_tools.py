@@ -2,6 +2,7 @@ import importlib
 import torch
 import os
 from collections import OrderedDict
+from deforum.utils.device import empty_cache, get_device
 
 
 def get_func(func_name):
@@ -40,7 +41,7 @@ def load_ckpt(args, depth_model, shift_model, focal_model):
         depth_model.load_state_dict(strip_prefix_if_present(checkpoint['depth_model'], "module."),
                                     strict=True)
         del checkpoint
-        torch.cuda.empty_cache()
+        empty_cache()
 
 
 def strip_prefix_if_present(state_dict, prefix):

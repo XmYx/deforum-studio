@@ -58,12 +58,36 @@ os.makedirs(os.path.join(config.root_path, 'milks'), exist_ok=True)
 # Define known extensions
 known_extensions = ['pth', 'bin', 'ckpt', 'safetensors']  # Replace with actual extensions
 
-# Populate known_dropdowns
+def _safe_list(fn, fallback=()):
+    try:
+        return list(fn())
+    except Exception as e:
+        logger.warning(f"Could not list {getattr(fn, '__name__', fn)}: {e}")
+        return list(fallback)
+
+
+def _comfy_names(kind):
+    from deforum.generators.comfy_utils import ensure_comfy
+    ensure_comfy()
+    import folder_paths
+    try:
+        return sorted(folder_paths.get_filename_list(kind))
+    except KeyError:
+        return []
+
+
+# Dropdowns whose options come from the installed models / ComfyUI rather than ui.json
+from deforum.utils import model_catalog  # noqa: E402
+
 known_dropdowns = {
     "milk_path": list_presets(os.path.join(config.root_path, 'milks'), ['txt']),
-    "ad_sd_model": list_presets(os.path.join(config.comfy_path, 'models', 'checkpoints'), known_extensions),
-    "ad_lora": list_presets(os.path.join(config.comfy_path, 'models', 'loras'), known_extensions),
-    "ad_model": list_presets(os.path.join(config.comfy_path, 'models', 'animatediff_models'), known_extensions)
+    "model": _safe_list(model_catalog.list_models) + [model_catalog.CIVITAI],
+    "vae": _safe_list(model_catalog.list_vaes, [model_catalog.AUTO]),
+    "sampler_name": _safe_list(model_catalog.list_samplers),
+    "scheduler": _safe_list(model_catalog.list_schedulers),
+    "ad_sd_model": _safe_list(lambda: _comfy_names("checkpoints")),
+    "ad_lora": _safe_list(lambda: _comfy_names("loras")),
+    "ad_model": _safe_list(lambda: _comfy_names("animatediff_models")),
 }
 
 try:
@@ -692,11 +716,14 @@ class MainWindow(DeforumCore):
                     self.createDoubleSpinBox(params['label'], layout, params['min'], params['max'], 0.01, params['default'], setting)
 
                 elif params['widget_type'] == 'dropdown':
-                    if setting in known_dropdowns:
+                    if setting in known_dropdowns and known_dropdowns[setting]:
                         options = known_dropdowns[setting]
                     else:
-                        options = [str(param) for param in params['options']]
-                    self.createComboBox(params['label'], layout, options, setting)
+                        options = [str(param) for param in params.get('options', [])]
+                    combo = self.createComboBox(params['label'], layout, options, setting)
+                    default = model_catalog.default_model() if setting == 'model' else params.get('default')
+                    if default and str(default) in options:
+                        combo.setCurrentText(str(default))
                 elif params['widget_type'] == 'text input':
                     self.createTextInput(params['label'], layout, params['default'], setting)
                 elif params['widget_type'] == 'text box':
@@ -1475,8 +1502,8 @@ class MainWindow(DeforumCore):
                 p = copy.deepcopy(self.params)
                 _ = p.pop('max_frames')
                 models["deforum_pipe"].live_update_from_kwargs(**p)
-        except:
-            pass
+        except Exception as e:
+            logger.warning(f"Live update of '{key}' failed: {e}")
 
     def generateVizData(self):
         directory_path = os.path.join(config.root_path, 'temp_viz_images')

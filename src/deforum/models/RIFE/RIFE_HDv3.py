@@ -7,9 +7,10 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 sys.path.append(os.path.dirname(__file__))
 from IFNet_HDv3 import IFNet # pylint: disable=wrong-import-position
 from loss import EPE, SOBEL # pylint: disable=wrong-import-position
+from deforum.utils.device import empty_cache, get_device
 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = get_device()
 
 
 class Model:

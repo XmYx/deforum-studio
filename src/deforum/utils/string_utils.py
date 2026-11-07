@@ -54,7 +54,7 @@ def split_weighted_subprompts(text, frame=0, max_frames=0):
     """
     splits the prompt based on deforum webui implementation, moved from generate.py
     """
-    math_parser = re.compile("""
+    math_parser = re.compile(r"""
             (?P<weight>(
             `[\S\s]*?`# a math function wrapped in `-characters
             ))
@@ -89,7 +89,7 @@ def interpolate_prompts(animation_prompts, max_frames):
     sorted_prompts = sorted(parsed_animation_prompts.items(), key=lambda item: int(item[0]))
 
     # Setup container for interpolated prompts
-    prompt_series = pd.Series([np.nan for a in range(max_frames)])
+    prompt_series = pd.Series([np.nan for a in range(max_frames)], dtype=object)
 
     # For every keyframe prompt except the last
     for i in range(0, len(sorted_prompts) - 1):
@@ -173,8 +173,8 @@ def prepare_prompt(prompt_series, max_frames, seed, frame_idx):
     #     logger.info(f"\033[91mNeg Prompt: \033[0m{after_neg}")
     #     prompt_to_print += f"--neg {after_neg}"
 
-    # set value back into the prompt
-    return prompt_to_print
+    # keep the per-prompt negative so the generator can use it
+    return f"{prompt_to_print} --neg {after_neg}" if after_neg else prompt_to_print
 
 
 def get_max_path_length(base_folder_path):

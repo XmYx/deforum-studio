@@ -1,38 +1,78 @@
 # Deforum
-State-of-the-art Animation Diffusion in PyTorch and TRT.
+State-of-the-art Animation Diffusion in PyTorch, for every model from SD 1.5 to FLUX.3.
 
 ## System Requirements
-- Linux-like operating system
-- NVIDIA GPU with CUDA drivers
+- Python 3.11, 3.12, 3.13 or 3.14
+- PyTorch 2.6+ (tested with 2.15) on any of:
+  - NVIDIA GPU (CUDA 12.8 / 13.x wheels)
+  - AMD GPU on Linux (ROCm wheels)
+  - Apple Silicon (MPS)
+  - CPU (slow, but works)
+- Linux, Windows or macOS
+
+## Supported models
+Generation runs on ComfyUI's model code (bundled as a git submodule and used as a library), so every
+image model family ComfyUI loads works in every Deforum mode (2D, 3D, Video Input, Interpolation):
+
+| Family | What to put where |
+|---|---|
+| SD 1.x / 2.x, SDXL (and fine-tunes), SD3 all-in-one | single file in `models/checkpoints` |
+| FLUX.1 dev/schnell, Chroma | diffusion model in `models/diffusion_models`, `clip_l` + `t5xxl` in `models/text_encoders`, `ae` VAE in `models/vae` |
+| FLUX.2 dev / Klein | diffusion model, Mistral-3 (dev) or Qwen3 (Klein) text encoder, `flux2-vae` |
+| FLUX.3 Image Klein | diffusion model, `qwen3vl_4b` text encoder, `flux2-vae` |
+| Qwen-Image, Lumina 2 / Z-Image | diffusion model + its text encoder + VAE |
+
+For split releases the matching text encoder(s) and VAE are found automatically by file name; they can
+also be set explicitly (`text_encoders`, `vae`, `clip_type` settings). Guidance-distilled models
+(FLUX.1-dev, FLUX.2-dev) receive the CFG scale schedule as distilled guidance. Flow-matching models get a
+fitting schedule automatically when a Karras/exponential schedule is selected (`flux2` = the official
+resolution-aware FLUX.2 schedule). FLUX.3 uses BFL's reference settings: euler / `simple`, CFG 1, flow shift ln 16.
+
+Model folders: `~/deforum/models/<kind>`, the bundled `src/ComfyUI/models/<kind>`, and any existing
+ComfyUI `models` folder listed in `EXTRA_MODEL_PATHS` (in `.env` or the environment).
+
+## World Model mode (FLUX.3 Action)
+`animation_mode = "World Model"` lets [FLUX.3 Action](https://huggingface.co/collections/black-forest-labs/flux-3-action)
+predict the animation: from the current frame and the frame's prompt it predicts the next ~2 s of video
+(the frames it normally discards when used as a robot policy). The input can be an init image, an init video
+(optionally re-anchored on the video every chunk) or the animation's own frames, and each predicted frame can be
+refined with the selected image model (`world_model_refine_denoise`, 0 = raw predictions).
+
+It needs its own environment: run `bash install_worldmodel.sh` after accepting the (gated) model license and
+`hf auth login` (it pins flux-action's validated torch 2.10 + CUDA 12.8 with the matching NATTEN kernels).
+The DiT and video VAE take ~10 GB of VRAM; the 8.9 GB text encoder stays in RAM. FLUX.3 Action is trained on robot, driving and game footage, so predictions from artistic
+frames drift toward that domain; image-model refinement keeps the look. Camera keyframes do not steer it
+(that needs a FLUX.3 Action checkpoint with a camera/gaming action head).
 
 ## Installation
-Currently, the repository is in development, but we already provide an easy installer for Windows and Linux.
 
-### For Users:
-On windows, run start.bat
-On linux run bash start.sh
+### For Users
+- Linux / macOS: `bash install.sh`, then `bash start.sh`
+- Windows: `install.bat`, then `start.bat`
+
+The installer detects the hardware and installs the matching PyTorch build (CUDA, ROCm, MPS or CPU).
+Override with `DEFORUM_TORCH_BACKEND` (`cu132`, `cu130`, `cu128`, `rocm7.14`, `cpu`, `mps`) and pick the
+Python version with `DEFORUM_PYTHON` (default 3.12).
 
 ### For Developers
-1. Clone the repository:
-   ```bash
-   git clone --recursive https://github.com/deforum-studio/deforum
-   cd deforum
-   ```
-2. Create a virtual environment for `python==3.10`:
-   - Using venv:
-     ```bash
-     virtualenv venv -p 3.10
-     source venv/bin/activate
-     ```
-   - Using conda:
-     ```bash
-     conda create -n deforum python=3.10
-     conda activate deforum
-     ```
-3. Install the library with developer dependencies:
-   ```bash
-   pip install -e .
-   ```
+```bash
+git clone --recursive https://github.com/deforum-studio/deforum
+cd deforum
+uv venv -p 3.12 && source .venv/bin/activate        # or python3.12 -m venv .venv
+# 1. PyTorch for your hardware, e.g. CUDA 13.2 / ROCm / Apple (plain `pip install torch torchvision`)
+uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu132
+# 2. ComfyUI's requirements, then Deforum
+uv pip install -r src/ComfyUI/requirements.txt
+uv pip install -e ".[dev]"
+```
+Set `DEFORUM_DEVICE` (e.g. `cpu`, `cuda:1`, `mps`) to force a device.
+
+### Performance notes
+- All prompt embeddings of an animation are encoded before the first frame; the text encoder then leaves
+  VRAM, so frames never wait on a text-encoder / diffusion-model swap (matters most for FLUX-class encoders).
+- Models stay in RAM between renders; only VRAM is released after a run.
+- Depth: Depth-Anything-V2 and MiDaS take ~10 ms/frame on an RTX 4090 at 1024x576 (LeReS ~20 ms, AdaBins ~50 ms,
+  Zoe ~115 ms). Depth maps computed for saving are reused for the next frame's 3D warp.
 
 ## Configuration
 
@@ -42,6 +82,9 @@ Configuraton is loaded with [python-decouple](https://pypi.org/project/python-de
 
 Configuration options include:
 
+- `EXTRA_MODEL_PATHS`: one or more existing ComfyUI `models` folders (separated by `:` on Linux/macOS, `;` on Windows) to load models from.
+- `DEFORUM_DEVICE`: force a device (`cpu`, `cuda:1`, `mps`, ...). Default: best available (CUDA/ROCm, MPS, XPU, CPU).
+- `DEFORUM_FP16_ACCUMULATION`: fp16 matmul accumulation on NVIDIA, ~15-20% faster sampling. Default: on; set `0` to disable.
 - `ROOT_PATH` (aka deforum storage path): root path under which deforum will store and search all non-code assets like models, settings files, output videos etc.... Default: `~/deforum`
 - `PRESETS_PATH`: directory in which tests and run commands expect to find presets as defined by `https://github.com/deforum-studio/deforum-presets.git`. Default: `{ROOT_DIR}/presets`
 - `SETTINGS_PATH`: output directory for settings files. Default: `{ROOT_DIR}/settings`
@@ -128,7 +171,6 @@ Deforum has the following CLI modes:
 - `deforum webui`: Streamlit web UI for configuring and running animations
 - `deforum animatediff`: Command-line tool for running animations
 - `deforum api`: FastAPI server
-- `deforum setup`: Install Stable-Fast optimizations
 - `deforum runsingle --file ~/deforum/presets/preset.txt`: Run single settings file
 - `deforum config`
 - `deforum test-e2e`: Run all settings files under `{PRESETS_PATH}/settings` (defaults to `~/deforum/presets/settings/`) 

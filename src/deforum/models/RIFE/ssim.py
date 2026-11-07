@@ -2,8 +2,9 @@ from math import exp
 
 import torch
 import torch.nn.functional as F
+from deforum.utils.device import empty_cache, get_device
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = get_device()
 
 
 def gaussian(window_size, sigma):

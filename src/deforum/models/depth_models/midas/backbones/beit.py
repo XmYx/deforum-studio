@@ -17,7 +17,7 @@ def forward_beit(pretrained, x):
 
 def patch_embed_forward(self, x):
     """
-    Modification of timm.models.layers.patch_embed.py: PatchEmbed.forward to support arbitrary window sizes.
+    Modification of timm.layers.patch_embed.py: PatchEmbed.forward to support arbitrary window sizes.
     """
     x = self.proj(x)
     if self.flatten:
@@ -95,13 +95,16 @@ def block_forward(self, x, resolution, shared_rel_pos_bias: Optional[torch.Tenso
     """
     Modification of timm.models.beit.py: Block.forward to support arbitrary window sizes.
     """
+    # timm >= 0.9 split drop_path into drop_path1/drop_path2
+    drop_path1 = getattr(self, "drop_path1", None) or self.drop_path
+    drop_path2 = getattr(self, "drop_path2", None) or self.drop_path
     if self.gamma_1 is None:
-        x = x + self.drop_path(self.attn(self.norm1(x), resolution, shared_rel_pos_bias=shared_rel_pos_bias))
-        x = x + self.drop_path(self.mlp(self.norm2(x)))
+        x = x + drop_path1(self.attn(self.norm1(x), resolution, shared_rel_pos_bias=shared_rel_pos_bias))
+        x = x + drop_path2(self.mlp(self.norm2(x)))
     else:
-        x = x + self.drop_path(self.gamma_1 * self.attn(self.norm1(x), resolution,
-                                                        shared_rel_pos_bias=shared_rel_pos_bias))
-        x = x + self.drop_path(self.gamma_2 * self.mlp(self.norm2(x)))
+        x = x + drop_path1(self.gamma_1 * self.attn(self.norm1(x), resolution,
+                                                    shared_rel_pos_bias=shared_rel_pos_bias))
+        x = x + drop_path2(self.gamma_2 * self.mlp(self.norm2(x)))
     return x
 
 

@@ -8,6 +8,7 @@ from tqdm import tqdm
 
 from .film_util import load_image
 from ...utils.constants import config
+from deforum.utils.device import empty_cache, get_device
 
 
 def poorman_wget(url, filename):
@@ -54,7 +55,7 @@ class FilmModel():
             torch.backends.cudnn.benchmark = True
 
     def inference(self, img1, img2, inter_frames):
-        self.model.cuda()
+        self.model.to(get_device())
         img_batch_1, crop_region_1 = load_image(img1)
         img_batch_2, crop_region_2 = load_image(img2)
 
@@ -84,8 +85,8 @@ class FilmModel():
 
             x0 = x0.half()
             x1 = x1.half()
-            x0 = x0.cuda()
-            x1 = x1.cuda()
+            x0 = x0.to(get_device())
+            x1 = x1.to(get_device())
 
             dt = x0.new_full((1, 1), (splits[remains[step]] - splits[idxes[start_i]])) / (splits[idxes[end_i]] - splits[idxes[start_i]])
 
